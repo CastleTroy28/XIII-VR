@@ -15,9 +15,15 @@ class NativeHandTests
         foreach(float unit in new[]{.001f,.2f,1f,100f})foreach(bool right in new[]{true,false})
         {
             var rig=Matrix4x4.CreateScale(unit)*Matrix4x4.CreateFromYawPitchRoll(.9f,.35f,-.6f)*Matrix4x4.CreateTranslation(.31f,-.2f,.7f);
+            // In millimetres the whole hand is 0.2 mm long and sits 0.8 m from
+            // the origin: a float resolves it to about 1e-7 m, which is 5e-5 of
+            // the 17 cm canonical hand - the plain tolerance itself. Newer .NET
+            // runtimes round differently (fused multiply-add), so below 1 cm
+            // per unit the tolerances grow with that resolution.
+            float resolution=Math.Max(1f,.01f/unit);
             Vector3 Map(Vector3 p)=>Vector3.Transform(p,rig);
             var frame=NativeHandMath.Frame(Map(Vector3.Zero),Map(new Vector3(0,0,-.2f)),Map(new Vector3(right?-.06f:.06f,0,.04f)),new[]{Map(new Vector3(0,0,.17f)),Map(new Vector3(0,0,.12f))},right);
-            Near(Vector3.Transform(Map(new Vector3(.025f,.01f,.13f)),frame),new Vector3(.025f,.01f,.13f),"canonical mesh depends on import units",5e-5f);
+            Near(Vector3.Transform(Map(new Vector3(.025f,.01f,.13f)),frame),new Vector3(.025f,.01f,.13f),"canonical mesh depends on import units",5e-5f*resolution);
             var points=new List<Vector3>();var uv=new List<Vector2>();var indices=new List<int>();
             void Box(float x)
             {
@@ -37,7 +43,7 @@ class NativeHandTests
             var liveFrame=NativeHandMath.AnimatedFrame(frame,rig,liveWrist);
             var restVertex=Map(new Vector3(.025f,.01f,.13f));
             var posedVertex=Vector3.Transform(restVertex,Inverse(rig)*liveWrist);
-            Near(Vector3.Transform(posedVertex,liveFrame),Vector3.Transform(restVertex,frame),"wrist motion deforms canonical palm",.001f);
+            Near(Vector3.Transform(posedVertex,liveFrame),Vector3.Transform(restVertex,frame),"wrist motion deforms canonical palm",.001f*resolution);
         }
         // Weapon fitting and hand extraction share the exact affine transform.
         // Verify palm/handle coincidence after fitting all three gun lengths,

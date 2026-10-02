@@ -2,7 +2,7 @@
 
 [![tests](https://github.com/CastleTroy28/XIII-VR/actions/workflows/tests.yml/badge.svg)](https://github.com/CastleTroy28/XIII-VR/actions/workflows/tests.yml)
 
-A full VR mod for **XIII** (the 2020 remake, Windows). You play the whole game in a PC VR headset with tracked hands: aim and reload weapons by hand, punch, throw, take hostages, open doors and use keys, keycards and the grappling hook with your hands.
+A VR mod for **XIII** (the 2020 remake, Windows). You play the whole game in a PC VR headset with tracked hands: aim and reload weapons by hand, punch, throw, take hostages, open doors and use keys, keycards and the grappling hook with your hands.
 
 It is a [BepInEx 6](https://github.com/BepInEx/BepInEx) plugin. A one-click installer sets everything up and can undo it.
 
@@ -11,36 +11,31 @@ It is a [BepInEx 6](https://github.com/BepInEx/BepInEx) plugin. A one-click inst
 ## Features
 
 - **Headset rendering on any PC VR runtime.** The mod uses OpenXR and runs on whatever the Windows default OpenXR runtime is: SteamVR, Pimax Play, Meta/Oculus, Virtual Desktop or WMR. If OpenXR can't start, it falls back to OpenVR/SteamVR.
-- **Your hands are the game's hands.** XIII's own first-person arms follow the controllers, and the fingers close around whatever you hold.
+- XIII's own first-person arms follow the controllers.
 - **Weapons in your hands:**
   - Aim with the controller, and hold long guns with both hands for a steadier aim.
-  - Scopes steady themselves at your eye, as if you held your breath.
-  - Manual reloading for magazines, shells, revolvers, the double-barrel and bolts. This is optional.
-  - Holsters on your body: belt, armpits, belly and back.
+  - Working scopes on the crossbow and the sniper rifle.
+  - Manual reloading for magazines, shells, revolvers, the double-barrel and bolts. You can switch to automatic reloading in the settings.
+  - Weapon holsters on your body.
   - A weapon wheel for everything else.
 - **Physical melee:**
-  - Punches count only when you really swing, and damage follows the speed of the blow.
-  - Chairs, bottles, ashtrays, brooms and shovels work as weapons, and a long gun held by its barrel works as a club.
-- **Throwing.** Knives, grenades and props fly where your hand throws them.
-- **Hostages and disarming.** Grab an enemy from behind with your hand: bullets aimed at you go into them, and police, FBI and guards hold their fire. You can also take a gun out of an enemy's hand.
+  - Punch with your hands clenched into fists, or pick up a shovel or a broom, whatever you like.
+- **Throwing.** Knives, grenades and props fly where your hand throws them (it takes some practice).
 - **A world you can touch:**
   - Doors and cabinets move with your hand.
   - Turn a key or a lockpick in the lock, and hold a keycard to the reader.
   - Press buttons, lift controls and switches by touch.
   - Medkits sit on your forearm.
-- **The grappling hook and zipline** are used with your hands, and you climb ropes with the sticks.
+- **The grappling hook** is adapted to the controllers.
 - **Locomotion:**
   - Smooth, head-relative movement.
   - Smooth or snap turning, with optional teleport.
-  - Physical crouching and jumping.
 - **Menus and story:**
-  - Menus, the HUD, cutscenes and the death screen all work in VR, and you point at menus with a laser.
+  - Menus, the HUD, cutscenes and the death screen all work in VR, and you point at menus with a laser pointer.
   - A VR settings page is added to the pause menu.
-  - Cutscenes can be fast-forwarded with the right trigger.
+  - Cutscenes are fast-forwarded with the trigger.
 - **More:**
-  - Left-handed mode and controller haptics.
-  - Optional smarter enemies and fist fights with disarmed enemies.
-  - An optional Russian voice-over, when the game's Russian dialogue files are installed.
+  - Left-handed mode (not tested yet, but it should work) and controller haptics.
   - The mod's own texts follow the game's language: English, Russian, German, French, Spanish, Italian, Polish and Portuguese.
 
 ## Requirements
@@ -91,7 +86,6 @@ Keyboard:
 
 | Key | Action |
 |---|---|
-| F9 / F10 | start / stop VR |
 | F11 | recenter |
 | F3 | performance overlay on/off |
 | F6, F12 | screenshot |
@@ -169,3 +163,11 @@ python tests/run_tests.py VerifyCompiledDll InteropApiTests --plugin src/bin/Rel
 - The mod's own sounds were made by the author. Some were generated with [ElevenLabs](https://elevenlabs.io).
 
 This is a fan-made mod. It is not affiliated with or endorsed by the publisher or developers of XIII. XIII and its assets belong to their respective owners. No game files are included: you need your own copy of the game.
+
+## Support
+
+If you enjoy the mod, you can support me on Ko-fi:
+
+[![Support me on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20me-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/castletroy)
+
+https://ko-fi.com/castletroy

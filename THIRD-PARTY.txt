@@ -1,0 +1,55 @@
+XIII VR - third-party components and assets
+
+The mod's own code (src, tests, buildtools, the installer and scripts):
+MIT License, see LICENSE. XIII and its assets belong to their owners; no
+game files, game code or game assets are included. The mod reads the
+installed game at runtime.
+
+Native XRSDKOpenVR.dll and openvr_api.dll: ValveSoftware/unity-xr-plugin
+https://github.com/ValveSoftware/unity-xr-plugin
+Commit: a30a0100daacef8c3f0290ce5b179c8a1148abb0
+License: LICENSE-Valve.txt
+Manifest adapted: disablesLegacyInput=false to retain keyboard controls.
+src/vendor/ValveOpenVR.cs: the C# OpenVR bindings (openvr_api.cs) from
+ValveSoftware/openvr, https://github.com/ValveSoftware/openvr, BSD 3-Clause
+License (c) Valve Corporation.
+The mod's C# code is original; no UUVR source is included.
+
+Sounds made by the mod's author and embedded in the source: the reload
+sounds (src/SelectedReloadSounds.cs) and the chair impact
+(src/SelectedImpactSound.cs) were generated with ElevenLabs
+(https://elevenlabs.io); the water splash (src/WaterSplashSound.cs), door
+(src/DoorMoveSound.cs) and key-turn (src/KeyTurnSound.cs) recordings were
+supplied by the author. Released with the mod under its license (LICENSE).
+
+Sound: "Gun hitting ground" by JakLocke
+https://freesound.org/s/412295/
+License: Creative Commons Attribution 4.0 (CC BY 4.0), https://creativecommons.org/licenses/by/4.0/
+Supplied by the author as 412295__jaklocke__gun-hitting-ground.mp3
+(SHA256 40b18ef1264f5e1b3acb89a15745d91bc2843ec48349b7f21c77c062bc1363f6).
+Changes: mixed to mono, resampled to 48000 Hz PCM16, 80 ms of leading
+silence cut and faded out; low-passed copies of it are used for carpet,
+open hard ground and soft ground (src/WeaponDropSounds.cs).
+
+Unity OpenXR plugin, com.unity.xr.openxr 1.8.2 (the last version for Unity 2020.3):
+UnityOpenXR.dll, openxr_loader.dll (the Khronos OpenXR loader as shipped in that
+package) and UnitySubsystemsManifest.json, unchanged, in GameFolder\XIII_Data.
+(c) Unity Technologies. License: OpenXR\LICENSE-Unity-OpenXR-Plugin.md (Unity
+Package Distribution License / Unity Companion License, for use with Unity);
+notices, including the OpenXR loader (Apache-2.0):
+OpenXR\Unity-OpenXR-Plugin-Third-Party-Notices.md. Taken from the package as
+mirrored at https://github.com/needle-mirror/com.unity.xr.openxr (tag 1.8.2).
+The mod's own xiii_openxr.dll is built from buildtools\openxr-helper; the
+OpenXR headers there (include\openxr) are Khronos' OpenXR-SDK, Apache-2.0 OR
+MIT (include\openxr\LICENSE-OpenXR-SDK.txt).
+
+OpenComposite (OpenVR on OpenXR), https://gitlab.com/znixian/OpenOVR, GPLv3.
+Not included in this package. Since 0.1.181 it is only the fallback of the
+OpenVR way and is no longer downloaded: one already in the game (from
+0.1.177-0.1.180) is kept; Install-XIII-VR.ps1 -DownloadOpenComposite fetches
+its official x64 per-game build from znix.xyz (or -OpenCompositeDll <path>).
+The mod's openvr_api.dll (the runtime switch, buildtools\openvr-shim) loads it
+only when the OpenVR way is used and the default OpenXR runtime is not SteamVR.
+buildtools\openxr-helper\helper.c uses the same grip-to-SteamVR controller
+offsets as OpenComposite (measurements from SteamVR's controller render model
+files: Oculus Touch, Index, HP Reverb G2); no OpenComposite code is included.

@@ -1,0 +1,1190 @@
+[
+ {
+  "name": "TouchButtonsTests",
+  "files": [
+   "src/TouchButtons.cs",
+   "src/TouchControlMath.cs",
+   "src/DoorStoryMath.cs"
+  ]
+ },
+ {
+  "name": "VrPromptLabelsTests",
+  "files": [
+   "src/VrPromptLabels.cs",
+   "src/TutorialHintContext.cs",
+   "src/UiLanguage.cs"
+  ]
+ },
+ {
+  "name": "KnifeThrowTests",
+  "files": [
+   "src/KnifeThrowGesture.cs"
+  ]
+ },
+ {
+  "name": "ChairGripTests",
+  "files": [
+   "src/FingerPoseMath.cs",
+   "src/ReloadGripMath.cs",
+   "src/MedkitGeometry.cs",
+   "src/SnapshotPoseMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/DualGripMath.cs",
+   "src/FingerPoseMath.Rim.cs",
+   "src/FingerPoseMath.Chair.cs",
+   "src/FingerPoseMath.Wrap.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/PropSurfaceGeometry.cs",
+   "src/KeyGripGeometry.cs",
+   "src/ScrewdriverGrip.cs"
+  ]
+ },
+ {
+  "name": "GripCarryDriverTests",
+  "files": [
+   "src/HostageMath.cs",
+   "src/GripCarry.cs",
+   "src/CarryTargetValidation.cs",
+   "src/CarryGripState.cs",
+   "src/HandControls.cs"
+  ]
+ },
+ {
+  "name": "KeyGripTests",
+  "files": [
+   "src/FingerPoseMath.cs",
+   "src/ReloadGripMath.cs",
+   "src/MedkitGeometry.cs",
+   "src/SnapshotPoseMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/DualGripMath.cs",
+   "src/FingerPoseMath.Rim.cs",
+   "src/FingerPoseMath.Chair.cs",
+   "src/FingerPoseMath.Wrap.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/PropSurfaceGeometry.cs",
+   "src/KeyGripGeometry.cs",
+   "src/ScrewdriverGrip.cs"
+  ]
+ },
+ {
+  "name": "InteractionHintsTests",
+  "files": [
+   "src/InteractionHints.cs"
+  ]
+ },
+ {
+  "name": "AshtrayGripTests",
+  "files": [
+   "src/FingerPoseMath.cs",
+   "src/ReloadGripMath.cs",
+   "src/MedkitGeometry.cs",
+   "src/SnapshotPoseMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/DualGripMath.cs",
+   "src/FingerPoseMath.Rim.cs",
+   "src/FingerPoseMath.Chair.cs",
+   "src/FingerPoseMath.Wrap.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/PropSurfaceGeometry.cs",
+   "src/KeyGripGeometry.cs",
+   "src/ScrewdriverGrip.cs"
+  ]
+ },
+ {
+  "name": "KeyInteractionTests",
+  "files": [
+   "src/ScrewdriverGrip.cs",
+   "src/KeyUnlockGesture.cs",
+   "src/UnlockGestureMath.cs",
+   "src/KeyPreviewFactory.cs",
+   "src/HeldItemMeshSources.cs"
+  ]
+ },
+ {
+  "name": "HeldItemMeshSourcesTests",
+  "files": [
+   "src/HeldItemMeshSources.cs"
+  ]
+ },
+ {
+  "name": "DoorStrikeTests",
+  "files": [
+   "src/DoorStrikeMath.cs"
+  ]
+ },
+ {
+  "name": "PropGripGeometryTests",
+  "files": [
+   "src/PropGripGeometry.cs",
+   "src/PropSurfaceGeometry.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/DistalSkinProbe.cs"
+  ]
+ },
+ {
+  "name": "PropStudioSoundTests",
+  "files": [
+   "src/PropStudioSound.cs"
+  ]
+ },
+ {
+  "name": "UnlockGestureTests",
+  "files": [
+   "src/UnlockGestureMath.cs"
+  ]
+ },
+ {
+  "name": "DoorStoryTests",
+  "files": [
+   "src/DoorStoryMath.cs"
+  ]
+ },
+ {
+  "name": "ScopeSteadyTests",
+  "files": [
+   "src/ScopeSteadyMath.cs"
+  ]
+ },
+ {
+  "name": "PropImpactAudioTests",
+  "files": [
+   "src/PropImpactAudio.cs",
+   "src/ChairImpactClip.cs",
+   "src/SelectedImpactSound.cs",
+   "src/WoodKnock.cs",
+   "src/MeleeDamageMath.cs"
+  ]
+ },
+ {
+  "name": "HandSkinLifecycleTests",
+  "files": [
+   "src/NativeHandVisual.Resources.cs",
+   "src/NativeSkinSnapshot.cs",
+   "src/SnapshotPoseMath.cs",
+   "src/NativeHandMesh.cs"
+  ]
+ },
+ {
+  "name": "GripPoseStabilityTests",
+  "files": [
+   "src/GripPoseStability.cs"
+  ]
+ },
+ {
+  "name": "FirstPersonVisibilityTests",
+  "files": [
+   "src/FirstPersonVisibility.cs"
+  ]
+ },
+ {
+  "name": "HandSkinPoseTests",
+  "files": [
+   "src/HandSkinPose.cs"
+  ]
+ },
+ {
+  "name": "HandGestureTests",
+  "files": [
+   "src/HandGestureMath.cs"
+  ]
+ },
+ {
+  "name": "PropFitPolicyTests",
+  "files": [
+   "src/PropFitPolicy.cs"
+  ]
+ },
+ {
+  "name": "RigidMeshLifecycleTests",
+  "files": [
+   "src/RigidMeshVisual.cs",
+   "src/HandMeshGeometry.cs"
+  ]
+ },
+ {
+  "name": "GripSpaceTests",
+  "files": [
+   "src/GripSpaceMath.cs"
+  ]
+ },
+ {
+  "name": "StoryBlinkTests",
+  "files": [
+   "src/StoryBlink.cs"
+  ]
+ },
+ {
+  "name": "DualPoseLifecycleTests",
+  "files": [
+   "src/FingerPoseMath.cs",
+   "src/ReloadGripMath.cs",
+   "src/MedkitGeometry.cs",
+   "src/SnapshotPoseMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/DualGripMath.cs",
+   "src/FingerPoseMath.Rim.cs",
+   "src/FingerPoseMath.Chair.cs",
+   "src/FingerPoseMath.Wrap.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/PropSurfaceGeometry.cs",
+   "src/KeyGripGeometry.cs",
+   "src/ScrewdriverGrip.cs"
+  ]
+ },
+ {
+  "name": "DualGripTests",
+  "files": [
+   "src/DualGripMath.cs"
+  ]
+ },
+ {
+  "name": "FocusMarkersTests",
+  "files": [
+   "src/FocusMarkers.cs",
+   "src/MarkerProjection.cs",
+   "src/SceneScan.cs"
+  ]
+ },
+ {
+  "name": "RuntimeRecoveryTests",
+  "files": [
+   "src/RuntimeRecovery.cs"
+  ]
+ },
+ {
+  "name": "StoryColorTests",
+  "files": [
+   "src/StoryEffectState.cs",
+   "src/StoryColorLut.cs"
+  ]
+ },
+ {
+  "name": "StoryVolumeTests",
+  "files": [
+   "src/StoryVolumeColor.cs",
+   "src/StoryVolumeMath.cs"
+  ]
+ },
+ {
+  "name": "PropLifecycleTests",
+  "files": [
+   "src/WeaponHands.Props.cs",
+   "src/MeleeDamageMath.cs"
+  ]
+ },
+ {
+  "name": "ThrowImpactTests",
+  "files": [
+   "src/ThrowTrajectory.cs",
+   "src/WeaponImpactDamage.cs"
+  ]
+ },
+ {
+  "name": "BeltGeometryTests",
+  "files": [
+   "src/AmmoPouchGeometry.cs",
+   "src/HandMeshGeometry.cs"
+  ]
+ },
+ {
+  "name": "RevolverReloadTests",
+  "files": [
+   "src/RevolverReloadState.cs"
+  ]
+ },
+ {
+  "name": "BeltAnchorTests",
+  "files": [
+   "src/BeltAnchorMath.cs"
+  ]
+ },
+ {
+  "name": "MarkerProjectionTests",
+  "files": [
+   "src/MarkerProjection.cs"
+  ]
+ },
+ {
+  "name": "CarryGripTests",
+  "files": [
+   "src/CarryGripState.cs",
+   "src/HandControls.cs"
+  ]
+ },
+ {
+  "name": "EquipmentProfileTests",
+  "files": [
+   "src/EquipmentProfile.cs"
+  ]
+ },
+ {
+  "name": "CameraEffectsTests",
+  "files": [
+   "src/CameraEffects.cs"
+  ]
+ },
+ {
+  "name": "ReloadAudioTests",
+  "files": [
+   "src/ReloadAudio.cs",
+   "src/SelectedReloadSounds.cs"
+  ]
+ },
+ {
+  "name": "StoryModeTests",
+  "files": [
+   "src/StoryMode.cs",
+   "src/StorySkipLatch.cs"
+  ]
+ },
+ {
+  "name": "StoryVideoTests",
+  "files": [
+   "src/StoryVideo.cs",
+   "src/SceneScan.cs",
+   "src/SceneFind.cs"
+  ]
+ },
+ {
+  "name": "ReloadFeaturesTests",
+  "files": [
+   "src/MenuNavigation.cs",
+   "src/ReloadGripMath.cs",
+   "src/ManualReloadState.cs"
+  ]
+ },
+ {
+  "name": "ReloadDriverTests",
+  "files": [
+   "src/WeaponHands.Reload.cs",
+   "src/RevolverReloadState.cs",
+   "src/ManualReloadState.cs",
+   "src/HandControls.cs",
+   "src/EquipmentProfile.cs",
+   "src/ReloadGlowMath.cs",
+   "src/RailMath.cs",
+   "src/InertialPump.cs"
+  ]
+ },
+ {
+  "name": "ManualReloadTests",
+  "files": [
+   "src/ManualReloadState.cs",
+   "src/SpreadPolicy.cs"
+  ]
+ },
+ {
+  "name": "SteamInputTests",
+  "files": [
+   "src/SteamInput.cs",
+   "src/SteamInputManifest.cs",
+   "src/HandControls.cs",
+   "src/vendor/ValveOpenVR.cs"
+  ]
+ },
+ {
+  "name": "HapticOutputTests",
+  "files": [
+   "src/HapticOutput.cs"
+  ]
+ },
+ {
+  "name": "CapturePngTests",
+  "files": [
+   "src/CapturePng.cs"
+  ]
+ },
+ {
+  "name": "CinematicMaskTests",
+  "files": [
+   "src/CinematicMask.cs",
+   "src/HandMeshGeometry.cs",
+   "src/ViewCoverage.cs",
+   "src/ProjectionMath.cs",
+   "src/PoseMath.cs",
+   "src/vendor/ValveOpenVR.cs"
+  ]
+ },
+ {
+  "name": "VisualCacheTests",
+  "files": [
+   "src/VisualCache.cs"
+  ]
+ },
+ {
+  "name": "ComfortTests",
+  "files": [
+   "src/ComfortState.cs",
+   "src/LocomotionState.cs",
+   "src/ShotFeedback.cs",
+   "src/NativeHandMesh.cs",
+   "src/ViewCoverage.cs",
+   "src/ProjectionMath.cs",
+   "src/PoseMath.cs",
+   "src/MedkitGeometry.cs",
+   "src/vendor/ValveOpenVR.cs"
+  ]
+ },
+ {
+  "name": "LocomotionDriverTests",
+  "files": [
+   "src/SwimStroke.cs",
+   "src/LocomotionDriver.cs",
+   "src/LocomotionOptions.cs",
+   "src/LocomotionState.cs",
+   "src/ComfortState.cs",
+   "src/HeadingMath.cs",
+   "src/HandControls.cs",
+   "src/RopeControls.cs"
+  ]
+ },
+ {
+  "name": "TeleportTests",
+  "files": [
+   "src/TeleportDriver.cs",
+   "src/TeleportGeometry.cs"
+  ]
+ },
+ {
+  "name": "ControllerAimTests",
+  "files": [
+   "src/ControllerAim.cs",
+   "src/AimMath.cs"
+  ]
+ },
+ {
+  "name": "MenuKeyboardTests",
+  "files": [
+   "src/MenuKeyboard.cs",
+   "src/MenuNavigation.cs",
+   "src/MenuPrompts.cs",
+   "src/HandControls.cs",
+   "src/MenuRayMath.cs",
+   "src/SceneScan.cs"
+  ]
+ },
+ {
+  "name": "UiVisualsTests",
+  "files": [
+   "src/CinematicFrame.cs",
+   "src/CycleIcons.cs",
+   "src/FullscreenEffects.cs",
+   "src/ViewCoverage.cs",
+   "src/ProjectionMath.cs",
+   "src/PoseMath.cs",
+   "src/vendor/ValveOpenVR.cs"
+  ]
+ },
+ {
+  "name": "MenuBeamTests",
+  "files": [
+   "src/MenuBeam.cs"
+  ]
+ },
+ {
+  "name": "StartupLogosTests",
+  "files": [
+   "src/StartupLogos.cs"
+  ]
+ },
+ {
+  "name": "MenuPointerMathTests",
+  "files": [
+   "src/MenuRayMath.cs",
+   "src/UiPointerState.cs"
+  ]
+ },
+ {
+  "name": "WheelItemsTests",
+  "files": [
+   "src/ScrewdriverGrip.cs",
+   "src/WheelItems.cs",
+   "src/MenuRayMath.cs",
+   "src/HandControls.cs",
+   "src/HandTools.cs",
+   "src/GripBarMath.cs"
+  ]
+ },
+ {
+  "name": "WorldCanvasTests",
+  "files": [
+   "src/WorldCanvas.cs",
+   "src/FrontendMenu.cs",
+   "src/RuntimeRecovery.cs",
+   "src/SceneScan.cs"
+  ]
+ },
+ {
+  "name": "ContactTests",
+  "files": [
+   "src/ContactMath.cs"
+  ]
+ },
+ {
+  "name": "ContactWorldTests",
+  "files": [
+   "src/ContactMath.cs",
+   "src/ContactWorld.cs",
+   "src/ContactQueryBounds.cs",
+   "src/ContactFilter.cs",
+   "src/ColliderSurface.cs",
+   "src/ContactRig.cs",
+   "src/BodyGrabState.cs",
+   "src/EquipmentProfile.cs",
+   "src/GunKnock.cs"
+  ]
+ },
+ {
+  "name": "FileReplacementTests",
+  "files": []
+ },
+ {
+  "name": "WristFitTests",
+  "files": [
+   "src/WristFitMath.cs"
+  ]
+ },
+ {
+  "name": "QualityMenuTests",
+  "files": [
+   "src/QualityOptions.cs",
+   "src/LocomotionOptions.cs",
+   "src/HandControls.cs",
+   "src/LocomotionState.cs",
+   "src/HolsterLayout.cs",
+   "src/ThrowMath.cs",
+   "src/WeaponImpactMath.cs",
+   "src/UiLanguage.cs",
+   "src/EnemyOptions.cs"
+  ]
+ },
+ {
+  "name": "PerformanceTests",
+  "files": [
+   "src/FramePerformance.cs",
+   "src/SceneScan.cs",
+   "src/CompositorTiming.cs",
+   "src/StepClock.cs",
+   "src/CameraTiming.cs",
+   "src/WorldStats.cs"
+  ]
+ },
+ {
+  "name": "InteropApiTests",
+  "files": []
+ },
+ {
+  "name": "BraceletTests",
+  "files": [
+   "src/NativeBraceletMath.cs",
+   "src/NativeHandMesh.cs"
+  ]
+ },
+ {
+  "name": "PunchDriverTests",
+  "files": [
+   "src/PunchDriver.cs",
+   "src/PunchMotion.cs",
+   "src/ContactFilter.cs",
+   "src/ColliderSurface.cs",
+   "src/WeaponImpactDamage.cs",
+   "src/MeleeDamageMath.cs"
+  ]
+ },
+ {
+  "name": "PhysicalHandsTests",
+  "files": [
+   "src/FingerPoseMath.cs",
+   "src/ReloadGripMath.cs",
+   "src/MedkitGeometry.cs",
+   "src/ArmIkMath.cs",
+   "src/SnapshotPoseMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/PunchMotion.cs",
+   "src/WeaponInertia.cs",
+   "src/DualGripMath.cs",
+   "src/FingerPoseMath.Rim.cs",
+   "src/FingerPoseMath.Chair.cs",
+   "src/FingerPoseMath.Wrap.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/PropSurfaceGeometry.cs",
+   "src/KeyGripGeometry.cs",
+   "src/ScrewdriverGrip.cs"
+  ]
+ },
+ {
+  "name": "NativeHandTests",
+  "files": [
+   "src/NativeHandMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/WeaponGeometry.cs",
+   "src/EquipmentProfile.cs"
+  ]
+ },
+ {
+  "name": "WatchAttachmentTests",
+  "files": [
+   "src/ScrewdriverGrip.cs",
+   "src/WatchMountMath.cs",
+   "src/GloveVisual.cs",
+   "src/PunchMotion.cs",
+   "src/HandMeshGeometry.cs",
+   "src/WatchFaceGeometry.cs",
+   "src/ArmIkMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/WristFitMath.cs",
+   "src/BodyGrabState.cs",
+   "src/HandTools.cs",
+   "src/UiLanguage.cs"
+  ]
+ },
+ {
+  "name": "WearableTests",
+  "files": [
+   "src/HandMeshGeometry.cs",
+   "src/ObjectivesState.cs",
+   "src/WatchFaceGeometry.cs",
+   "src/NativeHandMesh.cs",
+   "src/UiLanguage.cs"
+  ]
+ },
+ {
+  "name": "MuzzleEffectsTests",
+  "files": [
+   "src/MuzzleEffects.cs"
+  ]
+ },
+ {
+  "name": "MenuLifecycleTests",
+  "files": [
+   "src/GameUiControls.cs",
+   "src/MenuChord.cs",
+   "src/SceneScan.cs",
+   "src/QualityOptions.cs",
+   "src/LocomotionOptions.cs",
+   "src/EquipmentShortcuts.cs",
+   "src/HandControls.cs",
+   "src/LocomotionState.cs",
+   "src/ObjectivesState.cs",
+   "src/HolsterLayout.cs",
+   "src/UiLanguage.cs",
+   "src/EnemyOptions.cs"
+  ]
+ },
+ {
+  "name": "MechanismTests",
+  "files": [
+   "src/MechanismMath.cs"
+  ]
+ },
+ {
+  "name": "CameraFeedbackTests",
+  "files": [
+   "src/BodyAnchor.cs",
+   "src/ShotFeedback.cs",
+   "src/PoseMath.cs",
+   "src/vendor/ValveOpenVR.cs"
+  ]
+ },
+ {
+  "name": "AimInteractionTests",
+  "files": [
+   "src/AimMath.cs",
+   "src/InteractionState.cs",
+   "src/HandControls.cs",
+   "src/LocomotionState.cs"
+  ]
+ },
+ {
+  "name": "HeadingGeometryTests",
+  "files": [
+   "src/HeadingMath.cs",
+   "src/WeaponGeometry.cs",
+   "src/EquipmentProfile.cs"
+  ]
+ },
+ {
+  "name": "LocomotionStateTests",
+  "files": [
+   "src/LocomotionState.cs"
+  ]
+ },
+ {
+  "name": "WeaponMathTests",
+  "files": [
+   "src/HandControls.cs",
+   "src/GripMath.cs"
+  ]
+ },
+ {
+  "name": "PoseMathTests",
+  "files": [
+   "src/PoseMath.cs",
+   "src/vendor/ValveOpenVR.cs"
+  ]
+ },
+ {
+  "name": "ProjectionMathTests",
+  "files": [
+   "src/ProjectionMath.cs"
+  ]
+ },
+ {
+  "name": "RegressionHarness",
+  "files": [
+   "src/Plugin.cs",
+   "src/RuntimeChoice.cs"
+  ]
+ },
+ {
+  "name": "PhysicalHandsMathTests",
+  "files": [
+   "src/PhysicalHandsMath.cs"
+  ]
+ },
+ {
+  "name": "PhysicalWorldTests",
+  "files": [
+   "src/LooseProps.cs",
+   "src/WorldPropBodies.cs",
+   "src/HeldPropMotion.cs",
+   "src/PhysicalDoors.cs",
+   "src/DoorMotion.cs",
+   "src/DoorStrikeMath.cs",
+   "src/PhysicalHandsMath.cs",
+   "src/HandControls.cs"
+  ]
+ },
+ {
+  "name": "BagSwingTests",
+  "files": [
+   "src/BagSwingMath.cs"
+  ]
+ },
+ {
+  "name": "LockpickShapeTests",
+  "files": [
+   "src/LockpickShape.cs"
+  ]
+ },
+ {
+  "name": "LockpickGripTests",
+  "files": [
+   "src/KeyGripGeometry.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/PropSurfaceGeometry.cs"
+  ]
+ },
+ {
+  "name": "ScrewdriverGripTests",
+  "files": [
+   "src/ScrewdriverGrip.cs"
+  ]
+ },
+ {
+  "name": "DeathPanelLayoutTests",
+  "files": [
+   "src/DeathPanelLayout.cs"
+  ]
+ },
+ {
+  "name": "WaterSplashMathTests",
+  "files": [
+   "src/WaterSplashMath.cs"
+  ]
+ },
+ {
+  "name": "EnemyAiMathTests",
+  "files": [
+   "src/EnemyAiMath.cs"
+  ]
+ },
+ {
+  "name": "ScopeGeometryTests",
+  "files": [
+   "src/ScopeGeometry.cs"
+  ]
+ },
+ {
+  "name": "GrenadeThrowTests",
+  "files": [
+   "src/GrenadeThrow.cs"
+  ]
+ },
+ {
+  "name": "MountedAimMathTests",
+  "files": [
+   "src/MountedAimMath.cs",
+   "src/MuzzleMath.cs",
+   "src/HandControls.cs"
+  ]
+ },
+ {
+  "name": "ArmCropMathTests",
+  "files": [
+   "src/ArmCropMath.cs"
+  ]
+ },
+ {
+  "name": "OutlineShellTests",
+  "files": [
+   "src/OutlineShell.cs"
+  ]
+ },
+ {
+  "name": "BoltRelationTextTests",
+  "files": [
+   "src/BoltRelationText.cs"
+  ]
+ },
+ {
+  "name": "ReloadGlowMathTests",
+  "files": [
+   "src/ReloadGlowMath.cs",
+   "src/RailMath.cs"
+  ]
+ },
+ {
+  "name": "ReloadBonesTests",
+  "files": [
+   "src/ReloadBones.cs",
+   "src/EquipmentProfile.cs",
+   "src/MechanismMath.cs"
+  ]
+ },
+ {
+  "name": "CrossbowStringTests",
+  "files": [
+   "src/CrossbowStringMath.cs"
+  ]
+ },
+ {
+  "name": "HolsterTests",
+  "files": [
+   "src/HolsterLayout.cs",
+   "src/ThrowMath.cs",
+   "src/WeaponImpactMath.cs"
+  ]
+ },
+ {
+  "name": "InertialPumpTests",
+  "files": [
+   "src/InertialPump.cs",
+   "src/ManualReloadState.cs"
+  ]
+ },
+ {
+  "name": "HitReactionTests",
+  "files": [
+   "src/HitReactionMath.cs"
+  ]
+ },
+ {
+  "name": "GrenadeFuseLedgerTests",
+  "files": [
+   "src/GrenadeFuseLedger.cs"
+  ]
+ },
+ {
+  "name": "MeleeDamageMathTests",
+  "files": [
+   "src/MeleeDamageMath.cs"
+  ]
+ },
+ {
+  "name": "WoodKnockTests",
+  "files": [
+   "src/WoodKnock.cs",
+   "src/MeleeDamageMath.cs"
+  ]
+ },
+ {
+  "name": "LayFlatMathTests",
+  "files": [
+   "src/LayFlatMath.cs"
+  ]
+ },
+ {
+  "name": "FanMathTests",
+  "files": [
+   "src/FanMath.cs",
+   "src/GcPaceMath.cs"
+  ]
+ },
+ {
+  "name": "TutorialOnceTests",
+  "files": [
+   "src/TutorialOnce.cs"
+  ]
+ },
+ {
+  "name": "RuntimeChoiceTests",
+  "files": [
+   "src/RuntimeChoice.cs"
+  ]
+ },
+ {
+  "name": "OpenXrMathTests",
+  "files": [
+   "src/OpenXrMath.cs",
+   "src/PoseMath.cs",
+   "src/ProjectionMath.cs",
+   "src/HandControls.cs",
+   "src/vendor/ValveOpenVR.cs"
+  ]
+ },
+ {
+  "name": "MenuFitMathTests",
+  "files": [
+   "src/MenuFitMath.cs"
+  ]
+ },
+ {
+  "name": "SpotMathTests",
+  "files": [
+   "src/SpotMath.cs"
+  ]
+ },
+ {
+  "name": "HandGripMemoryTests",
+  "files": [
+   "src/HandGripMemory.cs"
+  ]
+ },
+ {
+  "name": "LeftHoldMathTests",
+  "files": [
+   "src/LeftHoldMath.cs"
+  ]
+ },
+ {
+  "name": "NpcBoneNamesTests",
+  "files": [
+   "src/NpcBoneNames.cs"
+  ]
+ },
+ {
+  "name": "GrappleMathTests",
+  "files": [
+   "src/GrappleMath.cs"
+  ]
+ },
+ {
+  "name": "NpcFistPoseTests",
+  "files": [
+   "src/NpcFist.cs",
+   "src/NpcBoneNames.cs",
+   "src/FistCurlMath.cs"
+  ]
+ },
+ {
+  "name": "CombatTempoTests",
+  "files": [
+   "src/BrawlMath.cs",
+   "src/HitReactionMath.cs"
+  ]
+ },
+ {
+  "name": "BrawlContactTests",
+  "files": [
+   "src/BrawlContactMath.cs",
+   "src/BrawlMath.cs"
+  ]
+ },
+ {
+  "name": "BrawlFootworkTests",
+  "files": [
+   "src/BrawlFootwork.cs"
+  ]
+ },
+ {
+  "name": "CarryInteractionTests",
+  "files": [
+   "src/InteractionDriver.Carry.cs"
+  ]
+ },
+ {
+  "name": "RenderBudgetTests",
+  "files": [
+   "src/RenderBudgetMath.cs",
+   "src/RenderBudget.cs",
+   "src/DeferredRenderScale.cs"
+  ]
+ },
+ {
+  "name": "HostageCombatTests",
+  "files": [
+   "src/GripCarry.Combat.cs",
+   "src/HostageHurtboxes.cs",
+   "src/HostageShieldMath.cs"
+  ]
+ },
+ {
+  "name": "HostageShieldMathTests",
+  "files": [
+   "src/HostageShieldMath.cs"
+  ]
+ },
+ {
+  "name": "CarryHoldMathTests",
+  "files": [
+   "src/CarryHoldMath.cs",
+   "src/CarryAnchorMath.cs"
+  ]
+ },
+ {
+  "name": "CarryAnchorRuntimeTests",
+  "files": [
+   "src/CarryHoldMath.cs",
+   "src/CarryAnchorMath.cs",
+   "src/CarryBodyScale.cs",
+   "src/GripCarry.Anchor.cs",
+   "src/GripCarry.Scale.cs"
+  ]
+ },
+ {
+  "name": "CarryAnchorMathTests",
+  "files": [
+   "src/CarryAnchorMath.cs"
+  ]
+ },
+ {
+  "name": "AudioLanguageMathTests",
+  "files": [
+   "src/AudioLanguageMath.cs"
+  ]
+ },
+ {
+  "name": "BrawlMathTests",
+  "files": [
+   "src/BrawlMath.cs",
+   "src/ArmReachMath.cs",
+   "src/FistCurlMath.cs"
+  ]
+ },
+ {
+  "name": "FreezeDetectorTests",
+  "files": [
+   "src/FreezeDetector.cs"
+  ]
+ },
+ {
+  "name": "GripThrowTests",
+  "files": [
+   "src/GripThrow.cs",
+   "src/KnifeThrowGesture.cs",
+   "src/HolsterLayout.cs"
+  ]
+ },
+ {
+  "name": "HeldGunsTests",
+  "files": [
+   "src/ContactMath.cs",
+   "src/GunKnock.cs",
+   "src/HolsterLayout.cs",
+   "src/ThrowMath.cs",
+   "src/WeaponImpactMath.cs"
+  ]
+ },
+ {
+  "name": "LongHandleMathTests",
+  "files": [
+   "src/LongHandleMath.cs"
+  ]
+ },
+ {
+  "name": "ChestReloadTests",
+  "files": [
+   "src/ChestReloadMath.cs",
+   "src/ManualReloadState.cs"
+  ]
+ },
+ {
+  "name": "CopyPumpDriverTests",
+  "files": [
+   "src/WeaponHands.CopyPump.cs",
+   "src/ManualReloadState.cs",
+   "src/InertialPump.cs"
+  ]
+ },
+ {
+  "name": "ArmMedkitMathTests",
+  "files": [
+   "src/ArmMedkitMath.cs"
+  ]
+ },
+ {
+  "name": "ChestReloadDriverTests",
+  "files": [
+   "src/WeaponHands.ChestReload.cs",
+   "src/ChestReloadMath.cs",
+   "src/ManualReloadState.cs",
+   "src/HandControls.cs",
+   "src/EquipmentProfile.cs"
+  ]
+ },
+ {
+  "name": "BallisticMathTests",
+  "files": [
+   "src/BallisticMath.cs",
+   "src/SpreadPolicy.cs"
+  ]
+ },
+ {
+  "name": "BreakActionTests",
+  "files": [
+   "src/BreakActionState.cs",
+   "src/ReloadBones.cs",
+   "src/EquipmentProfile.cs"
+  ]
+ },
+ {
+  "name": "HandToolsTests",
+  "files": [
+   "src/HandTools.cs",
+   "src/KnobMath.cs",
+   "src/ItemPlacement.cs",
+   "src/RopeControls.cs",
+   "src/LocomotionState.cs",
+   "src/HandControls.cs",
+   "src/GripBarMath.cs"
+  ]
+ },
+ {
+  "name": "ClubMathTests",
+  "files": [
+   "src/ClubMath.cs",
+   "src/MeleeDamageMath.cs"
+  ]
+ },
+ {
+  "name": "WrapGripTests",
+  "files": [
+   "src/FingerPoseMath.cs",
+   "src/ReloadGripMath.cs",
+   "src/MedkitGeometry.cs",
+   "src/SnapshotPoseMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/DualGripMath.cs",
+   "src/FingerPoseMath.Rim.cs",
+   "src/FingerPoseMath.Chair.cs",
+   "src/FingerPoseMath.Wrap.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/PropSurfaceGeometry.cs",
+   "src/KeyGripGeometry.cs",
+   "src/ScrewdriverGrip.cs"
+  ]
+ },
+ {
+  "name": "WeaponAttachmentTests",
+  "files": [
+   "src/WeaponGeometry.cs",
+   "src/EquipmentProfile.cs"
+  ]
+ },
+ {
+  "name": "VerifyCompiledDll",
+  "files": []
+ }
+]

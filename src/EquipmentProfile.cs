@@ -1,0 +1,34 @@
+namespace XiiiXR;
+// Native inventory slot IDs; naming is diagnostic, not the binding criterion.
+internal static class EquipmentProfile
+{
+ internal static string ForSlot(int slot)=>slot switch {
+  20=>"",21=>"pistol",22=>"revolver",23=>"uzi",24=>"shotgun",25=>"m16",26=>"ak47",
+  27=>"sniper",28=>"crossbow",29=>"m60",30=>"bazooka",31=>"grenade",32=>"knife",34=>"prop",
+  9 or 10=>"",11 or 12 or 13=>"key",14 or 15 or 16 or 33=>"gadget",17=>"mounted",40=>"rifle",41=>"heavy",_=>"equipment"};
+ // 0.1.117: the M16 (magazine, like the AK) and the crossbow (one bolt at a
+ // time along its rail, no rack) are reloaded by hand too.
+ // 0.1.194: the Uzi: its magazine into the grip, then its top cocking knob back.
+ internal static bool Manual(string profile)=>profile is "pistol" or "ak47" or "shotgun" or "sniper" or "m16" or "crossbow" or "m60" or "uzi";
+ // 0.1.194: guns whose magazine goes in the grip: struck against the chest
+ // with the other hand full, a full magazine goes in (the pistol, the Uzi).
+ internal static bool ChestMagazine(string profile)=>profile is "pistol" or "uzi";
+ // 0.1.119: M60 — top cover opened with B, ammunition box + belt by hand,
+ // cover closed by hand, then the charging handle.
+ internal static bool Lidded(string profile)=>profile=="m60";
+ internal static bool Arrow(string profile)=>profile=="crossbow";
+ // Guns with a VR telescopic sight (picture-in-picture lens, R3 zoom).
+ internal static bool Scoped(string profile)=>profile is "sniper" or "crossbow";
+ // Single rounds pushed in one at a time: shotgun shells, crossbow bolts.
+ internal static bool SingleRound(string profile)=>profile is "shotgun" or "crossbow";
+ // The newer manual guns fall back to the game's own reload if their
+ // ammunition cannot be separated from the gun's mesh.
+ internal static bool ManualFallback(string profile)=>profile is "m16" or "crossbow" or "m60" or "uzi";
+ // SVD: detachable box magazine and side charging handle, handled like the AK.
+ internal static bool RifleMagazine(string profile)=>profile is "ak47" or "sniper" or "m16";
+ // 0.1.117: guns whose collision comes from their mesh cells (the four
+ // original manual guns and the revolver keep their hand-made shapes).
+ internal static bool TightContact(string p)=>RequiresMuzzle(p)&&p is not ("pistol" or "ak47" or "shotgun" or "sniper" or "revolver");
+ internal static bool RequiresMuzzle(string p)=>p is "pistol" or "revolver" or "uzi" or "shotgun" or "m16" or "ak47" or "sniper" or "crossbow" or "m60" or "bazooka" or "rifle" or "heavy";
+ internal static float Length(string p)=>p switch {"pistol"=>.22f,"revolver"=>.28f,"uzi"=>.46f,"shotgun"=>.95f,"m16"=>.99f,"ak47"=>.85f,"sniper"=>1.1f,"crossbow"=>.72f,"m60"=>1.1f,"bazooka"=>1.1f,"knife"=>.16f,"grenade"=>.12f,"key"=>.12f,"gadget"=>.22f,_=>.65f};
+}

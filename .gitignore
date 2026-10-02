@@ -1,0 +1,18 @@
+# Build output
+bin/
+obj/
+.vs/
+*.user
+.testbuild/
+dist/
+
+# Built by the scripts in buildtools (see README), not committed
+BepInEx-plugins/
+GameFolder/XIII_Data/Plugins/xiii_openxr.dll
+OpenXR/openvr_api.dll
+buildtools/**/*.obj
+buildtools/**/*.lib
+buildtools/**/*.exp
+
+# The game's own model, used by one test, is not distributed (tests/fixtures/README.md)
+tests/fixtures/*.txt

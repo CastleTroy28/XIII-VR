@@ -1,0 +1,9 @@
+LIBRARY xiii_openxr
+EXPORTS
+    XO_Hook
+    XO_Report
+    XO_State
+    XO_Sync
+    XO_Locate
+    XO_Vibrate
+    XO_StopVibration

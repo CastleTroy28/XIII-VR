@@ -64,6 +64,8 @@ The installer never overwrites a file that has changed since it was staged. It k
 
 These are the right-handed controls. Left-handed mode (VR settings) mirrors them.
 
+![XIII VR controls](docs/controls.jpg)
+
 | Action | Control |
 |---|---|
 | Move | left stick (in the direction you look) |

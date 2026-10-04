@@ -67,9 +67,8 @@ class QualityMenuTests
   Tick(trigger:true);Check(!QualityOptions.Hints.Value,"hints toggle not saved");Tick();Tick(1);Check(QualityOptions.Hints.Value,"hints cannot be restored");Tick();Tick(y:-1);Tick();
   Check(!QualityOptions.ThrowArc.Value&&QualityMenu.Text.Contains("Броски: жест"),"throw gesture is not the default");
   Tick(trigger:true);Check(QualityOptions.ThrowArc.Value,"throw arc option not saved");Tick();Tick(-1);Check(!QualityOptions.ThrowArc.Value,"throw gesture cannot be restored");Tick();Tick(y:-1);Tick();
-  // 0.1.114: smarter enemies row (on by default), toggled and restored.
-  Check(EnemyOptions.Smarter.Value&&QualityMenu.Text.Contains("> Умные враги: вкл"),"smarter enemies row missing or off by default");
-  Tick(trigger:true);Check(!EnemyOptions.Smarter.Value,"smarter enemies cannot be turned off");Tick();Tick(1);Check(EnemyOptions.Smarter.Value,"smarter enemies cannot be turned on");Tick();Tick(y:-1);Tick();
+  // 0.1.224: no smarter enemies row; the setting itself stays on (enemies unchanged).
+  Check(EnemyOptions.Smarter.Value&&!QualityMenu.Text.Contains("Умные враги")&&!QualityMenu.Text.Contains("Smarter enemies"),"smarter enemies row still in the menu or the setting off");
   // 0.1.120: stationary machine gun steering row (handles/inverted by default).
   Check(QualityOptions.MountedHandles!.Value&&QualityMenu.Text.Contains("> Стационарный пулемёт: рукоятки (инверсия)"),"mounted gun row missing or not handles by default");
   Tick(trigger:true);Check(!QualityOptions.MountedHandles.Value&&QualityMenu.Text.Contains("Стационарный пулемёт: по направлению рук"),"mounted gun pointing cannot be chosen");

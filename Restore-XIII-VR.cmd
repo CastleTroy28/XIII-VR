@@ -6,7 +6,7 @@ if not exist "%~dp0Install-XIII-VR.ps1" (
   pause
   exit /b 1
 )
-powershell.exe -NoProfile -File "%~dp0Install-XIII-VR.ps1" -Uninstall %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-XIII-VR.ps1" -Uninstall %*
 set "XIII_VR_RESULT=%ERRORLEVEL%"
 echo.
 pause

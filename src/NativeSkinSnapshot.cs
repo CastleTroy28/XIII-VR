@@ -60,18 +60,74 @@ internal sealed class NativeSkinSnapshot : IDisposable
         Initial??=(Matrix4x4[])Live.Clone();
         liveFrame=Time.frameCount;
     }
+    // 0.1.229: the bazooka held still: each bone as when it was taken
+    // (Initial: the pose its fit and its grips were measured in), except the
+    // bones in `live` (its rocket), which go as the game moves them relative to
+    // the reference bone (its tube), and the rocket the mod draws (Keep, Hidden).
+    // The game's own animation of the bazooka (a shot, a reload, its lowered
+    // empty pose) moved the whole drawn bazooka up to 15 cm off the hands.
+    internal void BakeStill(Mesh output,bool[]? live,int reference)
+    {
+        if(baker==null)throw new ObjectDisposedException(nameof(NativeSkinSnapshot));
+        Sample();
+        var still=Initial??Live;
+        bool anchored=reference>=0&&reference<Live.Length;
+        var follow=anchored?still[reference]*Live[reference].inverse:Matrix4x4.identity;
+        var hidden=Hidden;var kept=keptSlot;
+        for(int i=0;i<owned.Length;i++)
+        {
+            var m=anchored&&live!=null&&i<live.Length&&live[i]?follow*Live[i]:still[i];
+            if(kept!=null&&kept[i]>=0)m=still[keptReference]*(keptRelation!=null?keptRelation[kept[i]]:Bind[keptReference]*Bind[i].inverse);
+            var turn=m.rotation;
+            if(hidden!=null&&i<hidden.Length&&hidden[i])m=Collapse(m);
+            SetOwned(owned[i],m,turn);
+        }
+        baker.BakeMesh(output,false);
+        if(output.vertexCount!=Original.vertexCount)throw new InvalidOperationException("Snapshot topology changed");
+    }
+    // How far the game's animation has the reference bone from where it was taken (mesh space).
+    internal bool StillDrift(int reference,out Vector3 offset,out float degrees)
+    {
+        offset=Vector3.zero;degrees=0;
+        if(Initial==null||reference<0||reference>=Live.Length)return false;
+        var a=Initial[reference];var b=Live[reference];
+        offset=new Vector3(b.m03-a.m03,b.m13-a.m13,b.m23-a.m23);degrees=Quaternion.Angle(a.rotation,b.rotation);
+        return true;
+    }
+    // The bind pose's placement of bones relative to the reference bone (as BakeRestored with no relation).
+    internal Matrix4x4[] BindRelation(int reference,int[] bones)
+    {
+        var relation=new Matrix4x4[bones.Length];
+        for(int k=0;k<bones.Length;k++)relation[k]=Bind[reference]*Bind[bones[k]].inverse;
+        return relation;
+    }
     // 0.1.129: bones collapsed to a point in the live bake (a pulled grenade pin).
     internal bool[]? Hidden{get;set;}
     private static Matrix4x4 Collapse(Matrix4x4 m)=>m*Matrix4x4.Scale(new Vector3(.001f,.001f,.001f));
+    // 0.1.217: bones kept in one place relative to a reference bone of the
+    // live pose (the bazooka's rocket loaded by hand: the game's reload, which
+    // would show it again, is not played). relation null: the bind pose's.
+    private int keptReference=-1;private int[]? keptSlot;private Matrix4x4[]? keptRelation;
+    internal bool Keeping=>keptSlot!=null;
+    internal void Keep(int reference,int[]? bones,Matrix4x4[]? relation)
+    {
+        if(reference<0||reference>=Bones.Length||bones==null||bones.Length==0||relation!=null&&relation.Length!=bones.Length){keptSlot=null;keptRelation=null;keptReference=-1;return;}
+        var slot=new int[Bones.Length];for(int i=0;i<slot.Length;i++)slot[i]=-1;
+        for(int k=0;k<bones.Length;k++)if(bones[k]>=0&&bones[k]<slot.Length)slot[bones[k]]=k;
+        keptReference=reference;keptRelation=relation;keptSlot=slot;
+    }
     internal void Bake(Mesh output,bool neutral=false)
     {
         if(baker==null)throw new ObjectDisposedException(nameof(NativeSkinSnapshot));
         if(!neutral)Sample();
-        var hidden=neutral?null:Hidden;
+        var hidden=neutral?null:Hidden;var kept=neutral?null:keptSlot;
         for(int i=0;i<owned.Length;i++)
         {
-            var m=neutral?Bind[i].inverse:Live[i];if(hidden!=null&&i<hidden.Length&&hidden[i])m=Collapse(m);
-            SetOwned(owned[i],m,neutral?Bind[i].inverse.rotation:Quaternion.Inverse(source.transform.rotation)*Bones[i].rotation);
+            var m=neutral?Bind[i].inverse:Live[i];
+            var turn=neutral?Bind[i].inverse.rotation:Quaternion.Inverse(source.transform.rotation)*Bones[i].rotation;
+            if(kept!=null&&kept[i]>=0){m=Live[keptReference]*(keptRelation!=null?keptRelation[kept[i]]:Bind[keptReference]*Bind[i].inverse);turn=m.rotation;}
+            if(hidden!=null&&i<hidden.Length&&hidden[i])m=Collapse(m);
+            SetOwned(owned[i],m,turn);
         }
         baker.BakeMesh(output,false);
         if(output.vertexCount!=Original.vertexCount)throw new InvalidOperationException("Snapshot topology changed");

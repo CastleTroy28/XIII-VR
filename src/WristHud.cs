@@ -190,7 +190,7 @@ internal sealed class WristHud : IDisposable
                 }
             }
             // 0.1.101: the VR settings are drawn by VrSettingsPage.
-            bool quiet=QualityMenu.Open || rig.Scripted || PauseMenuControl.HackGameIsPaused || GameUiControls.Current?.WheelOpen==true;
+            bool quiet=QualityMenu.Open || ControlsSheet.Open || rig.Scripted || PauseMenuControl.HackGameIsPaused || GameUiControls.Current?.WheelOpen==true;
             bool objectivesOpen=!quiet && GameUiControls.Current?.ObjectivesOpen==true;
             if(goals!=null)
             {

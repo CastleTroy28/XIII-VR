@@ -56,6 +56,22 @@ class HandSkinLifecycleTests
             rebuilt.DestroyVisible();Check(!rebuilt.Usable,"destroyed visible mesh not detected");
         }
         Check(!UnityEngine.Object.All.OfType<Mesh>().Any(x=>!x.dead&&(x.hideFlags&HideFlags.DontUnloadUnusedAsset)!=0),"protected mesh leak");
+        // 0.1.229: the bazooka drawn still as taken (its fit and grips were measured so) while the game animates it.
+        {
+            var gun=new GameObject("bazooka");UnityEngine.Object.DontDestroyOnLoad(gun);
+            var tube=new GameObject("bazooka tube bone");UnityEngine.Object.DontDestroyOnLoad(tube);tube.transform.SetParent(gun.transform,false);
+            var skin=(SkinnedMeshRenderer)gun.AddComponent(typeof(SkinnedMeshRenderer));
+            skin.sharedMesh=new Mesh{vertices=new[]{new Vector3(0,0,.3f)},bindposes=new[]{Matrix4x4.identity}};skin.bones=new[]{tube.transform};
+            var still=new NativeSkinSnapshot(skin);var drawn=new Mesh();var animated=new Mesh();var taken=new N.Vector3(0,0,.3f);
+            still.Bake(animated);Near(animated.vertices[0],taken,"the bazooka as taken");
+            tube.transform.localPosition=new Vector3(0,-.12f,-.08f);tube.transform.localRotation=new Quaternion(N.Quaternion.CreateFromAxisAngle(N.Vector3.UnitX,.4f));
+            still.Invalidate();still.Bake(animated);
+            Check(N.Vector3.Distance(animated.vertices[0].Value,taken)>.1f,"the game's animation does not move the live bake (the test proves nothing)");
+            still.Invalidate();still.BakeStill(drawn,new[]{false},0);Near(drawn.vertices[0],taken,"the bazooka drawn as the game animates it, off the hands on its grips");
+            Check(still.StillDrift(0,out var drift,out float degrees)&&Math.Abs(drift.Value.Length()-.1442f)<1e-3f&&Math.Abs(degrees-22.92f)<.2f,"the game's animation away from the drawn bazooka not measured");
+            still.Invalidate();still.BakeStill(drawn,new[]{true},0);Near(drawn.vertices[0],taken,"a bone going with the game (the rocket) not held to the tube where it is drawn");
+            Console.WriteLine("PASS: 0.1.229 the bazooka drawn still as taken (where its grips were measured) while the game's animation moves it 14 cm and 23 degrees; the drift measured; a bone following the game held to the drawn tube.");
+        }
         // 0.1.122: a bone scaled away (a hidden crossbow bolt) is not taken as its loaded place.
         Check(Math.Abs(NativeSkinSnapshot.SkinScale(Matrix4x4.identity)-1)<1e-5f&&Math.Abs(NativeSkinSnapshot.SkinScale(new Matrix4x4(N.Matrix4x4.CreateScale(.5f)))-.125f)<1e-5f&&NativeSkinSnapshot.SkinScale(new Matrix4x4(N.Matrix4x4.CreateScale(0)))==0,"bone scale of a skin matrix");
         Console.WriteLine("PASS production hand resource owner + NativeSkinSnapshot: simulated asset/scene unload, fists and authored poses, fake-null buffer recovery, dirty-cache reset, renderer invalidation, rebind and disposal; native source untouched.");
@@ -155,6 +171,7 @@ namespace UnityEngine
         internal Quaternion(float x,float y,float z,float w){Value=new(x,y,z,w);}internal Quaternion(N.Quaternion q){Value=q;}
         internal static Quaternion identity=>new(N.Quaternion.Identity);internal static Quaternion Inverse(Quaternion q)=>new(N.Quaternion.Inverse(q.Value));
         public static Quaternion operator *(Quaternion a,Quaternion b)=>new(a.Value*b.Value);
+        internal static float Angle(Quaternion a,Quaternion b)=>MathF.Acos(Math.Min(1f,Math.Abs(N.Quaternion.Dot(a.Value,b.Value))))*2*180/MathF.PI;
     }
     readonly struct Matrix4x4
     {
@@ -167,6 +184,7 @@ namespace UnityEngine
         internal float m00=>Value.M11;internal float m01=>Value.M21;internal float m02=>Value.M31;
         internal float m10=>Value.M12;internal float m11=>Value.M22;internal float m12=>Value.M32;
         internal float m20=>Value.M13;internal float m21=>Value.M23;internal float m22=>Value.M33;
+        internal float m03=>Value.M41;internal float m13=>Value.M42;internal float m23=>Value.M43;
     }
     static class Time{internal static int frameCount=>1;}
 }

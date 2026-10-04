@@ -40,7 +40,7 @@ internal sealed partial class WeaponHands
         float flick=Vector3.Dot(velocity,axis);if(mirrored)flick=Math.Abs(flick);
         // Opened with the B of the hand holding it (right B / left Y).
         var a=revolver.Step(Time.realtimeSinceStartup,dt,gunControls.Valid&&(gunControls.Down&HandControls.B)!=0,
-            (loadControls.Down&HandControls.Trigger)!=0,(loadControls.Held&HandControls.Trigger)!=0,
+            (loadControls.Down&AmmoButton)!=0,(loadControls.Held&AmmoButton)!=0,
             pouch?.Near(lp)==true,aligned&&Vector3.Distance(tip,socket)<.065f,Vector3.Dot(aimForward,Vector3.up),flick);
         if(a==RevolverAction.None)return;
         int held=0;

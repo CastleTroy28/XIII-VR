@@ -32,6 +32,8 @@ internal sealed partial class WeaponHands
     internal bool BreakReady=>ManualReady&&visual?.BreakAction==true&&CurrentBreak!=null;
     internal bool BreakBlocksFire=>BreakReady&&CurrentBreak!.BlocksFire;
     internal bool BreakHolding=>BreakReady&&CurrentBreak!.Holding;
+    // 0.1.221: open with an empty chamber and no shell in hand: the grip at the belt takes one.
+    private bool BreakWantsShell(Vector3 hand)=>CurrentBreak is BreakActionState st&&st.Open&&!st.Holding&&st.AnyEmpty&&pouch!=null&&pouch.NearShell(hand);
     // A double-barrelled gun (the game's hunting shotgun) by its name.
     internal static bool BreakGun(Equipable? w)
     {
@@ -94,8 +96,9 @@ internal sealed partial class WeaponHands
             if(st.Flick(now,up,raise))BreakClosed("a flick up and down (the barrels swung shut by their weight)",mirrored);
         }
         breakPrevAt=now;breakPrevGun=gunAt;breakPrevPitch=pitch;
-        bool down=(loader.Down&HandControls.Trigger)!=0,held=(loader.Held&HandControls.Trigger)!=0;
-        // A shell from the belt (the other hand's trigger at it).
+        // 0.1.221: the other hand's grip (was its trigger) takes and holds a shell.
+        bool down=(loader.Down&AmmoButton)!=0,held=(loader.Held&AmmoButton)!=0;
+        // A shell from the belt (the other hand's grip at it).
         if(!st.Holding&&down&&pouch!=null&&pouch.NearShell(world))
         {
             bool infinite=false;try{infinite=a.ammoPool.IsInfinite;}catch(Exception){}

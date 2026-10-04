@@ -12,7 +12,7 @@ internal sealed class GameUiControls : IDisposable
     private InventoryWheel? wheel;
     private Transform? player;
     private bool owned,armed,selected,disposed,oldDeselectOnZero;
-    private bool escapeDown,wheelChordBlocked;
+    private bool escapeDown,wheelChordBlocked,rightAWas=true;
     private readonly MenuChord chord=new();
     private float escapeRelease,nextFind;
     private readonly ObjectivesState objectives=new();
@@ -34,7 +34,7 @@ internal sealed class GameUiControls : IDisposable
         ||(!rig.Scripted&&hud!=null&&GameInputManager.IsInputLocked(hud.GetOwner().Id)));
     internal bool ObjectivesOpen=>objectives.Open;
     internal bool WheelOpen => wheel!=null && wheel.IsOpen;
-    internal bool BlocksGameplay => PointerMenuOpen || rig.Scripted || ObjectivesOpen || QualityMenu.Open;
+    internal bool BlocksGameplay => PointerMenuOpen || rig.Scripted || ObjectivesOpen || QualityMenu.Open || ControlsSheet.Open;
     internal PlayerHUDControl? Hud => hud;
     internal GameUiControls(CameraRig camera)
     {
@@ -59,18 +59,21 @@ internal sealed class GameUiControls : IDisposable
             if(escapeDown && (now>=escapeRelease || !Application.isFocused)) ReleaseEscape();
             if(!(rig.PlayerRoot==player&&hud!=null&&wheel!=null)&&SceneScan.Due(ref nextFind,1)) FindHud();
             if(owned)Items.Hover();
-            bool focused=Application.isFocused && rig.HeadTrackingValid;
+            // 0.1.210: in VR the wheel and the menus work without Windows focus
+            // (with Virtual Desktop the game's window is often not in front).
+            bool focused=WindowFocus.Playable && rig.HeadTrackingValid;
             bool modifier=rig.LeftControls.Valid && (rig.LeftControls.Held&HandControls.Grip)!=0;
             // 0.1.101: left grip + R3 no longer opens the VR settings; they
             // are an item of the game menu (VrSettingsPage).
             QualityMenu.Tick(focused&&!rig.Scripted,rig.LeftStick,rig.MenuRightControls);
-            bool canShowObjectives=!QualityMenu.Open&&!modifier&&focused && rig.RightStick.Valid && !rig.Scripted && !PauseMenuControl.HackGameIsPaused
+            bool canShowObjectives=!QualityMenu.Open&&!ControlsSheet.Open&&!modifier&&focused && rig.RightStick.Valid && !rig.Scripted && !PauseMenuControl.HackGameIsPaused
                 && !WheelOpen && hud!=null && !GameInputManager.IsInputLocked(hud.GetOwner().Id);
             bool wasObjectives=objectives.Open;
             objectives.Sample(rig.LeftControls.Valid&&(rig.LeftControls.Held&HandControls.A)!=0,canShowObjectives);
             if(wasObjectives!=objectives.Open)Bootstrap.Write("OBJECTIVES panel open="+objectives.Open);
             var right=rig.RightControls;
             var left=rig.LeftControls;
+            bool rightA=right.Valid&&(right.Held&HandControls.A)!=0,rightAPressed=rightA&&!rightAWas;rightAWas=rightA;
             // 0.1.150: a left-hander takes things and opens doors with the left
             // grip (+X), so the menu chord moves to the right hand: right grip + A
             // (not while the weapon wheel is open: there the grip takes a weapon).
@@ -91,6 +94,7 @@ internal sealed class GameUiControls : IDisposable
                     if(late&&lefty&&owned)Close(false);
                     if(late&&!lefty&&objectives.Open)objectives.Close();
                     if(QualityMenu.Open)QualityMenu.Close();
+                    else if(ControlsSheet.Open)ControlsSheet.Close();
                     else if(owned) Close(false);
                     else if(objectives.Open)objectives.Close();
                     else OpenGameMenu(lefty,late,now);
@@ -98,12 +102,22 @@ internal sealed class GameUiControls : IDisposable
             }
             // (The grappling hook stays in the left hand while its placement
             // is tuned in the settings.)
-            if(QualityMenu.Open){Close(false);if(!Items.HandTool)Items.Clear();armed=false;shortcuts.Reset();return;}
+            if(QualityMenu.Open||ControlsSheet.Open){Close(false);if(!Items.HandTool)Items.Clear();armed=false;shortcuts.Reset();return;}
             bool usable=focused && rig.RightControls.Valid && rig.LeftStick.Valid && !rig.Scripted && !PauseMenuControl.HackGameIsPaused;
             // 0.1.142: with a gun in the left hand its Y reloads it (not the next weapon).
             var command=shortcuts.Sample(usable&&rig.LeftControls.Valid&&WeaponHands.Current?.LeftYReloads!=true,rig.LeftControls.Held);
             bool aHeld=right.Valid&&(right.Held&HandControls.A)!=0;
             if(!aHeld)wheelChordBlocked=false;
+            // 0.1.214: the game's weapon wheel tutorial ends with right A (its
+            // hint says so): the game closes its wheel. The A held on opens no
+            // wheel of the mod's until it is let go.
+            if(WheelTutorialMath.Ends(rightAPressed,WheelTutorial.Forced,focused))
+            {
+                wheelChordBlocked=true;Disown();Items.Clear();rig.DisarmTrigger();armed=false;
+                int id=hud!=null?hud.GetOwner().Id:0;
+                Bootstrap.Write("VR MENU weapon wheel tutorial ended with right A: "+WheelTutorial.End(wheel!=null&&wheel.IsOpen,id));
+                return;
+            }
             // 0.1.124: the grip on a weapon in the wheel takes it into the hand
             // (held by the grip); on nothing it just closes the wheel.
             if(aHeld&&(right.Held&HandControls.Grip)!=0&&!wheelChordBlocked)
@@ -128,6 +142,17 @@ internal sealed class GameUiControls : IDisposable
             {
                 if(owned){bool item=Items.Hovered;Items.Commit();Close(!item&&selected);}
                 armed=true; return;
+            }
+            // 0.1.210: the game's weapon wheel tutorial opens the wheel itself and
+            // locks the controls until it is closed. That wheel was nobody's:
+            // the hand could not choose in it, and the game was stuck. Holding
+            // right A takes it over like the wheel the mod opens: the left stick
+            // chooses, letting go of A confirms.
+            if(!owned && wheel!=null && MenuInputMath.AdoptGameWheel(wheel.IsOpen,owned,hold,player!=null && player.gameObject.activeInHierarchy))
+            {
+                selected=false;Items.Clear();rig.DisarmTrigger();objectives.Close();
+                oldDeselectOnZero=wheel.deselectOnZeroCursorOffset;owned=true;armed=false;
+                Bootstrap.Write("VR MENU wheel opened by the game (its tutorial): taken over; the left stick chooses, letting go of A confirms");
             }
             if(!owned && armed && wheel!=null && !wheel.IsOpen && player!=null && player.gameObject.activeInHierarchy)
             {
@@ -219,6 +244,20 @@ internal sealed class GameUiControls : IDisposable
         catch(Exception ex) { Bootstrap.Warn("VR wheel close: "+ex.Message); }
         Items.ClearHover();rig.DisarmTrigger();selected=false;
     }
+    // The wheel stays open, the game's again (it closes it itself).
+    private void Disown()
+    {
+        if(!owned)return;owned=false;
+        try{if(wheel!=null)wheel.deselectOnZeroCursorOffset=oldDeselectOnZero;}catch(Exception){}
+        Items.ClearHover();selected=false;
+    }
+    // The game's own open wheel (not the mod's) closed without a choice.
+    private bool CloseGameWheel()
+    {
+        if(owned||wheel==null||!wheel.IsOpen)return false;
+        try{wheel.CloseWheel(false,false);Bootstrap.Write("VR MENU the wheel the game opened (its tutorial) closed by the menu chord");return true;}
+        catch(Exception ex){Bootstrap.Warn("VR MENU closing the game's wheel: "+ex.Message);return false;}
+    }
     private void OpenGameMenu(bool lefty,bool late,float now)
     {
         string chordName=(lefty?"right grip+A, left-handed":"left grip+X")+(late?", the button first":"");
@@ -231,6 +270,9 @@ internal sealed class GameUiControls : IDisposable
         // 0.1.158: Escape could not be typed for the game: in play its pause
         // menu is opened directly (the reason is written either way).
         string why=EscapeKey.LastRefusal;
+        // 0.1.213: a wheel the game opened itself (its tutorial) closes then
+        // (Escape, which the game itself answers, comes first: it ends the tutorial).
+        if(CloseGameWheel()){Bootstrap.Warn("VR MENU Escape could not be typed ("+chordName+"): "+why);return;}
         if(rig.Frontend||rig.Scripted||rig.MovieActive){Bootstrap.Warn("VR MENU Escape could not be typed ("+chordName+"): "+why);return;}
         if(GamePause.TryOpen(out string how))Bootstrap.Write("VR MENU Escape could not be typed ("+chordName+": "+why+"); the game's pause menu opened directly");
         else Bootstrap.Warn("VR MENU Escape could not be typed ("+chordName+": "+why+"); the pause menu was not opened: "+how);

@@ -33,8 +33,9 @@ internal sealed class VrMenuPointer : IDisposable
         try
         {
             keyboard.Tick();
-            bool valid=Application.isFocused&&rig.HeadTrackingValid&&rig.MenuPointerControls.Valid
-                &&GameUiControls.Current?.PointerMenuOpen==true&&!QualityMenu.Open&&rig.SamplePointerHand(out _);
+            // 0.1.210: the pointer works in VR without Windows focus too.
+            bool valid=WindowFocus.Playable&&rig.HeadTrackingValid&&rig.MenuPointerControls.Valid
+                &&GameUiControls.Current?.PointerMenuOpen==true&&!QualityMenu.Open&&!ControlsSheet.Open&&rig.SamplePointerHand(out _);
             if(!valid){Cancel();return;}
             if(!rig.SamplePointerHand(out var hand)){Cancel();return;}
             rig.DisarmMenuTriggers(); // Only gameplay channels; UI reads independent channels.

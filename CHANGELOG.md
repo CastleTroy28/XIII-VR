@@ -2,75 +2,62 @@
 
 The version is in `Install-XIII-VR.ps1`, `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
-## 0.1.209
+## 0.1.232
 
-- **A smaller package.** The sound extractors and the audio collector are gone. Only the log collector (`Collect-XIII-Logs.cmd`) is installed in the game folder. An update removes the old helper files from the game folder and keeps them in the restore point, so `Restore-XIII-VR.cmd` can bring them back.
-- The installer's messages are in English only.
-- Source comments now describe each change by what it fixes.
+- The installer checks the package before it does anything. If the plugin file is missing, it now says why. The usual cause is GitHub's "Source code" archive instead of `XIII-VR-<version>.zip`. Other causes are a run from inside the zip, a half-unpacked folder or an antivirus. The old message blamed an earlier install inside `BepInEx\plugins` even when that wasn't the cause
 
-## 0.1.208
+## 0.1.231
 
-- **Lift buttons and the switches that turn the alarms off are pressed by touch.** Before, a touch pressed only interactions whose objects were named "button", "switch" or "panel". The lift of `cp_elevator_02` and the power boxes that cut the alarms (`power_box_06_b`) are named `raycast_target`, `trigger` and `Collider`, so a hand right on them pressed nothing. Now what the interaction runs when used decides. A small interaction that does something (an animation, a script, a lift, the alarms off) is pressed by a touch. A touch never does these: taking or carrying (pick-ups, ladders, the hook, ziplines), a door or cabinet leaf that the hand moves itself, raising the alarm (an accidental touch would fail the mission), an interaction that runs nothing, and volumes larger than 1 m. When a touch moves into an interaction and presses nothing, the log says why (`TOUCH BUTTON nothing pressed at …`).
+- The hand on the bazooka's handle (the grip with the trigger) sits up at the trigger. The trigger is measured from the bazooka's model, and the hand moves up until the index fingertip is level with it. It moves at most 4 cm, never down, and never above the handle's top. The front grip is unchanged.
+- The README's controls table is complete and up to date.
 
-## 0.1.207
+## 0.1.230
 
-- **A steady scope, as if always holding the breath.** A tracked hand always trembles and sways a little, about a fifth of a degree. Without a scope you don't see it, but the SVD's and the crossbow's scopes show only 3–5 degrees, so the picture shook at the slightest move and far targets were very hard to hit. Now, while an eye is at the scope, the aim is steadied: the tremor and the sway are smoothed away (about ten times less shake), while a deliberate turn passes almost at once and never lags more than 2.5 degrees behind the hands. The shot goes where the reticle points. Away from the eye the weapon follows the hands as before, with a quarter-second blend and no jump. `[Weapons] ScopeSteadiness` sets the strength: 0 is off, 1 the default, up to 2 is steadier. The log notes it (`SCOPE … at the eye: the aim steadied …`).
+- In the last mission, the opening of the memory in the house can be skipped with the right trigger. The skip now also fast-forwards story timelines that aren't the game's cutscenes.
+- Nobody can be taken hostage, punched or grabbed in a memory. The game itself takes no hostages there, but Kim could be taken by pointing at her.
 
-## 0.1.206
+## 0.1.229
 
-- **A held chair (or broom, or gun held by the barrel) strikes again after a touch.** A swing counts only when it is armed. A fist rearms when you open and close your hand. A held thing never lets go of the grip, so after any touch (a table, the floor, a soft touch on an enemy) it rearmed only when pulled back along that touch's stroke. That was often an old line, or no line at all, so swinging along another line never rearmed it again: several tries did nothing, while the other hand struck at once. Now it also rearms when carried 20 cm or more off the touch on another line (not within 60 degrees of going on along the same stroke). Following through along the same stroke still never hits twice. The log notes a fast swing that wasn't counted (`… not rearmed since its last touch`).
+- The bazooka stays in the hands after a shot. The game's recoil, reload and empty-pose animations moved the whole bazooka up to 15 cm off the hands. It is now drawn as it was when taken, and only its rocket still moves with the game.
+- Every few seconds the log has a `BAZOOKA HOLD` line. It says where each hand is and why one isn't on its grip.
 
-## 0.1.205
+## 0.1.215 – 0.1.228
 
-- **Police, FBI and guards hold fire while you hold a hostage.** The game tells its enemies about a hostage only at the moment it is taken, and only the enemies already there. The bank's guards come in after the hostage is taken, so they never knew and shot. An enemy that arrives later is now told the same way the game tells, and it receives the hostage's later events from then on. Police, FBI and guards don't shoot the holder of a live hostage. Once he fires with the hostage in his hands, the game decides again (they may fire back). Bandits still shoot anyway.
-- **Every bullet aimed at you goes into the hostage.** Before, the hostage shielded you only when a bullet's path crossed his body. Now bullets from the side, from above or from behind also go into his body, on the side facing the shooter. The hostage never dies in your hands. He cries out when hit, and if the hits would have killed him, he dies once you let go. Explosions and punches still hit you.
-- **A long gun held by the barrel and a chair now land their blows.** A disarmed enemy's raised guard stops the club before his chest and head. In that same moment, another part of the long gun (or one of the chair's 62 parts) often touched a wall, a table or the floor, and that touch took the stroke. An enemy the weapon touches, or is stopped by, now wins over the world. A wall in the way of the same part still blocks the blow.
-- The invisible walking blockers named `collider player` (with a space) no longer stop hands and weapons, the same as `collider_player`. They held weapons 0.4–2 m away from anything visible.
-- When a held weapon's stroke finds no enemy but one is close by, the log says what it met instead (`VR PUNCH held weapon … met …`).
+- **0.1.228** Every bazooka is the same size, because it is sized without its rocket. The thumb wraps round the bazooka's handle.
+- **0.1.227** The bazooka's hands are fitted to its grips, each finger closed onto the grip. The rocket lies along the fingers.
+- **0.1.226** The bazooka's hands are placed on its measured grips. The thumb stays out of the rocket.
+- **0.1.225** The bazooka's hands take the game's own holds instead of mirrored ones.
+- **0.1.224** "Smarter enemies" is gone from VR SETTINGS. They stay on, and the config still has `[VR] SmarterEnemies`.
+- **0.1.223** Bolts, slides and charging handles are worked with the grip. The M60's box goes back in easily, and its cover can be pressed shut by hand. The bazooka's real handle is found.
+- **0.1.222** Grab and throw in one motion. Bottles no longer get stuck in the hand.
+- **0.1.221** Ammo comes from the belt pouch with the grip. While the gun needs rounds, the pouch comes before the holster.
+- **0.1.220** Picking a lock takes the game's own time, with its HUD timer and sound.
+- **0.1.219** The hands close on the bazooka's grips.
+- **0.1.218** Allies, like Major Jones, are left alone: no hostage, punches or grabs.
+- **0.1.217** The rocket is held in the fist and shows in the tube after a hand reload. The marker ball no longer shows on the zipline.
+- **0.1.216** A hard punch in the back knocks an enemy out. A hostage is taken with a still grip.
+- **0.1.215** The pause menu has a VR CONTROLS page. Keys come out on the stick click, and hints show controller icons. The bazooka is reloaded by hand and has an aim dot.
 
-## 0.1.204
+## 0.1.204 – 0.1.214
 
-- **The installer goes over what an earlier install left behind.** An uninstall or a Steam reinstall leaves the `BepInEx` folder in the game folder: its settings, logs and the files BepInEx generates. On a game without `doorstop_config.ini`, the installer took these for a broken loader and stopped ("Unconfigured loader files already exist"). Now the loader is installed over them, and your settings are kept. A Doorstop `winhttp.dll` left from BepInEx is replaced and backed up in the restore point. Only a `winhttp.dll` that belongs to another program stops the install, and the message names it.
+- **0.1.214** A landing ring for throws. The next knife comes at once. Right A closes the weapon wheel tutorial.
+- **0.1.213** A hostage is taken by pointing a free hand at him from behind.
+- **0.1.210 – 0.1.212** The installer runs on a default Windows. The start screen and the weapon wheel tutorial answer the controllers. Door and breakable prompts show only the game's icon.
+- **0.1.209** A smaller package: only the log collector goes into the game folder.
+- **0.1.208** Lift buttons and alarm switches are pressed by touch.
+- **0.1.207** The scope is steady at the eye (`[Weapons] ScopeSteadiness`).
+- **0.1.206** Held chairs, brooms and clubs strike again after a touch.
+- **0.1.205** Police, FBI and guards hold fire while you hold a hostage, and bullets aimed at you hit the hostage.
+- **0.1.204** The installer installs over files left by an earlier install.
 
 ## 0.1.203 — first public release
 
-- **Story doors open through the game.** Some doors run story events when the game opens them. The bank's hostage door, for example, lets in the two guards. Moving such a door by hand used to run none of these events. Now, when you push or pull a closed story door by about 3 degrees, it swings open through its own game interaction, exactly as Grip+A opens it. Ordinary doors still follow your hand. The log lists what each door's interaction does (`PHYSICAL DOOR bound=… events: …`).
-- **Keycards are held to the reader** instead of swiped. The card itself (not the controller) has to touch the reader for 0.15 s. Swiping still works. The hint reads "Hold card to reader" in every language the mod supports.
+- Story doors open through the game when moved by hand. Keycards are held to the reader.
 
-## 0.1.202
+## 0.1.191 – 0.1.202
 
-- Brooms, shovels and long guns held by the barrel hit enemies again. Each part of a long weapon now finds its own contact, so the far end touching a wall no longer cancels a blow that hits an enemy.
-- Guns with hand-made collision shapes hit with the whole gun.
-
-## 0.1.201
-
-- Long guns held by the barrel damage enemies when they hit the body.
-- A third revolver or pistol is picked up even when two of a kind are already on the body.
-
-## 0.1.200
-
-- Chairs hit properly (timed by their far end, not by the hand).
-- The pointer on the death screen is drawn above the panel.
-- The M4's thin barrel is gripped tighter, and the zipline hook's handle sits nearer the palm.
-
-## 0.1.198 – 0.1.199
-
-- The zipline hook is held by its real rubber handle, like a pistol grip, at its own size.
-- A long gun held by the barrel sits deeper in the fist.
-
-## 0.1.191 – 0.1.197
-
-- Holding long guns by the barrel to use them as clubs.
-- The zipline hook in the hand and riding the zipline.
-- The grappling hook in either hand, with mirrored rope controls.
-- Uzi top handle.
-- Double-barrel and Uzi manual reloading.
-- A silenced pistol in the left hand.
-- Two pistols reloaded one-handed against the chest: B/Y drops the magazine, a knock of the grip on the chest puts in a full one.
-- Accurate crossbows.
-- Hostages held against you with a hand on the neck.
-- A selectable Russian voice-over.
+- Long guns held by the barrel as clubs, the zipline, the grappling hook in either hand, double-barrel and Uzi manual reloading, two pistols reloaded against the chest, hostages held by the neck, a selectable Russian voice-over, and many melee fixes.
 
 ## Earlier
 
-Versions before 0.1.191 were private test builds. They covered rendering, tracked hands, weapons, holsters, physical melee, doors, keys, locomotion, menus, the installer and the OpenXR/OpenVR runtimes.
+Versions before 0.1.191 were private test builds. They covered rendering, tracked hands, weapons, holsters, melee, doors, keys, locomotion, menus, the installer and the OpenXR/OpenVR runtimes.

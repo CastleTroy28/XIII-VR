@@ -72,7 +72,10 @@ internal sealed partial class WeaponHands
         // 0.1.126: with the grip holding weapons the grip is the lever (let go
         // to throw); the old way it is the right trigger.
         ulong lever=GripMode==WeaponGripMode.Always?HandControls.Trigger:HandControls.Grip;
-        var result=grenadeGesture.Sample(Time.realtimeSinceStartup,rig.RightControls.Valid&&(rig.RightControls.Held&lever)!=0,ToN(local));
+        bool leverHeld=rig.RightControls.Valid&&(rig.RightControls.Held&lever)!=0;
+        var result=grenadeGesture.Sample(Time.realtimeSinceStartup,leverHeld,ToN(local));
+        // 0.1.214: where it lands, while the pin is out and the lever held.
+        if(!result.Throw&&grenadeGesture.PinPulled&&leverHeld)AimGrenadeLanding(1,grenadeGesture,center,toWorld,weapon);
         if(!result.Throw)return;
         var velocity=LivelyThrow(AimedThrow(toWorld*new Vector3(result.Velocity.X,result.Velocity.Y,result.Velocity.Z)),result.HandSpeed);
         throwOrigin=center;throwLaunch=velocity;throwRotation=visual.FittedToWorld.rotation;throwSpin=ThrowSpin(1);

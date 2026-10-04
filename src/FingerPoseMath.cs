@@ -39,7 +39,7 @@ internal sealed partial class FingerPoseMath
         {float d=Vector3.DistanceSquared(rest[fingers[i][0]].Translation,rest[thumb[0]].Translation);if(d<nearest){nearest=d;indexFinger=i;}}
     }
     private int authoredRevision;
-    internal int Revision=>authoredRevision+rimRevision+chairRevision+MedkitGeometry.Revision+ReloadGripGeometry.Revision+sideRevision[rightHand?0:1]+OtherProcedural;
+    internal int Revision=>authoredRevision+rimRevision+chairRevision+fitRevision+MedkitGeometry.Revision+ReloadGripGeometry.Revision+sideRevision[rightHand?0:1]+OtherProcedural;
     private int OtherProcedural{get{var o=hands[rightHand?0:1];return o==null||ReferenceEquals(o,this)?0:o.chairRevision+o.rimRevision+o.authoredRevision;}}
     internal bool Has(string profile)=>authored.ContainsKey(profile);
     internal void ResetGrips(){powerContacts.Clear();chairCache.Clear();chairPose=null;ashtrayTray=false;authored.Clear();authoredRevision++;int side=rightHand?1:0;sideGrips[side].Clear();sideRevision[side]++;}
@@ -203,14 +203,18 @@ internal sealed partial class FingerPoseMath
             // with a synthetic curl from the flat bind pose.
             return result;
         }
+        // 0.1.227: a thing fitted in this hand (FitGrip): each finger closed onto it, the thumb clear of it.
+        bool fitted=GripFit(baseProfile,out var fitFingers,out float fitThumb)&&held&&fitFingers.Length==fingers.Count;
         for(int i=0;i<fingers.Count;i++)
         {
             bool index=i==indexFinger;
-            float amount=held?(index&&!baseProfile.StartsWith("prop",StringComparison.Ordinal)&&baseProfile!="knife"&&baseProfile!="grenade"&&(rightHand&&!profile.StartsWith(MirrorPrefix,StringComparison.Ordinal)||!rightHand&&Mirrored(profile))?.32f+trigger*.18f:HeldAmount(baseProfile)):Relaxed(index?Math.Max(grip,trigger):grip);
+            bool onTrigger=index&&!baseProfile.StartsWith("prop",StringComparison.Ordinal)&&baseProfile!="knife"&&baseProfile!="grenade"&&(rightHand&&!profile.StartsWith(MirrorPrefix,StringComparison.Ordinal)||!rightHand&&Mirrored(profile));
+            float amount=held?(onTrigger?.32f+trigger*.18f:fitted&&float.IsFinite(fitFingers[i])?fitFingers[i]:HeldAmount(baseProfile)):Relaxed(index?Math.Max(grip,trigger):grip);
             Bend(result,fingers[i],amount,held,false);
             if(!held)CloseSpread(result,fingers[i],amount);
         }
-        if(held)Bend(result,thumb,.85f,true,true);
+        // 0.1.226: opened round a thicker thing (the rocket's tube: the thumb went into it).
+        if(held)Bend(result,thumb,fitted?fitThumb:ThumbAmount(baseProfile),true,true);
         else PoseThumb(result,Relaxed(grip));
         return result;
     }

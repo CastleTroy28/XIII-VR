@@ -24,6 +24,7 @@ internal sealed partial class InteractionDriver : IDisposable
     internal bool KeyActive=>keys.Active;
     internal string KeyGripProfile=>keys.GripProfile;
     internal bool KeyLockpick=>keys.Lockpick;
+    internal bool KeyPicking=>keys.Picking;
     internal void PrepareKeyHand(NativeHandVisual hand)=>keys.PrepareHand(hand);
     internal void RenderKey(Transform? hand)=>keys.Render(hand);
     // Pointing at something the right Grip alone picks up (not a door,
@@ -64,6 +65,25 @@ internal sealed partial class InteractionDriver : IDisposable
             catch{doorTarget=false;}
             return doorTarget;
         }
+    }
+    // 0.1.215: a key, card or lockpick lock not opened yet: the stick click
+    // of the hand that takes things (R3; L3 left-handed) takes the item out.
+    private int lockFrame=-1;private bool lockAimed;private Func<bool>? lockQuery;
+    internal bool LockTarget=>LockAimed();
+    private bool LockAimed()
+    {
+        if(lockFrame==Time.frameCount)return lockAimed;lockFrame=Time.frameCount;
+        try{var a=TargetAction;lockAimed=a!=null&&a.conditional is RaycastAction.InteractionConditionals.Key or RaycastAction.InteractionConditionals.Keycard or RaycastAction.InteractionConditionals.Lockpick&&!a.conditionalResolved;}
+        catch{lockAimed=false;}
+        return lockAimed;
+    }
+    // That click (held from the press at the lock, or pressed at it now) is the lock's.
+    private bool StickForLock(bool right)
+    {
+        if(right!=MainRight)return false;
+        if(input.LockHeld)return true;
+        var c=MainControls;
+        return c.Valid&&(c.Held&HandControls.Stick)!=0&&Allowed()&&LockAimed();
     }
     // 0.1.119: a mounted gun is taken with both grips.
     private int turretFrame=-1;private bool turretTarget;
@@ -214,7 +234,7 @@ internal sealed partial class InteractionDriver : IDisposable
             LinkCarryInteraction();
             Patch(typeof(PlayerHUDControl),"Update",nameof(FilterHints));
             Patch(typeof(CustomAnimationTool),"StartCustomAnimationTool",nameof(ResumeCabinet));
-            Current=this;
+            Current=this;LockStick.Query=right=>Current?.StickForLock(right)==true;
             Bootstrap.Write("INTERACTION 0.1.39 ready; right grip + A; native ray from calibrated controller; screen crosshair hidden; rewired="+actionId);
         }
         catch { carry.Dispose();climbing.Dispose();grapple.Dispose();zipline.Dispose();patches.UnpatchSelf(); throw; }
@@ -225,6 +245,8 @@ internal sealed partial class InteractionDriver : IDisposable
     private static void FilterHints(PlayerHUDControl __instance)
     {
         InteractionHints.Apply(__instance);
+        // 0.1.213: the hostage icon while a hand points at one.
+        Current?.carry.HostagePrompt(__instance);
         try{VrPromptLabels.RefreshHud(__instance);}catch(Exception ex){Bootstrap.Warn("VR PROMPTS: "+ex.Message);}
     }
     private static bool BeginUnlock(RaycastAction __instance,IInteractionActor interactionActor,RaycastHit rayhit,ref bool pingValidity)
@@ -318,7 +340,7 @@ internal sealed partial class InteractionDriver : IDisposable
             FramePerformance.Scope("prop-interactions",timer);
         }
         // 0.1.150: the hand that takes things: the right one, or the left one for a left-hander.
-        input.Sample(MainControls,allowed&&!climbing.Active&&!carry.HidesHand(MainRight)&&NpcHitReactions.Current?.Grabbing(MainRight)!=true,PickupTarget);
+        input.Sample(MainControls,allowed&&!climbing.Active&&!carry.HidesHand(MainRight)&&NpcHitReactions.Current?.Grabbing(MainRight)!=true,PickupTarget,false,lockQuery??=LockAimed);
         // 0.1.151: the other hand's grip takes the game's things too, into that hand.
         offInput.Sample(OffControls,allowed&&!climbing.Active&&!keys.Active&&!carry.HidesHand(OffRight)&&!input.Action.Held&&NpcHitReactions.Current?.Grabbing(OffRight)!=true,OffPickupTarget,true);
         if(offInput.Action.Down)
@@ -327,7 +349,7 @@ internal sealed partial class InteractionDriver : IDisposable
             Bootstrap.Write("INTERACTION PRESS "+(OffRight?"right":"left")+" grip (the other hand, a thing) player="+playerId+" target="+(rays.Count>0?rays[0].RaycastHittable?.TryCast<Component>()?.name:"none"));
         }
         if(input.Action.Down){int side=MainRight?1:0;carry.PressedBy(side);if(ThingTarget(3))WeaponHands.ThingTakenBy(side);}
-        if(input.Action.Down) Bootstrap.Write("INTERACTION PRESS "+(MainRight?"right ":"left ")+((MainControls.Held&HandControls.A)!=0?(MainRight?"grip+A":"grip+X"):"grip")+" player="+playerId+" target="+(rays.Count>0?rays[0].RaycastHittable?.TryCast<Component>()?.name:"none"));
+        if(input.Action.Down) Bootstrap.Write("INTERACTION PRESS "+(MainRight?"right ":"left ")+(input.LockHeld?(MainRight?"R3 (a lock)":"L3 (a lock)"):(MainControls.Held&HandControls.A)!=0?(MainRight?"grip+A":"grip+X"):"grip")+" player="+playerId+" target="+(rays.Count>0?rays[0].RaycastHittable?.TryCast<Component>()?.name:"none"));
     }
     private bool PrepareRay(out Vector3 position,out Quaternion rotation)
     {
@@ -597,7 +619,7 @@ internal sealed partial class InteractionDriver : IDisposable
     }
     public void Dispose()
     {
-        if(disposed) return; disposed=true; if(Current==this) Current=null;
+        if(disposed) return; disposed=true; if(Current==this){Current=null;LockStick.Query=null;}
         input.Reset();offInput.Reset();keys.Dispose();NativeItemCue.Release();InteractionHints.Restore();touch.Reset();props.Dispose();doors.Dispose();bodies.Dispose();carry.Dispose();climbing.Dispose();zipline.Dispose();
         try { RestoreCrosshairs(); }
         finally

@@ -23,6 +23,11 @@ internal sealed partial class WeaponHands
     private Vector3 knifeOrigin,knifeDirection;
     private float knifeLaunchUntil,knifeLaunchedAt=-10,knifeReleasedAt=-10,knifeHiddenUntil;
     private bool knifeByGrip;
+    // 0.1.214: a throw let go while the game's knife was not ready yet (its
+    // last throw still playing, or drawn again): pressed once it is.
+    private float knifePressDue=-1;
+    // Which hand threw the knife last (the one that takes the next one at once).
+    private int knifeThrowSide=1;
     private bool KnifeLaunching=>profile=="knife"&&Time.realtimeSinceStartup<knifeLaunchUntil;
     // Every frame (before the hands are handled): each hand's path, for a
     // throw when its grip opens.
@@ -31,6 +36,7 @@ internal sealed partial class WeaponHands
         float now=Time.realtimeSinceStartup;
         if(rig.SampleRightRelative(out var r,out _))swings[1].Sample(now,ToN(r));else swings[1].Reset();
         if(rig.SampleLeftRelative(out var l,out _))swings[0].Sample(now,ToN(l));else swings[0].Reset();
+        NoteGrips(now);
     }
     // Hand s let go: a throw (world direction, hand speed), or why not.
     private bool SwingThrow(int s,out Vector3 direction,out float speed,out string why)
@@ -57,11 +63,12 @@ internal sealed partial class WeaponHands
     private Vector3 HandPoint(int s){return rig.SampleWorldHands(out var l,out var r,out _)?CameraRig.UnityPosition(s==1?r:l):rig.HeadPosition;}
     // A throwable thing came to hand s (another one, or after frames without
     // it): held by the grip if the grip is holding it now.
-    private void ThrowHeld(int s,int key,WeaponGripMode mode,bool held)
+    // true: fresh (0.1.222).
+    private bool ThrowHeld(int s,int key,WeaponGripMode mode,bool held)
     {
-        int f=Time.frameCount;
-        if(throwHeldKey[s]!=key||throwSeenFrame[s]<f-1)throwGrips[s].Took(held,mode);
-        throwHeldKey[s]=key;throwSeenFrame[s]=f;
+        int f=Time.frameCount;bool fresh=throwHeldKey[s]!=key||throwSeenFrame[s]<f-1;
+        if(fresh)throwGrips[s].Took(held,mode);
+        throwHeldKey[s]=key;throwSeenFrame[s]=f;return fresh;
     }
     // ---- The game's knife in the right hand (from TickGameWeapon) ----
     private void KnifeGrip(int s,Vector3 hand,bool held,bool down,WeaponGripMode mode,int key)
@@ -69,6 +76,8 @@ internal sealed partial class WeaponHands
         if(knifeByGrip&&Time.realtimeSinceStartup-knifeReleasedAt<1.5f)return;   // being thrown
         ThrowHeld(s,weapon!=null?weapon.GetInstanceID():key,mode,held);
         bool arc=QualityOptions.ThrowArc.Value;
+        // 0.1.214: where it lands (not at its place on the chest: letting go there puts it back).
+        if(held&&throwGrips[s].Armed&&holsters!=null&&holsters.NearestPlace(key,"knife",hand)==HolsterSlot.None)AimKnifeLanding(s,hand,arc);
         if(arc&&held&&throwGrips[s].Armed&&AimThrow(s,out var line))DrawThrowPreview(hand+line*.12f,line*30,false,1);
         else if(knifeAiming){knifeAiming=false;throwRoot?.SetActive(false);}
         if(arc&&held&&throwGrips[s].Armed)knifeAiming=true;
@@ -89,13 +98,55 @@ internal sealed partial class WeaponHands
     private void ThrowGameKnife(int s,Vector3 hand,Vector3 direction,float speed,bool aimed)
     {
         float now=Time.realtimeSinceStartup;
-        knifeDirection=direction.normalized;knifeOrigin=hand+knifeDirection*.12f;
-        knifeLaunchUntil=now+.75f;knifeReleasedAt=now;knifeByGrip=true;knifeHiddenUntil=now+1.5f;
+        knifeDirection=direction.normalized;knifeOrigin=hand+knifeDirection*.12f;knifeThrowSide=s;
+        knifeReleasedAt=now;knifeByGrip=true;knifeHiddenUntil=now+1.5f;
+        rig.PunchHaptics(s==1);
+        string how="KNIFE THROW "+(aimed?"aimed ":"")+"grip let go"+(aimed?"":" handSpeed="+speed.ToString("F2"))+" direction="+knifeDirection.ToString("F2");
+        // 0.1.214: the next knife can be in the hand before the game has
+        // finished its last throw: the press waits for the game's knife.
+        if(!KnifeReady(out string busy))
+        {
+            knifePressDue=now+KnifeRetakeMath.PressWait;knifeLaunchUntil=knifePressDue+.75f;knifeHiddenUntil=knifePressDue+1.5f;
+            Bootstrap.Write(how+"; the game's knife not ready ("+busy+"): pressed once it is");
+            FreezeKnifeLanding();
+            return;
+        }
+        knifeLaunchUntil=now+.75f;
         // Native input is polled during the next frames: Down once, held
         // briefly, then Up, exactly like a quick physical press.
         knifePressFrame=Time.frameCount+1;
+        Bootstrap.Write(how+"; native throw pressed");
+        FreezeKnifeLanding();
+    }
+    // The game's knife can start a throw now (else why not).
+    private bool KnifeReady(out string why)
+    {
+        why="";
+        if(weapon==null||profile!="knife"){why="no knife";return false;}
+        if(inventory?.isInTransit==true){why="being drawn";return false;}
+        try{var t=weapon.GetComponent(Il2CppType.Of<ThrowingComponent>())?.TryCast<ThrowingComponent>();if(t!=null&&!t.CanStart()){why="its last throw still playing";return false;}}
+        catch(Exception){}
+        return true;
+    }
+    // 0.1.214: after a throw the next knife comes at once. The game keeps its
+    // knife selected (the next of the stack) while it plays its throw; the
+    // hand waited for it to be emptied (TickGrenadeAfter) and the knife drawn
+    // again, over a second. Once the thrown knife has left, a grip press of
+    // the hand that threw it at the knife's place on the chest holds the knife
+    // the game still has in hand.
+    private void KnifeRetake(int s,Vector3 hand)
+    {
+        if(profile!="knife"||weapon==null||holsters==null||GripMode==WeaponGripMode.Always||s!=knifeThrowSide)return;
+        bool thrown=KnifeRetakeMath.Thrown(knifeByGrip,knifeReleasedAt,knifeLaunchedAt,emptyAfterThrowAt>0&&emptyAfterThrowSlot==Slot.Knife);
+        if(!thrown||!GripInput(s).down)return;
+        int key=(int)weapon.slot;
+        bool at=holsters.NearestPlace(key,"knife",hand)!=HolsterSlot.None;int left=holsters.CountOf(key);
+        if(!KnifeRetakeMath.Retake(thrown,true,at,left))return;
+        float now=Time.realtimeSinceStartup;
+        knifeByGrip=false;knifeReleasedAt=-10;knifeHiddenUntil=0;knifeLaunchUntil=0;knifePressDue=-1;
+        emptyAfterThrowAt=-1;gripTakeAt=now;throwHeldKey[s]=-1;
         rig.PunchHaptics(s==1);
-        Bootstrap.Write("KNIFE THROW "+(aimed?"aimed ":"")+"grip let go"+(aimed?"":" handSpeed="+speed.ToString("F2"))+" direction="+knifeDirection.ToString("F2")+"; native throw pressed");
+        Bootstrap.Write("KNIFE the next one taken from the chest at once ("+(left>=0?left+" left":"count unknown")+(inventory?.isInTransit==true?"; the game still drawing it":"")+")");
     }
     // ---- A knife held as a copy (the left hand, or a hand whose game weapon is elsewhere) ----
     private void TickCopyKnife(int s,Vector3 hand,bool held,bool down,WeaponGripMode mode)
@@ -106,6 +157,7 @@ internal sealed partial class WeaponHands
         if(snap&&!copySnap[s])rig.PunchHaptics(s==1);copySnap[s]=snap;
         ThrowHeld(s,1000+copyKey[s],mode,held);
         bool arc=QualityOptions.ThrowArc.Value;
+        if(held&&throwGrips[s].Armed&&!snap)AimKnifeLanding(s,hand,arc);
         Vector3 direction=default;float speed=0;string why="";
         var step=throwGrips[s].Step(mode,held,down,()=>
         {
@@ -126,7 +178,8 @@ internal sealed partial class WeaponHands
         leftRestoreKey=current!=null?(int)current.slot:(int)Slot.Fist;
         int key=copyKey[s];copyKey[s]=-1;copyProfile[s]="";throwHeldKey[s]=-1;holsters.Return(key,"knife");
         float now=Time.realtimeSinceStartup;
-        leftThrowOrigin=hand+direction.normalized*.12f;leftThrowVelocity=direction.normalized*Math.Max(speed,.1f);leftThrowAt=now;leftThrowKnife=true;leftThrowSide=s;
+        leftThrowOrigin=hand+direction.normalized*.12f;leftThrowVelocity=direction.normalized*Math.Max(speed,.1f);leftThrowAt=now;leftThrowKnife=true;leftThrowSide=s;knifeThrowSide=s;
+        FreezeLanding(s,leftThrowOrigin,direction.normalized*KnifeFlightSpeed,KnifeGravity);
         // 0.1.156: kept on the body - the game's knife comes a moment later; the
         // throw still leaves from where the hand let go of it (the player may
         // have walked or turned meanwhile), not from the game's right hand.
@@ -161,6 +214,17 @@ internal sealed partial class WeaponHands
     {
         if(knifePressFrame>=0&&Time.frameCount>knifePressFrame+10)knifePressFrame=-1;
         float now=Time.realtimeSinceStartup;
+        if(knifePressDue>0)
+        {
+            if(profile!="knife"||now>knifePressDue){knifePressDue=-1;Bootstrap.Write("KNIFE THROW not pressed: the game's knife never got ready");knifeByGrip=false;knifeReleasedAt=-10;knifeHiddenUntil=0;knifeLaunchUntil=0;}
+            else if(KnifeReady(out _))
+            {
+                Bootstrap.Write("KNIFE THROW native throw pressed "+(now-knifeReleasedAt).ToString("F2")+" s after the grip let go (the game's knife was not ready)");
+                knifePressDue=-1;knifePressFrame=Time.frameCount+1;knifeReleasedAt=now;knifeLaunchUntil=now+.75f;knifeHiddenUntil=now+1.5f;
+            }
+            else{TickKnifeFlight();return;}
+        }
+        TickKnifeFlight();
         if(knifeByGrip&&knifeReleasedAt>0&&now-knifeReleasedAt>1.5f)
         {
             if(knifeLaunchedAt<knifeReleasedAt)Bootstrap.Write("KNIFE THROW the game did not throw the knife (it stays in the hand)");
@@ -197,7 +261,7 @@ internal sealed partial class WeaponHands
         hitPoint=knifeOrigin+knifeDirection*Math.Max(50,component.maxRange);missTarget=false;
         // Aim the one launch only; the next native throw needs a new gesture.
         float now=Time.realtimeSinceStartup;
-        knifeLaunchUntil=now+.05f;knifeLaunchedAt=now;
+        knifeLaunchUntil=now+.05f;knifeLaunchedAt=now;WatchKnifeFlight(projectile);
         // 0.1.149: thrown by letting go - the hand is empty now (the next knife stays on the chest).
         if(knifeByGrip&&GripMode!=WeaponGripMode.Always){thrownAt=now;emptyAfterThrowAt=now+.3f;emptyAfterThrowSlot=Slot.Knife;}
         Bootstrap.Write("KNIFE THROW launched origin="+knifeOrigin.ToString("F2")+" direction="+knifeDirection.ToString("F2")+" native speed/spin/damage kept");

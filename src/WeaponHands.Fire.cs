@@ -15,7 +15,7 @@ internal sealed partial class WeaponHands
     private void ReleaseNativeFire(string why)
     {
         var f=fire;var w=weapon;var a=ammo;
-        if(releasingFire||f==null||w==null||a==null||!ManualEnabled)return;
+        if(releasingFire||f==null||w==null||a==null||!(ManualEnabled||BazookaManual))return;
         // On a trigger press only after the game's reload was refused (never
         // to cut a gun's own time between shots).
         if(why=="trigger"&&!nativeReloadRefused)return;

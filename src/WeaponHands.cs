@@ -46,6 +46,8 @@ internal sealed partial class WeaponHands : IDisposable
     {
         int s=right?1:0,key=CurrentKey;
         if(GripCarry.Current?.HidesHand(right)==true||copyKey[s]>=0||HandleHeld(s,key)||ForeEndHeld(s,key))return false;
+        // 0.1.221: its grip takes (or holds) rounds at the belt or a rocket.
+        if(rocketSide==s||PouchTakesNow(s))return false;
         if(right)return !(nearHolster&&MainSide==1)&&!TakePending&&!ReloadHandHolding(true)&&GameUiControls.Current?.RightItemHeld!=true;
         return !(nearHolster&&MainSide==0)&&!LeftReloadHolding&&!LeftPistolVisible&&GripCarry.Current?.HidesLeft!=true&&GameUiControls.Current?.LeftItemHeld!=true;
     }
@@ -96,18 +98,61 @@ internal sealed partial class WeaponHands : IDisposable
         if(TryPoseCopyHand(right,out position,out rotation,out size))return true;
         bool mirrored=PrimaryLeft,handle=right!=mirrored;
         bool pump=ManualReady&&profile=="shotgun"&&reload.Racking;
-        if(!HasTrackedWeapon || visual==null || !CanControl(playerId))return false;
+        if(!HasTrackedWeapon || visual==null || !CanControl(playerId))return SupportMiss(handle,"no weapon under control",WeaponState());
         // 0.1.196: the hand holding the gun by its barrel (a club).
         if(Clubbed&&!handle)return TryPoseClubHand(out position,out rotation,out size);
-        if(handle?foreEndOnly:!(foreEndOnly||SupportHeld&&!(reload.Active&&profile!="shotgun")||pump))return false;
+        if(handle?foreEndOnly:!(foreEndOnly||SupportHeld&&!(reload.Active&&profile!="shotgun")||pump))return SupportMiss(handle,"a reload ("+(reload.Holding?"holding":reload.NeedsRack?"rack":reload.Installed?"active":"no magazine")+")");
         int index=handle?1:0;
-        if(gripFrame!=Time.frameCount || !gripValid[index])return false;
+        // 0.1.228: the bazooka's hold worked out here when the hands are drawn before the gun this frame.
+        if(profile=="bazooka"&&(gripFrame!=Time.frameCount||!gripSampled[index]))NativeGrip(index==1,U.zero);
+        if(gripFrame!=Time.frameCount || !gripValid[index])return SupportMiss(handle,gripFrame!=Time.frameCount?"the hands drawn before the gun this frame":handle?"no hold on the handle":"no hold on the front grip");
         size=gripSizes[index];var matrix=visual.FittedToWorld;
         var point=gripPositions[index];var turn=gripRotations[index];
         if(!handle&&pump)point.z-=reload.RackTravel;
-        if(mirrored){point=handle?LeftHandle(profile,point):MirrorAcross(profile,point);turn=MirrorQ(turn);}
+        // 0.1.225: the bazooka's handle in the left hand: the left hand's own hold, not the right one's mirrored.
+        if(mirrored&&handle&&BazookaLeftHandle(out var leftAt,out var leftTurn,out float leftSize)){point=leftAt;turn=leftTurn;size=leftSize;}
+        else if(mirrored){point=handle?LeftHandle(profile,point):MirrorAcross(profile,point);turn=MirrorQ(turn);}
         position=matrix.MultiplyPoint3x4(point);rotation=matrix.rotation*turn;
+        if(profile=="bazooka")NoteHold(right,handle?"on its handle":"on its front grip",position);
         return true;
+    }
+    // 0.1.227: why a support hand holding the bazooka two-handed is not drawn on its front grip (once each).
+    private static readonly HashSet<string> supportMissReported=new();
+    // 0.1.228: and why the hand holding it by its handle is not drawn there.
+    // 0.1.229: with the state behind it (detail), and noted for the hold report (BazookaHoldReport).
+    private bool SupportMiss(bool handle,string why,string detail="")
+    {
+        if(profile!="bazooka")return false;
+        bool right=handle!=PrimaryLeft;
+        NoteHold(right,!handle&&!SupportHeld?"free (one hand on the bazooka)":(handle?"not on its handle: ":"not on its front grip: ")+why+(detail.Length>0?" ("+detail+")":""),null);
+        if(supportMissReported.Count>64)supportMissReported.Clear();
+        if(handle){if(supportMissReported.Add("handle "+why))Bootstrap.Write("BAZOOKA the hand holding it is not drawn on its handle: "+why+(detail.Length>0?" ("+detail+")":""));}
+        else if(SupportHeld&&supportMissReported.Add(why))Bootstrap.Write("BAZOOKA two hands, but the support hand is not drawn on the front grip: "+why+(detail.Length>0?" ("+detail+")":""));
+        return false;
+    }
+    // 0.1.229: what keeps the game's weapon from being under the hands' control.
+    private string WeaponState()
+    {
+        string gate=ControlGate(playerId);
+        return "pose "+(poseValid?"valid":"invalid")+(weapon==null?", no weapon":"")+(visual==null?", no visual":"")+(gate.Length>0?", "+gate:"");
+    }
+    private string ControlGate(int id)
+    {
+        if(disposed)return "disposed";if(failed)return "suspended after an error";if(!enabled)return "weapon controls off (F8)";
+        if(PropConsumed)return "the thing used up";if(InteractionDriver.Current?.KeyActive==true)return "a key in the hand";
+        if(GameUiControls.Current?.PendingConsumable==true)return "a medkit in the hand";if(id!=playerId||playerId<0)return "no player";
+        if(handler==null||inventory==null)return "no inventory";if(!rig.HeadTrackingValid)return "no head tracking";if(rig.Scripted)return "a story scene";
+        if(GameUiControls.Current?.BlocksGameplay==true)return "a menu";if(!WindowFocus.Playable)return "the game window not in focus";
+        if(Time.timeScale<=0||PauseMenuControl.HackGameIsPaused)return "paused";if(GameInputManager.IsInputLocked(playerId))return "the game's input locked";
+        return "";
+    }
+    // The glove's side of it (GloveVisual): the support hand carrying something, drawn free or hidden.
+    internal void NoteSupportGlove(bool right,string why)
+    {
+        if(profile!="bazooka"||!HasTrackedWeapon||foreEndOnly)return;
+        if(supportMissReported.Count>64)supportMissReported.Clear();
+        if(right!=PrimaryLeft){if(copyKey[right?1:0]<0&&supportMissReported.Add("glove handle "+why))Bootstrap.Write("BAZOOKA the hand holding it is not drawn on its handle: "+why);}
+        else if(SupportHeld&&supportMissReported.Add("glove "+why))Bootstrap.Write("BAZOOKA two hands, but the support hand is not drawn on the front grip: "+why);
     }
     private U NativeGrip(bool right,U fallback)
     {
@@ -140,6 +185,13 @@ internal sealed partial class WeaponHands : IDisposable
             }
             if(right&&!reportedRightGrip){reportedRightGrip=true;Bootstrap.Write("PROP RIGID GRIP "+visual.GripProfile+" wrist="+gripPositions[index].ToString("F6")+" rim="+visual.PropGripContact.ToString("F6")+" thickness="+visual.PropGripThickness.ToString("F6")+" "+native.PropRimReport);Bootstrap.Write("HAND REST "+native.HandRestReport);}
             return gripPositions[index];}
+        // 0.1.219: the bazooka's front grip (0.1.225: where the game holds it, or a hand's own hold moved there).
+        if(BazookaGrip(right,native,out var bazookaAt,out var bazookaTurn,out float bazookaSize))
+        {
+            gripValid[index]=true;gripPositions[index]=bazookaAt;gripRotations[index]=bazookaTurn;gripSizes[index]=bazookaSize;
+            if(right)RememberGrip(visual.GripProfile,bazookaAt,bazookaTurn,bazookaSize);else foreEndGrips[visual.GripProfile]=(bazookaAt,bazookaTurn,bazookaSize);
+            return bazookaAt;
+        }
         U p;Q q;float size;
         // NativeHandVisual caches the wrist and finger skin together per visual.
         if(!native.TryWeaponGrip(visual,out p,out q,out size,nativeRenderFrame==Time.frameCount))
@@ -209,6 +261,11 @@ internal sealed partial class WeaponHands : IDisposable
             float middle=float.NaN;int points=0;
             try{middle=visual.HandleMiddleX(p,q,size,out points);}catch(Exception ex){Bootstrap.Warn("WEAPON MIRROR "+profile+" handle: "+ex.Message);}
             mirrorCenters[profile]=float.IsFinite(middle)?middle:0;
+            // 0.1.221: the bazooka mirrored across its own plane of symmetry (its
+            // tube's line): around the palm the handle's middle came out 1.4 cm
+            // to the right of it, and the left hand hung off its grips.
+            // 0.1.223: across its handle's own middle (the handle with the trigger, measured), else its tube's line.
+            if(profile=="bazooka"&&visual.SymmetryX is float symmetry){Bootstrap.Write("WEAPON MIRROR bazooka across x="+symmetry.ToString("F4")+" ("+(visual.TriggerGripBar!=null?"its handle's middle":"its tube's line")+"; around the palm "+(float.IsFinite(middle)?middle.ToString("F4"):"none")+")");mirrorCenters[profile]=symmetry;}
             Bootstrap.Write("WEAPON MIRROR "+profile+" handle middle x="+(float.IsFinite(middle)?middle.ToString("F4"):"none (box middle)")+" from "+points+" points around the palm; right hand x="+p.x.ToString("F4")+", left hand x="+LeftHandle(profile,p).x.ToString("F4"));
         }
         if(right?!reportedRightGrip:!reportedLeftGrip)
@@ -305,7 +362,7 @@ internal sealed partial class WeaponHands : IDisposable
             HolsterCopy.StruckNpc=(collider,hit,velocity,profile)=>punches.Thrown(collider,hit,velocity,profile,rig.PlayerRoot);
             try { muzzleEffects=new MuzzleEffects(); }
             catch(Exception ex) { Bootstrap.Warn("MUZZLE FX routing unavailable; tracked weapons continue. "+ex.Message); }
-            Bootstrap.Write("WEAPON HANDS 0.1.44 ready; enabled=" + enabled + ". F8 toggles. Render-only weapon copy; Trigger=fire; right B=tap eject/hold grab; left trigger=magazine/bolt; left grip=shotgun pump after every shot; left belt=ammo; hold right A=wheel; left stick=select; left grip+X=Escape; left grip near fore-end=two hands.");
+            Bootstrap.Write("WEAPON HANDS 0.1.44 ready; enabled=" + enabled + ". F8 toggles. Render-only weapon copy; Trigger=fire; right B=tap eject/hold grab; left grip=magazine/rounds (at the belt), bolt, shotgun pump after every shot; hold right A=wheel; left stick=select; left grip+X=Escape; left grip near fore-end=two hands.");
         }
         catch { patches.UnpatchSelf(); throw; }
     }
@@ -338,7 +395,10 @@ internal sealed partial class WeaponHands : IDisposable
             string? a=__instance.tutorialTerm?.term,b=null,c=null;
             if(__instance.hasControllerSpecificTerm){b=__instance.tutorialTermControllerDefault?.term;c=__instance.tutorialTermControllerAlternative?.term;}
             bool showing=false;try{var t=tutorials;showing=t!=null&&(TutorialShowing(t,a)||TutorialShowing(t,b)||TutorialShowing(t,c));}catch(Exception){tutorials=null;}
-            return TutorialOnce.AllowStep(new[]{a,b,c},__instance.isWeaponWheelTutorial,showing);
+            bool allow=TutorialOnce.AllowStep(new[]{a,b,c},__instance.isWeaponWheelTutorial,showing);
+            // 0.1.214: its hint, written next, names right A (WheelTutorial).
+            if(allow&&__instance.isWeaponWheelTutorial)WheelTutorial.Started();
+            return allow;
         }
         catch{return true;}
     }
@@ -390,7 +450,7 @@ internal sealed partial class WeaponHands : IDisposable
             KeepWeaponOffTool();
             TickHolsters();clock.Mark("holsters");
             punches.Tick(rig,inventory,CanControl(playerId));clock.Mark("punches");
-            if (!CanControl(playerId)) { HideChest(); SuspendPose(); return; }
+            if (!CanControl(playerId)) { HideChest(); SuspendPose(); TickLanding(false); PutRocketBack("");HideBazooka(); return; }
             if (fireOwned && (!TriggerControls.Valid || (TriggerControls.Held & HandControls.Trigger) == 0)) StopOwnedFire();
             if(secondaryOwned&&(Underbarrel?!SupportControls.Valid||(SupportControls.Held&HandControls.Trigger)==0||!SupportHeld
                 :!rig.RightControls.Valid||(rig.RightControls.Held&HandControls.Stick)==0||(rig.LeftControls.Held&HandControls.Grip)!=0))StopSecondary();
@@ -398,9 +458,9 @@ internal sealed partial class WeaponHands : IDisposable
             // 0.1.103: R3 on the SVD changes the VR scope's zoom (the native
             // secondary action — the 2D scope overlay — is not used in VR).
             // 0.1.117: the crossbow too, once its VR scope exists.
-            if((profile=="sniper"||profile=="crossbow"&&visual?.HasScope==true)&&visual!=null&&rig.RightControls.Valid&&(rig.RightControls.Down&HandControls.Stick)!=0)
+            if((profile=="sniper"||profile=="crossbow"&&visual?.HasScope==true)&&visual!=null&&rig.RightControls.Valid&&(rig.RightControls.Down&HandControls.Stick)!=0&&!LockStick.Taken(true))
             {visual.CycleScopeZoom();rig.PunchHaptics(true);reloadAudio??=new ReloadAudio();reloadAudio.PlayCue("sniper",9);}
-            TickReload();clock.Mark("reload");TickStall();TickRedraw();TickRevolver();TickLeftCopyReload();TickDual();clock.Mark("dual");TickPropThrow();TickKnifeThrow();TickGrenade();TickGrenadeAfter();clock.Mark("throws");TickHandReload();TickChestReload();TickCopySound();clock.Mark("copies");
+            TickReload();clock.Mark("reload");TickStall();TickRedraw();TickRevolver();TickLeftCopyReload();TickDual();clock.Mark("dual");TickPropThrow();TickKnifeThrow();TickGrenade();TickGrenadeAfter();TickLanding(true);TickBazooka();clock.Mark("throws");TickHandReload();TickChestReload();TickCopySound();clock.Mark("copies");
         }
         catch (Exception ex) { Fail(ex); }
         finally { clock.End(); }
@@ -641,7 +701,7 @@ internal sealed partial class WeaponHands : IDisposable
             // Grip origins and the rendered hand use the same authored skeleton
             // and weapon fit. Keep the dominant hand at the tracked controller;
             // move the gun around its handle instead of moving the hand to a guess.
-            U primaryGrip=HandleSided(NativeGrip(true,U.zero));
+            U primaryGrip=PrimaryHandPoint();
             U supportGrip=Sided(NativeGrip(false,(profile=="pistol"||profile=="revolver")?new U(-.04f,-.015f,.025f):new U(0,-.035f,.26f)));
             // 0.1.186: nor the hand holding a medkit taken from a forearm.
             if(!mirrored&&GripCarry.Current?.HidesLeft==true||copyKey[mirrored?1:0]>=0||GameUiControls.Current?.Items.ArmHeld(mirrored)==true||GameUiControls.Current?.ItemHeldOn(mirrored)==true){supportValid=false;ReleaseSupport();}
@@ -801,6 +861,8 @@ internal sealed partial class WeaponHands : IDisposable
             return fired;
         }
         if(action==secondaryAction && (rig.LeftControls.Held&HandControls.Grip)!=0)return false;
+        // 0.1.215: R3 at a key, card or lockpick lock takes the item out (not the secondary fire).
+        if(action==secondaryAction&&LockStick.Taken(true))return false;
         // 0.1.197: on the rope of a hook fired from the right hand, R3 lets go (not the secondary fire).
         if(action==secondaryAction&&GrappleVr.RopeRightHanded)return false;
         if((profile=="prop"&&propThrow!=null||GrenadeOwned)&&(action==primaryAction||action==secondaryAction))return false;
@@ -1051,7 +1113,7 @@ internal sealed partial class WeaponHands : IDisposable
     private void Unbind()
     {
         HideHints();ResetChest();
-        ClearThrow();
+        ClearThrow();HideLanding();PutRocketBack("");HideBazooka();
         CancelRevolver();revolver=new RevolverReloadState();
         ClearDualVisual();dual=null;
         CancelReloadGesture();ammo=null;
@@ -1065,13 +1127,13 @@ internal sealed partial class WeaponHands : IDisposable
     }
     private void Fail(Exception ex)
     {
-        if (failed) return; failed = true; poseValid = false; nextDiscover=Time.realtimeSinceStartup+3;
+        if (failed) return; failed = true; poseValid = false; nextDiscover=Time.realtimeSinceStartup+3;HideLanding();
         Bootstrap.Warn("WEAPON HANDS suspended; retry in 3 seconds; head tracking and stereo remain running. " + ex);
         try { Unbind(); } catch (Exception cleanup) { Bootstrap.Warn("Weapon cleanup: " + cleanup.Message); }
     }
     public void Dispose()
     {
-        ClearThrow();throwVisual?.Dispose();if(throwRoot!=null)UnityEngine.Object.Destroy(throwRoot);
+        ClearThrow();throwVisual?.Dispose();if(throwRoot!=null)UnityEngine.Object.Destroy(throwRoot);DisposeLanding();DisposeBazooka();
         if (disposed) return; disposed = true;
         if (Current == this) Current = null;
         try { Unbind(); } finally

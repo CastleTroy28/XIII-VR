@@ -15,12 +15,14 @@ It is a [BepInEx 6](https://github.com/BepInEx/BepInEx) plugin. A one-click inst
 - **Weapons in your hands:**
   - Aim with the controller, and hold long guns with both hands for a steadier aim.
   - Working scopes on the crossbow and the sniper rifle.
-  - Manual reloading for magazines, shells, revolvers, the double-barrel and bolts. You can switch to automatic reloading in the settings.
+  - Manual reloading for magazines, shells, revolvers, the double-barrel, bolts and the bazooka's rockets. You can switch to automatic reloading in the settings.
+  - A red dot shows where a loaded bazooka's rocket will hit.
   - Weapon holsters on your body.
   - A weapon wheel for everything else.
 - **Physical melee:**
   - Punch with your hands clenched into fists, or pick up a shovel or a broom, whatever you like.
-- **Throwing.** Knives, grenades and props fly where your hand throws them (it takes some practice).
+  - Knock enemies out from behind, grab an enemy's gun by the barrel and knock it out of his hands, drag bodies.
+- **Throwing.** Knives, grenades and props fly where your hand throws them (it takes some practice). A glowing ring shows where the throw will land.
 - **A world you can touch:**
   - Doors and cabinets move with your hand.
   - Turn a key or a lockpick in the lock, and hold a keycard to the reader.
@@ -30,9 +32,11 @@ It is a [BepInEx 6](https://github.com/BepInEx/BepInEx) plugin. A one-click inst
 - **Locomotion:**
   - Smooth, head-relative movement.
   - Smooth or snap turning, with optional teleport.
+  - Climb ladders hand over hand, and swim with arm strokes.
 - **Menus and story:**
   - Menus, the HUD, cutscenes and the death screen all work in VR, and you point at menus with a laser pointer.
-  - A VR settings page is added to the pause menu.
+  - A VR settings page and a VR controls page (every action and its buttons) are added to the pause menu.
+  - Hints show a controller with the button to press lit up.
   - Cutscenes are fast-forwarded with the trigger.
 - **More:**
   - Left-handed mode (not tested yet, but it should work) and controller haptics.
@@ -47,7 +51,7 @@ It is a [BepInEx 6](https://github.com/BepInEx/BepInEx) plugin. A one-click inst
 
 ## Installing
 
-1. Download the latest `XIII-VR-<version>.zip` from [Releases](https://github.com/CastleTroy28/XIII-VR/releases).
+1. Download the latest `XIII-VR-<version>.zip` from [Releases](https://github.com/CastleTroy28/XIII-VR/releases). It is under **Assets**; the "Source code" archives there are not the mod.
 2. Close the game.
 3. Unpack the whole archive into its own folder, outside the game folder (for example Downloads).
 4. Run `Install-XIII-VR.cmd`. If it doesn't find the game, it asks you to pick the XIII folder.
@@ -62,26 +66,71 @@ The installer never overwrites a file that has changed since it was staged. It k
 
 ## Controls
 
-These are the right-handed controls. Left-handed mode (VR settings) mirrors them.
+These are the right-handed controls. Left-handed mode (VR settings) mirrors them. The pause menu's **VR CONTROLS** page shows the main ones in the game's language, for the hand you set.
 
 ![XIII VR controls](docs/controls.jpg)
+
+**Moving**
 
 | Action | Control |
 |---|---|
 | Move | left stick (in the direction you look) |
-| Turn | right stick left/right |
+| Teleport (if Movement is set to teleport in VR settings) | push the left stick forward, aim with the left hand, let go; pull the stick back to cancel |
+| Turn | right stick left / right (smooth or snap, in VR settings) |
 | Jump / crouch | right stick up / down (or crouch for real) |
-| Pick up, hold, grab a door | grip near it |
-| Take a hostage, carry a body | left grip on them (a hostage from behind, before they notice you) |
+| Climb a ladder | grip the rungs and pull yourself up, hand over hand |
+| Swim | left stick, or stroke with both arms; under water you swim where you look; right stick up / down rises / dives |
+
+**Weapons**
+
+| Action | Control |
+|---|---|
+| Take a weapon or a thing | left or right grip near it: on your body (holsters) or in the world |
+| Put a weapon back | let go of the grip at its place on your body |
 | Fire | trigger of the hand holding the gun |
-| Reload | right B (with manual reloading: drop the magazine, then reload by hand) |
 | Hold a long gun with both hands | other grip on the barrel |
 | Use a long gun as a club | grip the muzzle with the other hand, then let go of the handle |
-| Interact (doors, keys, cards, lockpicks) | right grip + A |
+| Reload | right B (with manual reloading: drop the magazine, then reload by hand) |
+| Take a magazine, rounds or shells (manual reloading) | the other hand's grip at the belt pouch, then put it into the gun |
+| Work the bolt, slide or pump (manual reloading) | the other hand's grip on it, pull it back |
+| Machine gun cover (manual reloading) | right B opens it; push it shut with a hand. The ammo box goes back in where you took it from |
+| Reload the bazooka (manual reloading) | when it's empty, the other hand's grip at the belt pouch takes a rocket; put its tail into the front of the tube |
+| Next weapon | left Y |
 | Weapon and item wheel | hold right A, select with the left stick |
+
+**Fighting and bodies**
+
+| Action | Control |
+|---|---|
+| Punch, or hit with what you hold | close the hand (grip) and swing |
+| Throw a knife, grenade or bottle | hold the grip, swing, let go |
+| Pull a grenade's pin | the other hand's trigger at the grenade |
+| Knock out from behind | a hard punch of either fist into his back |
+| Take a hostage | point a free hand at him from behind (before he notices you), hold that hand's grip still for a moment |
+| Take an enemy's gun | grip the front of his gun, then hit him or his gun hand with the other hand (or yank the gun away) |
+| Drag a knocked-out or dead body | trigger of an empty hand on it |
+| Carry a body over your shoulder | left grip on it |
+
+**The world and items**
+
+| Action | Control |
+|---|---|
+| Open a door, break a grate or glass | your hand: push, pull or hit it (right grip + A also works) |
+| Press a button, lift control or switch | touch it |
+| Use a key, keycard or lockpick | right stick click (R3) takes it out, then use it by hand: turn the key, hold the card to the reader |
+| Pick a lock | turn the lockpick in the lock and hold it there until the game's timer runs out |
+| Medkit | the small one sits on your left forearm, the large one on your right: the other hand's grip takes it, that hand's trigger uses it, letting go puts it back |
+| Grappling hook | take it from the wheel, aim, and pull the trigger of the hand holding it |
+| Rope | left stick climbs, right stick swings, L3 (or right B) lets go. Fired from the right hand: right stick climbs, left stick swings, R3 lets go |
+| Zipline | take the hook from the wheel and point it at the cable |
+
+**Menus and story**
+
+| Action | Control |
+|---|---|
 | Pause menu | left grip + X |
+| Tasks | left X |
 | Menu pointer | the hand whose trigger you pulled last |
-| Rope | left stick climbs, right stick swings, L3 lets go |
 | Skip / fast-forward a cutscene | right trigger |
 
 Keyboard:
@@ -89,6 +138,8 @@ Keyboard:
 | Key | Action |
 |---|---|
 | F11 | recenter |
+| Shift+F5 | aim calibration: 3 seconds later, the way you hold the controller becomes "straight ahead" (also in VR settings) |
+| F8 | the mod's weapon hands on/off |
 | F3 | performance overlay on/off |
 | F6, F12 | screenshot |
 
@@ -130,7 +181,7 @@ python buildtools/package.py --plugin src/bin/Release/net6.0/XIII.XRBootstrap.dl
 
 This builds the native helpers, then writes `dist/XIII-VR-<version>.zip` with `SHA256.txt` inside. The version comes from `Install-XIII-VR.ps1` and must match `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
-**Tests:** 148 test programs check the mod's logic with stand-ins for Unity and the game, so they need no game files:
+**Tests:** 152 test programs check the mod's logic with stand-ins for Unity and the game, so they need no game files:
 
 ```
 python tests/run_tests.py

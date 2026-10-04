@@ -37,3 +37,11 @@ internal sealed class RightControlChannels
             Gameplay.Up|(Gameplay.Held&HandControls.Trigger));
     }
 }
+// 0.1.215: a stick click at a key, card or lockpick lock takes the item out
+// (R3; L3 left-handed): that click is the lock's, not the secondary fire, a
+// scope's zoom or the sprint. InteractionDriver answers for the side.
+internal static class LockStick
+{
+    internal static Func<bool,bool>? Query{get;set;}
+    internal static bool Taken(bool right){try{return Query?.Invoke(right)==true;}catch(Exception){return false;}}
+}

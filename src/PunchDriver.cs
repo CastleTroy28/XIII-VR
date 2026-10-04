@@ -233,6 +233,8 @@ internal sealed partial class PunchDriver : IDisposable
                         if(now>=nextSoftReport){nextSoftReport=now+2;Bootstrap.Write("VR PROP soft touch target="+collider.name+" peak="+motion[hand].Peak.ToString("F2")+(byEnd?" at its end":" at the hand")+" (a blow needs "+PunchMotion.PropSwingSpeed.ToString("F1")+" m/s)");}
                         continue;
                     }
+                    // 0.1.218: an ally is not hit (no damage, sound, comic picture, knockout or reaction).
+                    if(NpcAllies.AllyCollider(collider,out var ally)){motion[hand].Contact(now);NpcAllies.Refused(ally,heldObject?"hit with "+selected.identifier:"punched");continue;}
                     motion[hand].Contact(now);bool hitNpc=false;
                     var local=Quaternion.Inverse(rotation)*delta;
                     HandImpact.Hit(isRight,new System.Numerics.Vector3(local.x,local.y,local.z),now);
@@ -252,6 +254,8 @@ internal sealed partial class PunchDriver : IDisposable
                     if(bodyFx!=null)impactAudio.Body(bodyFx,hit,from);
                     try{(bodyFx??melee).SpawnMuzzleFlash(hit,hit.point);}
                     catch(Exception ex){Bootstrap.Warn("VR impact effects: "+ex.Message);}
+                    // 0.1.216: a hard punch of either fist in his back knocks him out at once.
+                    bool knocked=false;if(npc!=null&&!heldObject)BackKnockout(npc,collider,hit,from,delta,Math.Max(motion[hand].Speed,motion[hand].Peak),isRight,rig,melee,selected,inventory,ref knocked);if(knocked)continue;
                     bool destructible=heldObject&&selected.slot==PlayerEquipableInventory.ActiveEquipmentSlot.Enviromental;
                     // 0.1.150: long-handled things
                     // last several blows and hit like the fists (several blows, the
@@ -358,6 +362,8 @@ internal sealed partial class PunchDriver : IDisposable
     // throw's speed; the head counts more, an arm or a leg less), and its
     // skeleton reacts where it was hit. False: that collider does not take it.
     private float nextThrownReport;
+    // 0.1.216: PunchDriver.Knockout.cs.
+    partial void BackKnockout(PlayMagic.AI.NPC npc,Collider collider,RaycastHit hit,Vector3 from,Vector3 delta,float speed,bool isRight,CameraRig rig,MeleeComponent melee,Equipable selected,PlayerEquipableInventory inventory,ref bool knocked);
     // 0.1.156: PunchDriver.Touch.cs.
     private struct Touch{internal bool Found{get;set;}internal RaycastHit Hit{get;set;}internal Vector3 From{get;set;}internal Vector3 Delta{get;set;}internal int Probe{get;set;}}
     partial void TouchingNpc(ContactSphere[] shape,Vector3 oldPosition,Quaternion oldRotation,Vector3 safePosition,Quaternion safeRotation,Vector3 desiredPosition,Quaternion desiredRotation,Transform root,MeleeComponent melee,ref Touch touch);
@@ -369,6 +375,7 @@ internal sealed partial class PunchDriver : IDisposable
         if(collider==null||playerRoot!=null&&collider.transform.IsChildOf(playerRoot))return false;
         var npc=collider.GetComponentInParent(Il2CppType.Of<PlayMagic.AI.NPC>())?.TryCast<PlayMagic.AI.NPC>();
         if(npc==null||npc.isHeldByPlayer)return false;
+        if(NpcAllies.Ally(npc)){NpcAllies.Refused(npc,"hit by a thrown "+profile);return false;}
         float speed=velocity.magnitude;var point=hit.point;
         var from=point-(speed>1e-4f?velocity/speed:Vector3.forward)*.3f;
         var root=player!=null?player:playerRoot;

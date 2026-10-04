@@ -161,6 +161,59 @@ class ManualReloadTests
    Check(M(7.2f,hand:bolt-Vector3.UnitZ*m.FullTravel)==ReloadAction.Chamber&&!m.NeedsRack&&!m.BlocksFire,"charging handle does not ready the gun");
    m.ObserveRounds(0);Check(!m.SlideLocked&&!m.NeedsRack,"empty belt locks like a pistol slide");
    Console.WriteLine("PASS: M60: B opens the cover; box off/on only while open; cover closed by hand; then the charging handle; no fire until done.");
+   // 0.1.223: the box goes in where it is taken from, however turned; the one just taken out not at once; the open cover pressed shut.
+   var n=new ManualReloadState(false,false,false,true);
+   ReloadAction N(float t,bool bd=false,bool td=false,bool th=false,Vector3? hand=null,int rounds=100,bool aligned=true)
+    =>n.Step(t,bd,bd,false,td,th,false,hand??new Vector3(0,-.3f,-.3f),box,Port,bolt,Vector3.UnitY,rounds,100,false,null,aligned,cover);
+   N(1,bd:true);Check(N(1.1f,td:true,th:true,hand:box)==ReloadAction.TakeInstalled,"M60 box not taken");n.Detach(100,true);
+   Check(N(1.2f,th:true,hand:box+new Vector3(.02f,0,0))==ReloadAction.None&&n.Holding,"the box just taken out goes straight back in");
+   N(1.3f,th:true,hand:box+new Vector3(0,-.25f,0));
+   Check(N(1.4f,th:true,hand:box+new Vector3(0,-.05f,.04f),aligned:false)==ReloadAction.Insert,"the box brought back to its place (turned any way) does not go in");n.Inserted(0);
+   n.Detach(100,false);n.Supply(100);
+   Check(N(1.5f,th:true,hand:box+new Vector3(.05f,.05f,0),aligned:false)==ReloadAction.Insert,"a box from the belt brought to its place does not go in");n.Inserted(0);
+   Check(n.CoverOpen&&n.PushCoverShut()==ReloadAction.CloseCover&&!n.CoverOpen&&n.PushCoverShut()==ReloadAction.None,"the open cover cannot be pressed shut (or shut twice)");
+   n.Detach(0,false);var lid=new ManualReloadState(false,false,false,true);Check(lid.PushCoverShut()==ReloadAction.None,"a closed cover pressed shut");
+   Console.WriteLine("PASS: 0.1.223 M60: the box goes in at its own place however it is turned (not the one just taken out until moved away); the open cover pressed shut by a hand.");
+
+  }
+  {
+   // 0.1.221: the grip takes from the belt (the trigger only racks), and only while the gun wants rounds.
+   var g=new ManualReloadState();
+   ReloadAction G(float t,bool td=false,bool th=false,bool gd=false,bool gh=false,bool belt=false,Vector3? hand=null,int rounds=12)
+    =>g.Step(t,false,false,false,td,th,belt,hand??Port,Port,Port,Bolt,Vector3.UnitY,rounds,12,gh,null,true,null,0,gd,gh);
+   Check(G(1,gd:true,gh:true,belt:true,hand:Belt)==ReloadAction.None,"the grip takes a magazine at the belt with one in the gun (the belt's holster place)");G(1.1f);
+   g.Detach(12,false);
+   Check(G(2,td:true,th:true,belt:true,hand:Belt,rounds:0)==ReloadAction.None,"the trigger still takes a magazine from the belt");G(2.1f,rounds:0);
+   Check(G(3,gd:true,gh:true,belt:true,hand:Belt,rounds:0)==ReloadAction.TakeSupply,"the grip at the belt takes no magazine");g.Supply(12);
+   Check(G(3.1f,hand:new Vector3(0,-.2f,0),rounds:0)==ReloadAction.DropHeld,"the magazine stays in hand with the grip open");g.ReturnHeld();
+   var sh=new ManualReloadState(shotgun:true);
+   Check(sh.Step(4,false,false,false,false,false,true,Belt,Port,Port,Bolt,Vector3.UnitY,3,6,true,null,true,null,0,true,true)==ReloadAction.TakeSupply,"the grip takes no shell for a shotgun not full");sh.Supply(1);
+   Check(sh.WantsSupply(6,6)==false&&new ManualReloadState(shotgun:true).WantsSupply(6,6)==false&&new ManualReloadState(shotgun:true).WantsSupply(5,6),"a full shotgun wants shells (or one not full does not)");
+   // 0.1.223: the grip works the bolt too; the trigger no longer does.
+   g.Supply(12);g.Inserted(0);Check(g.NeedsRack,"inserted magazine without a rack");
+   G(5,td:true,th:true,hand:Bolt);G(5.05f,th:true,hand:Bolt+new Vector3(0,0,-.05f));G(5.1f,hand:Bolt);
+   Check(g.NeedsRack,"the trigger still works the bolt");
+   G(6,gd:true,gh:true,hand:Bolt);var back=G(6.05f,gh:true,hand:Bolt+new Vector3(0,0,-.05f));
+   Check(back==ReloadAction.RackBack&&G(6.1f,hand:Bolt)==ReloadAction.Chamber&&!g.NeedsRack,"the grip does not work the bolt");
+   Console.WriteLine("PASS: 0.1.221 the grip takes magazines and shells at the belt only while the gun wants them; the trigger takes none; the grip open drops it. 0.1.223: the grip works the bolt, the trigger does not.");
+  }
+  {
+   // 0.1.223: the M60's open cover is solid for a hand: pressed from above it follows the hand down and stays; pressed down far enough it shuts.
+   var hinge=new Vector3(.03f,.01f,-.13f);var edge=new Vector3(.03f,0,-.47f);var push=new CoverPush();
+   Vector3 At(float deg,float r,float x=.03f){float a=deg*MathF.PI/180;return hinge+new Vector3(x-hinge.X,r*MathF.Sin(a),-r*MathF.Cos(a));}
+   Check(!push.Step(0,At(110,.3f),hinge,edge,75)&&float.IsNaN(push.Opening)&&!push.Touching(0),"a hand well above the open cover touches it");
+   Check(!push.Step(0,At(30,.3f),hinge,edge,75)&&!push.Touching(0),"a hand coming from under the open cover takes hold of it");
+   Check(!push.Step(1,At(78,.3f,.03f+.2f),hinge,edge,75)&&!push.Touching(1),"a hand beside the cover touches it");
+   Check(!push.Step(0,At(77,.25f),hinge,edge,75)&&push.Touching(0),"a hand on the open cover does not touch it");
+   push.Step(0,At(50,.25f),hinge,edge,75);Check(Math.Abs(push.Opening-50)<3,"the cover does not follow the pressing hand down: "+push.Opening);
+   push.Step(0,At(70,.25f),hinge,edge,75);Check(Math.Abs(push.Opening-50)<3,"the cover rises with the hand");
+   push.Step(0,At(120,.25f),hinge,edge,75);Check(!push.Touching(0)&&Math.Abs(push.Opening-50)<3,"the hand lifted off still holds it, or it springs open");
+   push.Step(1,At(52,.3f),hinge,edge,75);Check(push.Touching(1),"the other hand cannot press it too");
+   push.Step(1,At(30,.3f),hinge,edge,75);Check(!push.Step(1,At(20,.3f),hinge,edge,75)&&Math.Abs(push.Opening-20)<3,"pressed to 20 degrees");
+   Check(push.Step(1,At(10,.3f),hinge,edge,75)&&push.Opening==0&&!push.Touching(1),"pressed down it does not shut");
+   push.Reset();Check(float.IsNaN(push.Opening),"opened again it stays pressed down");
+   Check(!push.Step(0,new Vector3(float.NaN,0,0),hinge,edge,75)&&!push.Step(2,At(70,.3f),hinge,edge,75),"no tracking or a third hand presses it");
+   Console.WriteLine("PASS: 0.1.223 the M60's open cover pressed by a hand: only from above, on it (not beside or from under it), it follows the hand down and stays, either hand, shut at 12 degrees.");
   }
   Console.WriteLine("PASS: tap/hold B classification, left trigger edges, discard-only extraction, directed insertion, bolt/pump travel, no automatic chambering, empty magazine, interruption refund exactly once, old/fresh refund policy, grip-only back/forward pump, per-shot gate and shotgun top-up.");
  }

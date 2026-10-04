@@ -69,8 +69,25 @@ class KeyInteractionTests
   inv.Item.MeshAvailable=true;inv.Item.identifier="eqp_lockpick";inv.Item.CurrentEquipableParameters.removeAfterUse=false;int removes=inv.Removes;
   var pickLock=new RaycastAction{conditional=RaycastAction.InteractionConditionals.Lockpick};rig.P=new();rig.Q=Quaternion.identity;
   Check(!k.Intercept(pickLock,who,ray,hit)&&k.Active&&k.Lockpick&&k.GripProfile=="screwdriver"&&pickLock.Resolves==0,"lockpick lock does not draw the lockpick");
+  Check(LockpickTimerMath.Time(float.NaN)==LockpickTimerMath.DefaultTime&&LockpickTimerMath.Time(0)==LockpickTimerMath.DefaultTime&&LockpickTimerMath.Time(4)==4&&LockpickTimerMath.Time(100)==LockpickTimerMath.MaxTime
+   &&LockpickTimerMath.Remaining(1,2,2.5f)==.5f&&LockpickTimerMath.Remaining(1,2,9)==0&&LockpickTimerMath.PulledOut(.5f)&&!LockpickTimerMath.PulledOut(.2f)&&LockpickTimerMath.PulledOut(float.NaN),"lockpick time math");
+  // 0.1.220: the turn starts the game's lockpicking: its time counted down on its HUD, its sound and noise; pulled out it stops.
+  var noise=new PlayMagic.Weapons.NoiseCreationComponent();inv.Item.Lockpick=new PlayMagic.Weapons.LockpickComponent{lockpickTime=.5f,noiseComponent=noise};int started=NativeItemCue.Started;
   k.Tick(true);rig.Q=new Quaternion(0,0,-.48f,.877f);Time.realtimeSinceStartup=6;k.Tick(true);
-  Check(pickLock.Resolves==1&&pickLock.Condition&&!k.Active&&!k.Lockpick&&inv.Removes==removes,"lockpick turn does not unlock (or consumed the lockpick)");
+  Check(pickLock.Resolves==0&&k.Picking&&GameUIManager.Shown&&Math.Abs(GameUIManager.LastTime-.5f)<1e-4f&&NativeItemCue.Started==started+1,"the turned pick does not start the game's lockpicking (its HUD, its time, its sound)");
+  Time.realtimeSinceStartup=6.25f;k.Tick(true);Check(pickLock.Resolves==0&&Math.Abs(GameUIManager.LastTime-.25f)<1e-3f&&noise.Noises>0,"lockpicking not counted down (or no noise)");
+  rig.P=new Vector3(0,0,-1);Time.realtimeSinceStartup=6.3f;k.Tick(true);Check(!k.Picking&&!GameUIManager.Shown&&k.Active&&pickLock.Resolves==0&&NativeItemCue.Stopped>0,"the pick pulled out of the lock keeps picking");
+  rig.P=new();rig.Q=Quaternion.identity;Time.realtimeSinceStartup=6.35f;k.Tick(true);rig.Q=new Quaternion(0,0,-.48f,.877f);Time.realtimeSinceStartup=6.5f;k.Tick(true);
+  Check(k.Picking&&pickLock.Resolves==0&&Math.Abs(GameUIManager.LastTime-.5f)<1e-4f,"turned again, the lockpicking does not start over");
+  Time.realtimeSinceStartup=6.9f;k.Tick(true);Check(pickLock.Resolves==0,"the lock opens before the game's time");
+  Time.realtimeSinceStartup=7.05f;k.Tick(true);
+  Check(pickLock.Resolves==1&&pickLock.Condition&&!k.Active&&!k.Lockpick&&inv.Removes==removes&&!GameUIManager.Shown&&!k.Picking,"lockpick time up does not unlock (or consumed the lockpick, or left the HUD on)");
+  // The game's instant lockpicking: the turn opens at once.
+  inv.Item.Lockpick=new PlayMagic.Weapons.LockpickComponent{lockpickTime=5,playerState=new PlayerState{InstantLockPick=true}};
+  var quick=new RaycastAction{conditional=RaycastAction.InteractionConditionals.Lockpick};rig.Q=Quaternion.identity;k.Intercept(quick,who,ray,hit);
+  Time.realtimeSinceStartup=7.1f;k.Tick(true);rig.Q=new Quaternion(0,0,-.48f,.877f);Time.realtimeSinceStartup=7.25f;k.Tick(true);
+  Check(quick.Resolves==1&&!k.Picking&&!k.Active,"instant lockpicking still counts down");
+  inv.Item.Lockpick=null;
   // 0.1.150: a left-hander turns the key with the left hand; the right one does nothing, the left Y puts it away.
   WeaponHands.LeftHanded=true;
   {
@@ -87,6 +104,7 @@ class KeyInteractionTests
   }
   WeaponHands.LeftHanded=false;
   CarKey();
+  Console.WriteLine("PASS: 0.1.220 a lockpick turned in the lock starts the game's lockpicking (its time on its HUD countdown, its sound, its noise); pulled out it stops, turned again it starts over; the time up opens the lock; the game's instant lockpicking opens at once.");
   Console.WriteLine("PASS: a left-hander turns the key with the left hand (the right hand and its B ignored, the left Y puts it away).");
   Console.WriteLine("PASS: lockpick draw + 45-degree turn unlock; production gesture and mesh source recovery: both car inventory/prefab meshless; detached key02, matching pickup and shared native metal-key fallback; no draw without ownership, no card substitution, original key consumed only after clockwise unlock. Existing draw-only, cancellation and card receiver-chain cases preserved. Unity/native adapters simulated.");
  }
@@ -183,7 +201,11 @@ class PlayerEquipableInventory:Obj
 class PlayerItemInventoryConfig{internal System.Collections.Generic.List<PlayMagic.Weapons.Equipable> itemPrefabs=new();internal System.Collections.Generic.Dictionary<string,GameObject> pickupPrefabs=new();}
 namespace PlayMagic{class CustomCharacterController{internal FpsMeshReference? CurrentFpsRigReference;internal Transform? tinyArmsMesh;}class FpsMeshReference{internal Transform transform=new();}}
 namespace PlayMagic.AI{class Door:Obj{internal Transform transform=new();}}
-namespace PlayMagic.Weapons{class Equipable:Obj{internal SkinnedMeshRenderer[]? skinnedMeshRenderers=>null;internal Obj[] GetComponentsInChildren(Type t,bool x)=>Array.Empty<Obj>();internal Parameters CurrentEquipableParameters=new();internal string name="key",identifier="key01";internal PlayerEquipableInventory.ActiveEquipmentSlot slot=PlayerEquipableInventory.ActiveEquipmentSlot.Key;internal bool MeshAvailable=true;}class Parameters{internal bool removeAfterUse;}class AudioComponent{internal enum AudioTrigger{Equip,KeyItem}}}
+namespace PlayMagic.Weapons{class Equipable:Obj{internal SkinnedMeshRenderer[]? skinnedMeshRenderers=>null;internal Obj[] GetComponentsInChildren(Type t,bool x)=>Array.Empty<Obj>();internal Parameters CurrentEquipableParameters=new();internal string name="key",identifier="key01";internal PlayerEquipableInventory.ActiveEquipmentSlot slot=PlayerEquipableInventory.ActiveEquipmentSlot.Key;internal bool MeshAvailable=true;internal LockpickComponent? Lockpick;internal T? GetOptionalEquipableComponent<T>() where T:class=>Lockpick as T;}class Parameters{internal bool removeAfterUse;}class AudioComponent{internal enum AudioTrigger{Equip,KeyItem,Lockpick}}class LockpickComponent{internal float lockpickTime=3;internal global::PlayerState? playerState;internal NoiseCreationComponent? noiseComponent;}class NoiseCreationComponent{internal int Noises;internal void GenerateNoise(int priority,bool nonThreatening,float amount){Noises++;}}}
+class PlayerState{internal bool InstantLockPick;}
+static class GameUIManager{internal static bool Shown;internal static float LastTime;internal static void ToggleLockpickingHud(bool show,int player){Shown=show;}internal static void UpdateLockpickingHud(float time,int player){LastTime=time;}}
+namespace FMOD{enum RESULT{OK}}
+namespace FMOD.Studio{enum PLAYBACK_STATE{PLAYING,STOPPED}enum STOP_MODE{ALLOWFADEOUT,IMMEDIATE}struct EventInstance{internal RESULT getPlaybackState(out PLAYBACK_STATE s){s=PLAYBACK_STATE.PLAYING;return RESULT.OK;}internal RESULT stop(STOP_MODE m){XiiiXR.NativeItemCue.Stopped++;return RESULT.OK;}internal RESULT release()=>RESULT.OK;}}
 namespace XiiiXR
 {
  class ChairImpactClip{internal static int Plays;internal ChairImpactClip(Func<byte[]> w,string n,float g,float d){}internal bool Play(Vector3 p){Plays++;return true;}internal void Dispose(){}}
@@ -196,6 +218,7 @@ namespace XiiiXR
  class NativeHandVisual{}
  class WeaponHands{internal static bool LeftHanded;}
  class HeldItemVisual:IDisposable{internal const int ProbePoints=15;internal static Vector3[]? Probe;internal int WorldProbe(Vector3[] into){if(Probe==null)return 0;Array.Copy(Probe,into,Probe.Length);return Probe.Length;}internal static int Disposed;internal static Renderer? Rendered;internal static PlayMagic.Weapons.Equipable? Last;internal static HeldItemVisual Create(PlayMagic.Weapons.Equipable e){if(!e.MeshAvailable)throw new Exception("missing model");Last=e;Rendered=null;return new();}internal static HeldItemVisual CreateFromRenderers(PlayMagic.Weapons.Equipable e,System.Collections.Generic.List<Renderer> sources){Last=e;Rendered=sources[0];return new();}internal void Pose(Transform? h){}internal void PreparePinch(NativeHandVisual h){}internal bool FistHand(NativeHandVisual h,ref Vector3 p,ref Quaternion q)=>false;public void Dispose(){Disposed++;}}
- static class NativeItemCue{internal static PlayMagic.Weapons.Equipable? Item;internal static PlayMagic.Weapons.AudioComponent.AudioTrigger Last;internal static void Play(PlayMagic.Weapons.Equipable e,PlayMagic.Weapons.AudioComponent.AudioTrigger t,Vector3 p){Last=t;Item=e;}}
+ static class NativeItemCue{internal static PlayMagic.Weapons.Equipable? Item;internal static PlayMagic.Weapons.AudioComponent.AudioTrigger Last;internal static int Started,Stopped;internal static void Play(PlayMagic.Weapons.Equipable e,PlayMagic.Weapons.AudioComponent.AudioTrigger t,Vector3 p){Last=t;Item=e;}
+  internal static bool Start(PlayMagic.Weapons.Equipable e,PlayMagic.Weapons.AudioComponent.AudioTrigger t,Vector3 p,out FMOD.Studio.EventInstance i){i=default;Started++;Item=e;return true;}}
  static class Bootstrap{internal static void Write(string s){}internal static void Warn(string s){}}static class UiLanguage{internal static bool Russian=>true;}
 }

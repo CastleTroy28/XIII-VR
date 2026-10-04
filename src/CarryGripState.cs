@@ -36,6 +36,11 @@ internal sealed class CarryGripState
   if(eligible&&!pressed&&!owns&&now-began>5){eligible=releasePending=false;}
  }
  internal bool CanAdopt=>eligible;
+ // 0.1.222: the thing left the hand without being let go (the game's
+ // switch to it showed something else for a moment): the press that took it
+ // still counts, so it is taken up again when it comes back (it stayed in
+ // the hand, held by nothing, until the next press).
+ internal void Lost(){releasePending=second=false;}
  // 0.1.156: two hands on it: the grip is held while either one holds.
  internal static HandControls Either(HandControls a,HandControls b)
  {

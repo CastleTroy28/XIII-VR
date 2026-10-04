@@ -3,7 +3,7 @@
 param([string]$GameDir, [string]$BepInExZip, [switch]$Uninstall, [string]$RestorePoint, [switch]$OpenXR, [string]$OpenCompositeDll, [switch]$NoOpenComposite, [switch]$DownloadOpenComposite)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$Version = '0.1.209'
+$Version = '0.1.232'
 $PackageRoot = $PSScriptRoot
 $BuildName = 'BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.788+5b766a3.zip'
 $BuildUrl = 'https://builds.bepinex.dev/projects/bepinex_be/788/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.788%2B5b766a3.zip'
@@ -181,7 +181,29 @@ function Restore-Entry($Entry, [string]$BackupRoot) {
     } elseif (Test-Path -LiteralPath $destination -PathType Leaf) { Remove-Item -LiteralPath $destination }
     return $true
 }
+# 0.1.232: the package is checked before anything else: the plugin file must
+# be beside the installer. GitHub's "Source code" archive (the repository) has
+# the installer but no plugin; a player who took it was told that an earlier
+# install from inside BepInEx\plugins had moved the plugin, which was not the
+# cause. Empty: the package is complete.
+function Get-PackageProblem([string]$Root,[string]$Version) {
+    foreach ($name in @('BepInEx-plugins\XIII.XRBootstrap.dll.bin','BepInEx-plugins\XIII.XRBootstrap.dll')) {
+        if (Test-Path -LiteralPath (Join-Path $Root $name) -PathType Leaf) { return '' }
+    }
+    $download = "Download XIII-VR-$Version.zip from the Assets of the release (https://github.com/CastleTroy28/XIII-VR/releases), unpack the whole archive into its own folder (for example Downloads) and run Install-XIII-VR.cmd from there."
+    if ((Test-Path -LiteralPath (Join-Path $Root 'src') -PathType Container) -or (Test-Path -LiteralPath (Join-Path $Root 'buildtools') -PathType Container)) {
+        return "This folder is the mod's source code (GitHub's 'Source code' archive), not the mod itself: it has no plugin file. $download Nothing changed."
+    }
+    if ($Root -match '(?i)[\\/]Temp\d*_[^\\/]*\.zip([\\/]|$)') {
+        return 'The installer was started from inside the zip, without unpacking it. Right-click the zip, choose Extract All, and run Install-XIII-VR.cmd from the unpacked folder. Nothing changed.'
+    }
+    if ($Root -match '(?i)[\\/]BepInEx[\\/]plugins([\\/]|$)') {
+        return 'The plugin file is missing from this unpacked folder (an earlier install from inside BepInEx\plugins moved it to its restore point). Unpack the archive again outside the game folder (for example Downloads), and run the installer from there. Nothing changed.'
+    }
+    return "The plugin file (BepInEx-plugins\XIII.XRBootstrap.dll.bin) is missing from this folder: the archive was not fully unpacked, or an antivirus removed the file. $download If it happens again, look in your antivirus quarantine. Nothing changed."
+}
 try {
+    if (-not $Uninstall) { $problem = Get-PackageProblem $PackageRoot $Version; if ($problem) { throw $problem } }
     if (-not $GameDir) {
         if (Test-Path -LiteralPath (Join-Path $PackageRoot 'XIII.exe')) { $GameDir = $PackageRoot }
         elseif (Test-Path -LiteralPath (Join-Path (Split-Path $PackageRoot -Parent) 'XIII.exe')) { $GameDir = Split-Path $PackageRoot -Parent }
@@ -295,7 +317,7 @@ try {
     # which BepInEx never loads and no install moves away.
     $pluginSource = [IO.Path]::GetFullPath((Join-Path $PackageRoot 'BepInEx-plugins\XIII.XRBootstrap.dll.bin'))
     if (-not (Test-Path -LiteralPath $pluginSource)) { $pluginSource = [IO.Path]::GetFullPath((Join-Path $PackageRoot 'BepInEx-plugins\XIII.XRBootstrap.dll')) }
-    if (-not (Test-Path -LiteralPath $pluginSource)) { throw 'The plugin file is missing from this unpacked folder (an earlier install from inside BepInEx\plugins moved it to its restore point). Unpack the archive again, better outside the game folder (for example Downloads), and run the installer from there.' }
+    if (-not (Test-Path -LiteralPath $pluginSource)) { throw (Get-PackageProblem $PackageRoot $Version) }
     if (Under $pluginSource $plugins) {
         Write-Host 'Note: this archive was unpacked inside BepInEx\plugins. Next time unpack it to another folder (for example Downloads).' -ForegroundColor Yellow
         $stagedPlugin = Join-Path $stage 'XIII.XRBootstrap.dll'

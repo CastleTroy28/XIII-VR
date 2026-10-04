@@ -10,7 +10,15 @@ internal readonly struct WeaponFit
 }
 internal static class WeaponGeometry
 {
-    internal static WeaponFit Fit(Vector3 min,Vector3 max,string profile)
+    // 0.1.228: the bazooka's scale (barrel frame to fitted): the size it had in
+    // nearly every game, its rocket in the tube (1.1 m with the rocket's head
+    // ahead of the tube, 0.4026 in the barrel frame). Fitted by its length, a
+    // bazooka whose rocket the game held further back (a second one picked up,
+    // loaded) came out a third bigger, and its handles with it (8 cm by 4.8).
+    // It is now fitted without its rocket (WeaponVisual.TrimRocket) at this scale.
+    internal const float BazookaScale=1.1f/.402614f;
+    // scale (0.1.228): this scale instead of the profile's length over the bounds.
+    internal static WeaponFit Fit(Vector3 min,Vector3 max,string profile,float scale=float.NaN)
     {
         var size = max-min;
         if (!Finite(min) || !Finite(max) || !Finite(size) || size.Z < .0001f || size.Z > 1000 || size.X <= 0 || size.Y <= 0)
@@ -18,7 +26,7 @@ internal static class WeaponGeometry
         if (EquipmentProfile.RequiresMuzzle(profile) && (size.X > size.Z*2 || size.Y > size.Z*2))
             throw new InvalidOperationException("Weapon bounds are not aligned with the muzzle; refusing oversized render copy");
         float length = EquipmentProfile.Length(profile);
-        float scale = length/(EquipmentProfile.RequiresMuzzle(profile)?size.Z:Math.Max(size.X,Math.Max(size.Y,size.Z)));
+        if(!(float.IsFinite(scale)&&scale>0))scale = length/(EquipmentProfile.RequiresMuzzle(profile)?size.Z:Math.Max(size.X,Math.Max(size.Y,size.Z)));
         var anchor = new Vector3((min.X+max.X)*.5f,max.Y-size.Y*.22f,max.Z);
         var muzzle = profile == "pistol" ? new Vector3(0,.045f,.14f)
             : profile == "revolver" ? new Vector3(0,.045f,.18f)

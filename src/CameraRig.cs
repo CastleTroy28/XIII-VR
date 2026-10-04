@@ -71,25 +71,78 @@ internal sealed class CameraRig : IDisposable
             // so scripted follow-ups (an NPC walking on, the next cutscene)
             // did not start. At 20x game speed with the sound muted every
             // signal and end-of-cutscene callback runs as authored.
-            if(fastScene==null)
-            {
-                fastScene=scene;fastSince=Time.realtimeSinceStartup;fastSaved=Time.timeScale>0?Time.timeScale:1;Time.timeScale=Math.Min(100,fastSaved*FastSpeed);
-                try{FMODUnity.RuntimeManager.GetBus("bus:/").setMute(true);fastMuted=true;}catch(Exception ex){Bootstrap.Warn("STORY skip mute: "+ex.Message);}
-                StoryAudioSkip.Begin();
-                Bootstrap.Write("STORY skip requested via right trigger: "+scene!.name+" fast-forward x"+FastSpeed+" remaining="+(director.duration-director.time).ToString("F1")+"s");
-            }
+            StartFastForward(director,scene!.name);
             DisarmTrigger();return;
         }
+        // 0.1.230: a story Timeline that is no Cutscene (the memory's opening in
+        // the last mission, Camera_blink_cs&seq_seq_01_01): the director behind
+        // the story camera shown, else the story director playing longest.
+        var other=StoryDirector(out string from);
+        if(other!=null){StartFastForward(other,other.name+" ("+from+")");fastFallback=true;DisarmTrigger();return;}
+        if(Time.realtimeSinceStartup>=nextSkipMiss){nextSkipMiss=Time.realtimeSinceStartup+5;Bootstrap.Write("STORY skip: no story timeline playing to fast-forward (camera "+(storyBrain?.ActiveVirtualCamera?.Name??"none")+")");}
     }
-    private const float FastSpeed=20;
-    private Cutscene? fastScene;private float fastSince,fastSaved=1;private bool fastMuted;
-    private void TickStoryFastForward()
+    private float nextSkipMiss;
+    private void StartFastForward(UnityEngine.Playables.PlayableDirector director,string name)
     {
-        if(fastScene==null&&!fastMuted)return;
+        if(fastDirector!=null)return;
+        fastDirector=director;fastFallback=false;fastSince=Time.realtimeSinceStartup;fastSaved=Time.timeScale>0?Time.timeScale:1;Time.timeScale=Math.Min(100,fastSaved*FastSpeed);
+        try{FMODUnity.RuntimeManager.GetBus("bus:/").setMute(true);fastMuted=true;}catch(Exception ex){Bootstrap.Warn("STORY skip mute: "+ex.Message);}
+        StoryAudioSkip.Begin();
+        Bootstrap.Write("STORY skip requested via right trigger: "+name+" fast-forward x"+FastSpeed+" remaining="+(director.duration-director.time).ToString("F1")+"s");
+    }
+    // A director a skip can fast-forward: playing to an end on game time (not looping, not run by hand), with time left.
+    private static bool Skippable(UnityEngine.Playables.PlayableDirector? d)
+    {
         try
         {
-            var director=fastScene==null?null:fastScene.director;
-            bool playing=director!=null&&director.state==UnityEngine.Playables.PlayState.Playing;
+            return d!=null&&d.isActiveAndEnabled&&d.state==UnityEngine.Playables.PlayState.Playing&&StorySkipPolicy.Skippable(d.duration,d.time,(int)d.extrapolationMode,(int)d.timeUpdateMode);
+        }
+        catch(Exception){return false;}
+    }
+    private UnityEngine.Playables.PlayableDirector? StoryDirector(out string from)
+    {
+        from="";
+        Transform? camera=null;
+        try{camera=storyBrain?.ActiveVirtualCamera?.VirtualCameraGameObject?.transform;}catch(Exception){camera=null;}
+        // The story camera's own Timeline: on it or above it.
+        for(var t=camera;t!=null;t=t.parent)
+        {
+            UnityEngine.Playables.PlayableDirector? d=null;
+            try{d=t.GetComponent(Il2CppType.Of<UnityEngine.Playables.PlayableDirector>())?.TryCast<UnityEngine.Playables.PlayableDirector>();}catch(Exception){}
+            if(Skippable(d)){from="the story camera's timeline";return d;}
+        }
+        // Else the playing story director with the most time left (its scene's first).
+        UnityEngine.Playables.PlayableDirector? best=null;double left=0;bool sameScene=false;
+        try
+        {
+            foreach(var obj in UnityEngine.Object.FindObjectsOfType(Il2CppType.Of<UnityEngine.Playables.PlayableDirector>()))
+            {
+                var d=obj.TryCast<UnityEngine.Playables.PlayableDirector>();if(!Skippable(d)||d!.duration-d.time>180)continue;
+                bool same=camera!=null&&d!.gameObject.scene.handle==camera.gameObject.scene.handle;double remaining=d!.duration-d.time;
+                if(best==null||same&&!sameScene||same==sameScene&&remaining>left){best=d;left=remaining;sameScene=same;}
+            }
+        }
+        catch(Exception ex){Bootstrap.Warn("STORY skip search: "+ex.Message);}
+        if(best!=null)from=sameScene?"a story timeline in the story camera's scene":"a story timeline playing";
+        return best;
+    }
+    private const float FastSpeed=20;
+    private UnityEngine.Playables.PlayableDirector? fastDirector;private float fastSince,fastSaved=1;private bool fastMuted;
+    // A director found without a Cutscene: its fast-forward also ends when the story hands control back.
+    private bool fastFallback;
+    // Played to its end: stopped, or held at its last frame (a Hold Timeline stays "playing").
+    private static bool Finished(UnityEngine.Playables.PlayableDirector? d)
+    {
+        try{return d==null||d.state!=UnityEngine.Playables.PlayState.Playing||StorySkipPolicy.HeldAtEnd(d.duration,d.time,(int)d.extrapolationMode);}
+        catch(Exception){return true;}
+    }
+    private void TickStoryFastForward()
+    {
+        if(fastDirector==null&&!fastMuted)return;
+        try
+        {
+            var director=fastDirector;
+            bool playing=!Finished(director)&&!(fastFallback&&!Scripted);
             bool ours=Math.Abs(Time.timeScale-Math.Min(100,fastSaved*FastSpeed))<.01f;
             float elapsed=Time.realtimeSinceStartup-fastSince;
             if(playing&&ours&&elapsed<20){StoryAudioSkip.Tick();return;}
@@ -103,12 +156,12 @@ internal sealed class CameraRig : IDisposable
             Bootstrap.Write("STORY fast-forward finished after "+elapsed.ToString("F1")+"s real time; timeScale="+Time.timeScale);
         }
         catch(Exception ex){Bootstrap.Warn("STORY fast-forward: "+ex.Message);if(Math.Abs(Time.timeScale-fastSaved*FastSpeed)<.01f)Time.timeScale=fastSaved;}
-        finally{if(fastScene==null||fastScene.director==null||fastScene.director.state!=UnityEngine.Playables.PlayState.Playing||Math.Abs(Time.timeScale-Math.Min(100,fastSaved*FastSpeed))>=.01f)EndFastForward();}
+        finally{if(Finished(fastDirector)||fastFallback&&!Scripted||Math.Abs(Time.timeScale-Math.Min(100,fastSaved*FastSpeed))>=.01f)EndFastForward();}
     }
     private void EndFastForward()
     {
-        if(fastScene!=null)StoryAudioSkip.End();
-        fastScene=null;
+        if(fastDirector!=null)StoryAudioSkip.End();
+        fastDirector=null;fastFallback=false;
         if(fastMuted){try{FMODUnity.RuntimeManager.GetBus("bus:/").setMute(false);}catch(Exception ex){Bootstrap.Warn("STORY skip unmute: "+ex.Message);}fastMuted=false;}
     }
     private float nextStoryScan,nextInspect;
@@ -143,7 +196,7 @@ internal sealed class CameraRig : IDisposable
         bool inputLock=storyPlayerId>=0&&GameInputManager.IsInputLocked(storyPlayerId);
         bool axisLock=storyPlayerId>=0&&GameInputManager.IsAxisLocked(storyPlayerId);
         bool restricted=storyCharacter!=null&&storyCharacter.restrictMovement;
-        bool menu=PauseMenuControl.HackGameIsPaused||QualityMenu.Open||GameUiControls.Current?.WheelOpen==true;
+        bool menu=PauseMenuControl.HackGameIsPaused||QualityMenu.Open||ControlsSheet.Open||GameUiControls.Current?.WheelOpen==true;
         storyScenes.RemoveAll(c=>c==null);
         // Native story cameras can stay live after the Timeline lock is cleared.
         // The new beach log shows this for Camera_blink_cs&seq_seq_02.
@@ -865,9 +918,10 @@ internal sealed class CameraRig : IDisposable
     {
         if (markersDisabled) return;
         // 0.1.123: none on the mounted gun (the game's arms hold it).
+        // 0.1.217: none for the hand riding the zipline (that hand is not drawn: no ball in its place).
         bool mounted=MountedGunVr.HidesHands;
-        UpdateMarker(ref leftMarker, ref leftMaterial, "XIII VR left hand", new Color(0.05f, 0.7f, 1f, 1f), !mounted && tracking.LeftValid && GripCarry.Current?.HidesLeft!=true && WristHud.Current?.LeftHandVisible!=true, tracking.Left);
-        UpdateMarker(ref rightMarker, ref rightMaterial, "XIII VR right hand", new Color(1f, 0.45f, 0.05f, 1f), !mounted && tracking.RightValid && GripCarry.Current?.HidesHand(true)!=true && WristHud.Current?.RightHandVisible!=true, tracking.Right);
+        UpdateMarker(ref leftMarker, ref leftMaterial, "XIII VR left hand", new Color(0.05f, 0.7f, 1f, 1f), !mounted && tracking.LeftValid && GripCarry.Current?.HidesLeft!=true && ZiplineVr.Current?.HidesHand(false)!=true && WristHud.Current?.LeftHandVisible!=true, tracking.Left);
+        UpdateMarker(ref rightMarker, ref rightMaterial, "XIII VR right hand", new Color(1f, 0.45f, 0.05f, 1f), !mounted && tracking.RightValid && GripCarry.Current?.HidesHand(true)!=true && ZiplineVr.Current?.HidesHand(true)!=true && WristHud.Current?.RightHandVisible!=true, tracking.Right);
     }
     private void UpdateMarker(ref GameObject? marker, ref Material? material, string name, Color color, bool valid, PoseValue pose)
     {
@@ -911,7 +965,8 @@ internal sealed class CameraRig : IDisposable
         contacts?.Dispose();contacts=null;
         if (Current == this) Current = null;
         GameUiControls.Current?.Dispose(); WristHud.Current?.Dispose();
-        try{settingsPage?.Dispose();}catch(Exception ex){Bootstrap.Warn("VR settings dispose: "+ex.Message);}settingsPage=null;
+        try{settingsPage?.Dispose();}catch(Exception ex){Bootstrap.Warn("VR settings dispose: "+ex.Message);}settingsPage=null;ControlsSheet.Close();
+        try{PromptIcons.Dispose();}catch(Exception ex){Bootstrap.Warn("VR prompt icons dispose: "+ex.Message);}
         try{death?.Dispose();}catch(Exception ex){Bootstrap.Warn("VR death screen dispose: "+ex.Message);}death=null;
         try{splash?.Dispose();}catch(Exception ex){Bootstrap.Warn("VR water splash dispose: "+ex.Message);}splash=null;
         try{enemies?.Dispose();}catch(Exception ex){Bootstrap.Warn("VR enemy AI dispose: "+ex.Message);}enemies=null;

@@ -19,9 +19,12 @@ internal sealed class VrSettingsPage:IDisposable
     private static float Height=>TitleHeight+RowHeight*QualityMenu.RowCount+FooterHeight;
     private readonly CameraRig rig;
     private readonly Harmony patches=new("xiii.vr.xrbootstrap.settings");
-    private sealed class Entry{internal EventTriggerButton? Button;internal GameObject? Template;internal string Where="";internal bool Failed;}
+    // 0.1.215: Controls - the "VR CONTROLS" button (pause menu): the controls page (ControlsSheet).
+    private sealed class Entry{internal EventTriggerButton? Button,Controls;internal GameObject? Template;internal string Where="";internal bool Failed;}
     private readonly Dictionary<int,Entry> entries=new();
-    private readonly HashSet<IntPtr> ours=new();
+    private readonly HashSet<IntPtr> ours=new(),controls=new();
+    private TextMeshProUGUI? body,closeText;private bool controlsShown,closeHover;private string bodyKey="";
+    private static float CloseY=>-Height*.5f+110;
     private float nextScan,nextError,releaseAt,nextMenuFind;
     private GameObject? panel;private TextMeshProUGUI? title,footer;private Image? highlight;private TMP_FontAsset? font;
     private readonly TextMeshProUGUI?[] rows=new TextMeshProUGUI?[QualityMenu.RowCount];
@@ -54,7 +57,15 @@ internal sealed class VrSettingsPage:IDisposable
     }
     private void OpenFrom(EventTriggerButton button)
     {
-        if(QualityMenu.Open)return;
+        if(QualityMenu.Open||ControlsSheet.Open)return;
+        if(controls.Contains(button.Pointer))
+        {
+            foreach(var e in entries.Values)if(e.Controls!=null&&e.Controls.Pointer==button.Pointer)openedFrom=e.Where;
+            ControlsSheet.Show();placed=false;
+            Block(button.GetComponentInParent(Il2CppType.Of<MenuPage>())?.TryCast<MenuPage>());
+            Bootstrap.Write("VR CONTROLS opened from the "+(openedFrom==""?"":openedFrom+" ")+"menu");
+            return;
+        }
         foreach(var e in entries.Values)if(e.Button!=null&&e.Button.Pointer==button.Pointer)openedFrom=e.Where;
         QualityMenu.Show();
         Block(button.GetComponentInParent(Il2CppType.Of<MenuPage>())?.TryCast<MenuPage>());
@@ -68,6 +79,13 @@ internal sealed class VrSettingsPage:IDisposable
             float now=Time.realtimeSinceStartup;
             if(now>=nextScan){nextScan=now+.5f;Scan();}
             if(QualityMenu.Open&&!blocking&&openedFrom=="")Block(null);
+            // 0.1.215: the controls page closes with B, with its menu, or by its Close line.
+            if(ControlsSheet.Open)
+            {
+                if(openedFrom=="pause"&&!PauseMenuControl.HackGameIsPaused||openedFrom=="main"&&!rig.Frontend){ControlsSheet.Close();Bootstrap.Write("VR CONTROLS closed with its menu");}
+                else if(rig.MenuRightControls.Valid&&(rig.MenuRightControls.Down&HandControls.B)!=0)ControlsSheet.Close();
+                if(ControlsSheet.Open){releaseAt=now+.2f;PointControls();return;}
+            }
             if(QualityMenu.Open)
             {
                 if(openedFrom=="pause"&&!PauseMenuControl.HackGameIsPaused||openedFrom=="main"&&!rig.Frontend){QualityMenu.Close();Bootstrap.Write("VR SETTINGS closed with its menu");}
@@ -143,15 +161,20 @@ internal sealed class VrSettingsPage:IDisposable
         foreach(var key in new List<int>(entries.Keys))
         {
             var e=entries[key];if(e.Failed)continue;
-            if(e.Button==null||e.Template==null){if(e.Button!=null)UnityEngine.Object.Destroy(e.Button.gameObject);entries.Remove(key);continue;}
-            // Follow the native neighbour: shown/hidden and faded with it.
-            if(e.Button.gameObject.activeSelf!=e.Template.activeSelf)e.Button.gameObject.SetActive(e.Template.activeSelf);
-            Label(e.Button.gameObject); // follows the game language
+            if(e.Button==null||e.Template==null){if(e.Button!=null)UnityEngine.Object.Destroy(e.Button.gameObject);if(e.Controls!=null)UnityEngine.Object.Destroy(e.Controls.gameObject);entries.Remove(key);continue;}
             var a=e.Template.GetComponent(Il2CppType.Of<CanvasGroup>())?.TryCast<CanvasGroup>();
-            var b=e.Button.GetComponent(Il2CppType.Of<CanvasGroup>())?.TryCast<CanvasGroup>();
-            if(a!=null&&b!=null){b.alpha=a.alpha;b.interactable=a.interactable;b.blocksRaycasts=a.blocksRaycasts;}
+            foreach(var own in new[]{e.Button,e.Controls})
+            {
+                if(own==null)continue;
+                // Follow the native neighbour: shown/hidden and faded with it.
+                if(own.gameObject.activeSelf!=e.Template.activeSelf)own.gameObject.SetActive(e.Template.activeSelf);
+                Label(own.gameObject,own==e.Controls?ControlsSheet.T("VR CONTROLS"):UiLanguage.L("VR SETTINGS")); // follows the game language
+                var b=own.GetComponent(Il2CppType.Of<CanvasGroup>())?.TryCast<CanvasGroup>();
+                if(a!=null&&b!=null){b.alpha=a.alpha;b.interactable=a.interactable;b.blocksRaycasts=a.blocksRaycasts;}
+            }
         }
-        ours.Clear();foreach(var e in entries.Values)if(e.Button!=null)ours.Add(e.Button.Pointer);
+        ours.Clear();controls.Clear();
+        foreach(var e in entries.Values){if(e.Button!=null)ours.Add(e.Button.Pointer);if(e.Controls!=null){ours.Add(e.Controls.Pointer);controls.Add(e.Controls.Pointer);}}
         // 0.1.121: the main and pause menus are searched only while one can
         // be on screen (a visible Quit button is required anyway).
         if(!(rig.Frontend||PauseMenuControl.HackGameIsPaused)||!SceneScan.Due(ref nextMenuFind,.5f))return;
@@ -176,19 +199,15 @@ internal sealed class VrSettingsPage:IDisposable
         }
         template??=quit.GetComponent(Il2CppType.Of<EventTriggerButton>())!=null?quit:null;
         if(template==null){Bootstrap.Warn("VR SETTINGS no native button to copy in the "+where+" menu");entries[id]=new Entry{Where=where,Failed=true};return;}
-        var copy=UnityEngine.Object.Instantiate(template,parent,false);copy.name="XIII VR settings button";
-        var button=copy.GetComponent(Il2CppType.Of<EventTriggerButton>()).TryCast<EventTriggerButton>()!;
-        foreach(var e in new UnityEngine.Events.UnityEventBase?[]{button.OnButtonPress,button.OnButtonPressEnd,button.TriggerEvents})
-            if(e!=null)for(int i=0;i<e.GetPersistentEventCount();i++)e.SetPersistentListenerState(i,UnityEngine.Events.UnityEventCallState.Off);
-        foreach(var loc in copy.GetComponentsInChildren(Il2CppType.Of<I2.Loc.Localize>(),true))UnityEngine.Object.DestroyImmediate(loc);
-        foreach(var component in copy.GetComponentsInChildren(Il2CppType.Of<TextMeshProUGUI>(),true))
-        {var text=component.TryCast<TextMeshProUGUI>();if(text!=null)font??=text.font;}
-        Label(copy);
+        var copy=Copy(template,parent,"XIII VR settings button",UiLanguage.L("VR SETTINGS"),out var button);
+        // 0.1.215: in the pause menu also "VR CONTROLS" (the controls page), above it.
+        EventTriggerButton? controlsButton=null;GameObject? controlsCopy=where=="pause"?Copy(template,parent,"XIII VR controls button",ControlsSheet.T("VR CONTROLS"),out controlsButton):null;
         bool layout=parent.GetComponent(Il2CppType.Of<LayoutGroup>())!=null;
         // 0.1.155: the list's room before the button (to keep it the same).
-        copy.SetActive(false);
+        copy.SetActive(false);controlsCopy?.SetActive(false);
         var group=parent.TryCast<RectTransform>();float top0=0,bottom0=0;bool measured=group!=null&&layout&&Span(group,null,out top0,out bottom0);
         copy.transform.SetSiblingIndex(quitIndex); // directly above Quit
+        if(controlsCopy!=null)controlsCopy.transform.SetSiblingIndex(copy.transform.GetSiblingIndex());
         if(!layout)
         {
             // No layout group: place it one step below Quit, never over a
@@ -201,10 +220,13 @@ internal sealed class VrSettingsPage:IDisposable
                 var stepVector=templateRect!=null&&template!=quit?quitRect.anchoredPosition-templateRect.anchoredPosition:new Vector2(0,-quitRect.rect.height*1.2f);
                 if(stepVector.sqrMagnitude<1)stepVector=new Vector2(0,-Math.Max(40,quitRect.rect.height*1.2f));
                 rect.anchoredPosition=quitRect.anchoredPosition+stepVector;
+                var controlsRect=controlsCopy?.GetComponent(Il2CppType.Of<RectTransform>())?.TryCast<RectTransform>();
+                if(controlsRect!=null)controlsRect.anchoredPosition=rect.anchoredPosition+stepVector;
             }
         }
-        copy.SetActive(true);
-        entries[id]=new Entry{Button=button,Template=template,Where=where};ours.Add(button.Pointer);
+        copy.SetActive(true);controlsCopy?.SetActive(true);
+        entries[id]=new Entry{Button=button,Controls=controlsButton,Template=template,Where=where};ours.Add(button.Pointer);
+        if(controlsButton!=null){ours.Add(controlsButton.Pointer);controls.Add(controlsButton.Pointer);}
         string fit="";
         if(measured)try{fit=KeepRoom(group!,top0,bottom0);}catch(Exception ex){fit="; the list not fitted ("+ex.Message+")";}
         Bootstrap.Write("VR SETTINGS button added to the "+where+" menu: copy of "+template.name+" under "+parent.name+" layout="+layout+fit);
@@ -247,9 +269,21 @@ internal sealed class VrSettingsPage:IDisposable
         return "; the list kept in its room: "+oldSpan.ToString("F0")+" high, "+newSpan.ToString("F0")+" with the button -> "+(top3-bottom3).ToString("F0")
             +" (gaps "+spacing.ToString("F0")+" -> "+newSpacing.ToString("F0")+", scale "+scale.ToString("F2")+", moved "+shift.ToString("F0")+"; bottom "+bottom0.ToString("F0")+" -> "+bottom3.ToString("F0")+")";
     }
-    private static void Label(GameObject button)
+    // A copy of a native menu button that runs none of its native actions.
+    private GameObject Copy(GameObject template,Transform parent,string name,string label,out EventTriggerButton button)
     {
-        string label=UiLanguage.L("VR SETTINGS");
+        var copy=UnityEngine.Object.Instantiate(template,parent,false);copy.name=name;
+        button=copy.GetComponent(Il2CppType.Of<EventTriggerButton>()).TryCast<EventTriggerButton>()!;
+        foreach(var e in new UnityEngine.Events.UnityEventBase?[]{button.OnButtonPress,button.OnButtonPressEnd,button.TriggerEvents})
+            if(e!=null)for(int i=0;i<e.GetPersistentEventCount();i++)e.SetPersistentListenerState(i,UnityEngine.Events.UnityEventCallState.Off);
+        foreach(var loc in copy.GetComponentsInChildren(Il2CppType.Of<I2.Loc.Localize>(),true))UnityEngine.Object.DestroyImmediate(loc);
+        foreach(var component in copy.GetComponentsInChildren(Il2CppType.Of<TextMeshProUGUI>(),true))
+        {var text=component.TryCast<TextMeshProUGUI>();if(text!=null)font??=text.font;}
+        Label(copy,label);
+        return copy;
+    }
+    private static void Label(GameObject button,string label)
+    {
         foreach(var component in button.GetComponentsInChildren(Il2CppType.Of<TextMeshProUGUI>(),true))
         {var text=component.TryCast<TextMeshProUGUI>();if(text!=null&&text.text!=label)text.text=label;}
     }
@@ -258,7 +292,7 @@ internal sealed class VrSettingsPage:IDisposable
     {
         try
         {
-            if(!QualityMenu.Open){if(panel!=null&&panel.activeSelf)panel.SetActive(false);placed=false;return;}
+            if(!QualityMenu.Open&&!ControlsSheet.Open){if(panel!=null&&panel.activeSelf)panel.SetActive(false);placed=false;return;}
             if(panel==null&&!Build())return;
             if(!placed)
             {
@@ -266,6 +300,15 @@ internal sealed class VrSettingsPage:IDisposable
                 panel!.transform.SetPositionAndRotation(rig.HeadPosition+yaw*new Vector3(0,-.05f,1.0f),yaw);placed=true;
             }
             panel!.SetActive(true);
+            bool controlsMode=ControlsSheet.Open&&!QualityMenu.Open;
+            if(controlsMode!=controlsShown)
+            {
+                controlsShown=controlsMode;bodyKey="";
+                foreach(var r in rows)if(r!=null)r.gameObject.SetActive(!controlsMode);
+                if(body!=null)body.gameObject.SetActive(controlsMode);if(closeText!=null)closeText.gameObject.SetActive(controlsMode);
+                if(highlight!=null)highlight.gameObject.SetActive(!controlsMode);
+            }
+            if(controlsMode){RenderControls();return;}
             var lines=QualityMenu.Text.Split('\n');
             if(title!=null)title.text=lines.Length>0?lines[0]:"";
             for(int i=0;i<rows.Length;i++)
@@ -280,6 +323,55 @@ internal sealed class VrSettingsPage:IDisposable
             if(footer!=null)footer.text=lines.Length>footerStart?string.Join("\n",lines,footerStart,lines.Length-footerStart).Trim('\n'):"";
         }
         catch(Exception ex){if(Time.realtimeSinceStartup>=nextError){nextError=Time.realtimeSinceStartup+5;Bootstrap.Warn("VR SETTINGS panel: "+ex.Message);}}
+    }
+    // 0.1.215: the controls page: the actions and their buttons (ControlsSheet),
+    // rebuilt when the language or the dominant hand changes.
+    private void RenderControls()
+    {
+        bool lefty=WeaponHands.LeftHanded;string key=(lefty?"L":"R")+UiLanguage.Code;
+        if(key!=bodyKey)
+        {
+            bodyKey=key;
+            if(title!=null)title.text=ControlsSheet.Title(lefty);
+            if(body!=null)body.text=ControlsSheet.Body(lefty);
+            if(footer!=null)footer.text="";
+        }
+        if(closeText!=null)
+        {
+            string close=UiLanguage.L("Close");string shown=(closeHover?"<u>"+close+"</u>":close)+"   <size=65%><color=#B0BEC5>"+ControlsSheet.T("B: back")+"</color></size>";
+            if(closeText.text!=shown)closeText.text=shown;closeText.color=closeHover?Color.white:new Color(.45f,.85f,1,1);
+        }
+        if(highlight!=null)
+        {
+            if(highlight.gameObject.activeSelf!=closeHover)highlight.gameObject.SetActive(closeHover);
+            if(closeHover)highlight.rectTransform.anchoredPosition=new Vector2(0,CloseY);
+        }
+    }
+    // The controller ray on the controls page: its Close line closes it.
+    private void PointControls()
+    {
+        QualityMenu.PointerOwnsTrigger=false;closeHover=false;
+        if(panel==null||!placed||!panel.activeSelf||!rig.SamplePointerHand(out var hand)){pointer.Sample(false,false,0);beam.Hide();return;}
+        var origin=CameraRig.UnityPosition(hand);var direction=rig.PointerRotation(hand)*Vector3.forward;
+        var t=panel.transform;var normal=t.forward;float facing=Vector3.Dot(direction,normal);
+        int target=0;Vector3 end=origin+direction*1.5f;
+        if(facing>.05f)
+        {
+            float distance=Vector3.Dot(t.position-origin,normal)/facing;
+            if(distance>0&&distance<5)
+            {
+                var hit=origin+direction*distance;var local=t.InverseTransformPoint(hit);
+                if(Math.Abs(local.x)<=Width*.5f&&Math.Abs(local.y)<=Height*.5f)
+                {
+                    end=hit;QualityMenu.PointerOwnsTrigger=true;
+                    if(Math.Abs(local.y-CloseY)<=RowHeight*.6f){closeHover=true;target=1;}
+                }
+            }
+        }
+        var input=rig.MenuPointerControls;bool held=input.Valid&&(input.Held&HandControls.Trigger)!=0;
+        var step=pointer.Sample(true,held,target);
+        beam.Show(origin,end,target!=0);
+        if(step.Click&&closeHover){ControlsSheet.Close();rig.PunchHaptics(!rig.PointerLeft);rig.DisarmMenuTriggers();Bootstrap.Write("VR CONTROLS closed");}
     }
     private bool Build()
     {
@@ -301,6 +393,12 @@ internal sealed class VrSettingsPage:IDisposable
             rows[i]=Label("Row "+i,new Vector2(0,Height*.5f-TitleHeight-RowHeight*(i+.5f)),new Vector2(Width-60,RowHeight),24,TextAlignmentOptions.Center);
         footer=Label("Footer",new Vector2(0,-Height*.5f+FooterHeight*.5f),new Vector2(Width-60,FooterHeight-20),19,TextAlignmentOptions.Top);
         footer.color=new Color(.75f,.8f,.84f,1);footer.enableWordWrapping=true;
+        // 0.1.215: the controls page's list (two columns) and its Close line.
+        float bodyTop=Height*.5f-TitleHeight,bodyBottom=CloseY+RowHeight;
+        body=Label("Controls",new Vector2(0,(bodyTop+bodyBottom)*.5f),new Vector2(Width-60,bodyTop-bodyBottom-10),22,TextAlignmentOptions.TopLeft);
+        body.enableAutoSizing=true;body.fontSizeMin=13;body.fontSizeMax=22;body.gameObject.SetActive(false);
+        closeText=Label("Close",new Vector2(0,CloseY),new Vector2(Width-60,RowHeight),28,TextAlignmentOptions.Center);closeText.gameObject.SetActive(false);
+        controlsShown=false;
         panel.SetActive(false);
         return true;
     }

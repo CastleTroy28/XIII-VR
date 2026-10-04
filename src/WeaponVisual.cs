@@ -12,6 +12,12 @@ internal sealed partial class WeaponVisual : IDisposable
 {
     internal bool ManualMode;
     internal bool StableGun;
+    // 0.1.229: the bazooka is drawn as it was when taken (its fit and its
+    // grips were measured so), not moved by the game's animation of it: after
+    // a shot (its recoil, its reload, its empty pose) the whole drawn bazooka
+    // was up to 15 cm off the hands holding its grips. Only its rocket moves
+    // (NativeSkinSnapshot.BakeStill).
+    internal bool HeldStill=>Profile=="bazooka";
     private readonly List<Mesh> baked = new();
     private ReloadGripMath? reloadGrip;
     private ReloadMesh? reloadMesh;private Part? magazinePart;private int[][]? magazineKept,magazineFull;private bool magazineHidden,reloadProbeDone;
@@ -74,7 +80,7 @@ internal sealed partial class WeaponVisual : IDisposable
             for(int k=0;k<relation.Length;k++){data[k]=new float[16];for(int i=0;i<16;i++)data[k][i]=relation[k][i];}
             System.IO.File.WriteAllText(file,BoltRelationText.Format(names,data));
         }
-        catch(Exception ex){Bootstrap.Warn("CROSSBOW "+what+" placement not saved: "+ex.Message);}
+        catch(Exception ex){Bootstrap.Warn("WEAPON "+what+" placement not saved: "+ex.Message);}
     }
     private static Matrix4x4[]? LoadRelation(string file,string what,string[] names)
     {
@@ -86,7 +92,7 @@ internal sealed partial class WeaponVisual : IDisposable
             for(int k=0;k<data.Length;k++){var m=new Matrix4x4();for(int i=0;i<16;i++)m[i]=data[k][i];relation[k]=m;}
             return relation;
         }
-        catch(Exception ex){Bootstrap.Warn("CROSSBOW "+what+" placement not read: "+ex.Message);return null;}
+        catch(Exception ex){Bootstrap.Warn("WEAPON "+what+" placement not read: "+ex.Message);return null;}
     }
     // The loaded bolt's rear end (at the string) and its length, fitted space.
     internal Vector3 ArrowRear=>reloadMesh==null?Vector3.zero:reloadMesh.Center+new Vector3(0,0,reloadMesh.Min.z);
@@ -215,6 +221,8 @@ internal sealed partial class WeaponVisual : IDisposable
     internal Matrix4x4[]?[] LivePoses()
     {
         var poses=new Matrix4x4[]?[animatedParts.Count];
+        // 0.1.229: a bazooka is drawn still (its copies: as drawn).
+        if(HeldStill)return poses;
         for(int i=0;i<animatedParts.Count;i++)
         {
             var s=animatedParts[i].Snapshot;if(s==null)continue;
@@ -283,6 +291,30 @@ internal sealed partial class WeaponVisual : IDisposable
         Bootstrap.Write("WEAPON VISUAL "+snapshot.Original.name+" fitted without its silencer ("+count+" of "+vertices.Length+" vertices): the plain gun's size and handle, the silencer ahead of the muzzle");
         return true;
     }
+    // 0.1.228: the bazooka without its rocket (its bones and those under them):
+    // the bounds of the rest, the tube, wherever the game holds the rocket.
+    private static bool TrimRocket(NativeSkinSnapshot snapshot,Mesh mesh,out Bounds tube)
+    {
+        tube=default;
+        var bones=snapshot.Bones;var mark=new bool[bones.Length];bool any=false;
+        for(int i=0;i<bones.Length;i++)if(bones[i]!=null&&BazookaTubeMath.RocketBone(bones[i].name)){mark[i]=true;any=true;}
+        if(!any)return false;
+        for(int i=0;i<bones.Length;i++)if(!mark[i]&&bones[i]!=null)for(int j=0;j<bones.Length;j++)if(mark[j]&&bones[j]!=null&&bones[i].IsChildOf(bones[j])){mark[i]=true;break;}
+        var weights=snapshot.Original.boneWeights;var vertices=mesh.vertices;
+        if(weights.Length!=vertices.Length)return false;
+        bool On(int b)=>b>=0&&b<mark.Length&&mark[b];
+        var points=new System.Numerics.Vector3[vertices.Length];var rocket=new bool[vertices.Length];int count=0;
+        for(int i=0;i<vertices.Length;i++)
+        {
+            var v=vertices[i];points[i]=new System.Numerics.Vector3(v.x,v.y,v.z);var w=weights[i];
+            rocket[i]=(On(w.boneIndex0)?w.weight0:0)+(On(w.boneIndex1)?w.weight1:0)+(On(w.boneIndex2)?w.weight2:0)+(On(w.boneIndex3)?w.weight3:0)>.5f;
+            if(rocket[i])count++;
+        }
+        if(!WeaponGeometry.WithoutAttachment(points,rocket,0,out var min,out var max,out _,out _))return false;
+        tube=new Bounds();tube.SetMinMax(new Vector3(min.X,min.Y,min.Z),new Vector3(max.X,max.Y,max.Z));
+        Bootstrap.Write("WEAPON VISUAL bazooka fitted without its rocket ("+count+" of "+vertices.Length+" vertices) at its usual scale: the same size and handles wherever the game holds the rocket");
+        return true;
+    }
     private void Build(Equipable weapon,Transform muzzle,string profile)
     {
         sourceMuzzle=muzzle;Profile=profile;createdAt=Time.realtimeSinceStartup;sourceRoot=weapon.transform;
@@ -315,7 +347,7 @@ internal sealed partial class WeaponVisual : IDisposable
         }
         var parts = new List<Part>();
         Matrix4x4 frame = Matrix4x4.TRS(muzzle.position,muzzle.rotation,Vector3.one).inverse;
-        bool hasBounds = false; Bounds bounds = default;
+        bool hasBounds = false; Bounds bounds = default;bool bazookaTrimmed=false;
         foreach (var source in sources)
         {
             int lod = Lod(source.name.ToLowerInvariant()); if (lod >= 0 && lod != bestLod) continue;
@@ -349,6 +381,12 @@ internal sealed partial class WeaponVisual : IDisposable
                 catch(Exception ex){BreakAction=false;breakBounds=null;Bootstrap.Warn("BREAK ACTION shotgun kept as drawn: "+ex.Message);}
             }
             Bounds box = mesh.bounds;
+            // 0.1.228: the bazooka's rocket is left out of the fit (TrimRocket).
+            if(profile=="bazooka"&&snapshot!=null&&parts.Count==0)
+            {
+                try{if(TrimRocket(snapshot,mesh,out var tube)){box=tube;bazookaTrimmed=true;}}
+                catch(Exception ex){Bootstrap.Warn("WEAPON VISUAL bazooka fitted with its rocket: "+ex.Message);}
+            }
             // 0.1.194: a shown silencer is left out of the fit (the plain pistol's size and handle).
             if(profile!="prop"&&snapshot!=null)
             {
@@ -378,7 +416,7 @@ internal sealed partial class WeaponVisual : IDisposable
             throw new InvalidOperationException("No usable weapon mesh in barrel frame");
         var minBound = bounds.min; var maxBound = bounds.max;
         var fit = WeaponGeometry.Fit(new System.Numerics.Vector3(minBound.x,minBound.y,minBound.z),
-            new System.Numerics.Vector3(maxBound.x,maxBound.y,maxBound.z),profile);
+            new System.Numerics.Vector3(maxBound.x,maxBound.y,maxBound.z),profile,bazookaTrimmed?WeaponGeometry.BazookaScale:float.NaN);
         var propRotation=Quaternion.identity;
         if(profile=="prop")
         {
@@ -815,11 +853,13 @@ internal sealed partial class WeaponVisual : IDisposable
             // Cancel parent/body motion but retain internal slide/bolt/magazine
             // deformation. Keep the fitted scale fixed; never re-fit every frame.
             var frame=(sourceRoot.localToWorldMatrix*rootToBarrel).inverse;
+            bool still=HeldStill;if(still)FindRocket();
             TickCover();
             foreach(var part in animatedParts)
             {
                 if(part.Source==null || part.Copy==null || part.Filter==null) continue;
-                var matrix=StableGun?part.Matrix:frame*part.Source.localToWorldMatrix;
+                // 0.1.229: the bazooka held still in its fitted frame (HeldStill).
+                var matrix=StableGun||still?part.Matrix:frame*part.Source.localToWorldMatrix;
                 Vector3 p=new(matrix.m03,matrix.m13,matrix.m23),scale=matrix.lossyScale;
                 var initial=new Vector3(part.Matrix.m03,part.Matrix.m13,part.Matrix.m23);
                 float travel=Math.Max(.1f,part.InitialBounds.size.magnitude*part.Matrix.lossyScale.magnitude*2);
@@ -833,6 +873,11 @@ internal sealed partial class WeaponVisual : IDisposable
                         part.Snapshot.Invalidate();
                         // 0.1.194: the double-barrelled shotgun held still, its barrels opening by hand.
                         if(StableGun&&BreakAction&&part==breakPart)owned=BakeBreak(part);
+                        if(!owned&&still&&part.Snapshot.Initial!=null)
+                        {
+                            bool rocketHere=part==rocketPart&&rocketMask!=null;
+                            part.Snapshot.BakeStill(part.Spare,rocketHere?rocketMask:null,rocketHere?rocketReference:-1);owned=true;
+                        }
                         if(!owned&&(StableGun||ManualMode&&(ReloadAvailable||Profile=="shotgun")))
                         {
                             float cycle=Profile=="shotgun"?0:MechanismMath.Travel(Profile)*MechanismMath.Cycle(Time.realtimeSinceStartup-lastShot,Profile);

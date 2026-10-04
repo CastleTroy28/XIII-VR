@@ -14,6 +14,7 @@ internal static class UiLanguage
     private static readonly System.Collections.Generic.Dictionary<string,string[]> Table=new()
     {
         ["Release left Grip"]=new[]{"Отпустить левый Grip","Linken Grip loslassen","Relâcher le Grip gauche","Suelta el Grip izquierdo","Rilascia il Grip sinistro","Puść lewy Grip","Solte o Grip esquerdo"},
+        ["Hold right Grip"]=new[]{"Удерживать правый Grip","Rechten Grip halten","Maintenir le Grip droit","Mantén el Grip derecho","Tieni premuto il Grip destro","Przytrzymaj prawy Grip","Segure o Grip direito"},
         ["Hold left Grip"]=new[]{"Удерживать левый Grip","Linken Grip halten","Maintenir le Grip gauche","Mantén el Grip izquierdo","Tieni premuto il Grip sinistro","Przytrzymaj lewy Grip","Segure o Grip esquerdo"},
         ["Right stick: swing · L3: let go"]=new[]{"Правый стик: раскачка · L3: отцепиться","Rechter Stick: schwingen · L3: loslassen","Stick droit : se balancer · L3 : lâcher","Stick derecho: balancearse · L3: soltarse","Stick destro: oscilla · L3: sganciati","Prawy drążek: huśtanie · L3: puść","Analógico direito: balançar · L3: soltar"},
         ["L3 (or right B): let go"]=new[]{"L3 (или правая B): отцепиться","L3 (oder rechts B): loslassen","L3 (ou B droit) : lâcher","L3 (o B derecho): soltarse","L3 (o B destro): sganciati","L3 (lub prawy B): puść","L3 (ou B direito): soltar"},
@@ -40,6 +41,8 @@ internal static class UiLanguage
         ["Left trigger"]=new[]{"Левый триггер","Linker Trigger","Gâchette gauche","Gatillo izquierdo","Grilletto sinistro","Lewy spust","Gatilho esquerdo"},
         ["Right Grip: support weapon"]=new[]{"Правый Grip: двуручный хват","Rechter Grip: Waffe stützen","Grip droit : tenir à deux mains","Grip derecho: sujetar a dos manos","Grip destro: impugnatura a due mani","Prawy Grip: chwyt oburącz","Grip direito: segurar com as duas mãos"},
         ["Right Grip"]=new[]{"Правый Grip","Rechter Grip","Grip droit","Grip derecho","Grip destro","Prawy Grip","Grip direito"},
+        ["Fist in the back, swing hard"]=new[]{"Кулаком в спину с размаху","Faust in den Rücken, kräftig ausholen","Poing dans le dos, avec élan","Puño en la espalda, con fuerza","Pugno nella schiena, con forza","Pięścią w plecy, z zamachem","Soco nas costas, com força"},
+        ["Left/Right Grip"]=new[]{"Левый/правый Grip","Linker/rechter Grip","Grip gauche/droit","Grip izquierdo/derecho","Grip sinistro/destro","Lewy/prawy Grip","Grip esquerdo/direito"},
         ["Left X"]=new[]{"X на левом контроллере","Links X","X gauche","X izquierdo","X sinistro","Lewy X","X esquerdo"},
         ["Right trigger"]=new[]{"Правый триггер","Rechter Trigger","Gâchette droite","Gatillo derecho","Grilletto destro","Prawy spust","Gatilho direito"},
         ["Right stick click"]=new[]{"Клик правого стика","Rechten Stick drücken","Clic du stick droit","Pulsar stick derecho","Premi lo stick destro","Wciśnij prawy drążek","Pressione o analógico direito"},
@@ -56,6 +59,7 @@ internal static class UiLanguage
         ["Hold card to reader"]=new[]{"Приложите карту","Karte an den Leser halten","Approchez la carte du lecteur","Acerca la tarjeta al lector","Avvicina la tessera al lettore","Przyłóż kartę do czytnika","Encoste o cartão no leitor"},
         ["Turn key"]=new[]{"Поверните ключ","Schlüssel drehen","Tournez la clé","Gira la llave","Gira la chiave","Przekręć klucz","Gire a chave"},
         ["Turn lockpick"]=new[]{"Поверните отмычку","Dietrich drehen","Tournez le crochet","Gira la ganzúa","Gira il grimaldello","Przekręć wytrych","Gire a gazua"},
+        ["Hold lockpick in lock"]=new[]{"Держите отмычку в замке","Dietrich im Schloss halten","Gardez le crochet dans la serrure","Mantén la ganzúa en la cerradura","Tieni il grimaldello nella serratura","Trzymaj wytrych w zamku","Mantenha a gazua na fechadura"},
         ["No current objectives"]=new[]{"Нет текущих задач","Keine aktuellen Ziele","Aucun objectif en cours","No hay objetivos actuales","Nessun obiettivo attuale","Brak bieżących celów","Nenhum objetivo atual"},
         ["OBJECTIVES"]=new[]{"ЗАДАЧИ","ZIELE","OBJECTIFS","OBJETIVOS","OBIETTIVI","CELE","OBJETIVOS"},
         ["X (left controller) — close"]=new[]{"X (левый контроллер) — закрыть","X (linker Controller) — schließen","X (manette gauche) — fermer","X (mando izquierdo) — cerrar","X (controller sinistro) — chiudi","X (lewy kontroler) — zamknij","X (controle esquerdo) — fechar"},
@@ -114,7 +118,6 @@ internal static class UiLanguage
         ["Mounted gun"]=new[]{"Стационарный пулемёт","Stationäres MG","Mitrailleuse fixe","Ametralladora fija","Mitragliatrice fissa","Karabin stacjonarny","Metralhadora fixa"},
         ["handles (inverted)"]=new[]{"рукоятки (инверсия)","Griffe (invertiert)","poignées (inversé)","empuñaduras (invertido)","impugnature (invertito)","rękojeści (odwrócone)","empunhaduras (invertido)"},
         ["pointing"]=new[]{"по направлению рук","Zeigen","pointage","apuntar","puntamento","wskazywanie","apontar"},
-        ["Smarter enemies"]=new[]{"Умные враги","Klügere Gegner","Ennemis plus malins","Enemigos más listos","Nemici più furbi","Mądrzejsi wrogowie","Inimigos mais espertos"},
         ["Throwing"]=new[]{"Броски","Werfen","Lancer","Lanzamiento","Lancio","Rzucanie","Arremesso"},
         ["Close"]=new[]{"Закрыть","Schließen","Fermer","Cerrar","Chiudi","Zamknij","Fechar"},
         ["Two-handed gun in one hand"]=new[]{"Двуручное в одной руке","Zweihandwaffe in einer Hand","Arme à deux mains d'une main","Arma de dos manos en una mano","Arma a due mani in una mano","Broń dwuręczna w jednej ręce","Arma de duas mãos numa mão"},

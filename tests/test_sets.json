@@ -12,7 +12,8 @@
   "files": [
    "src/VrPromptLabels.cs",
    "src/TutorialHintContext.cs",
-   "src/UiLanguage.cs"
+   "src/UiLanguage.cs",
+   "src/ControllerIconMath.cs"
   ]
  },
  {
@@ -98,7 +99,8 @@
    "src/KeyUnlockGesture.cs",
    "src/UnlockGestureMath.cs",
    "src/KeyPreviewFactory.cs",
-   "src/HeldItemMeshSources.cs"
+   "src/HeldItemMeshSources.cs",
+   "src/LockpickTimerMath.cs"
   ]
  },
  {
@@ -144,6 +146,35 @@
   "name": "ScopeSteadyTests",
   "files": [
    "src/ScopeSteadyMath.cs"
+  ]
+ },
+ {
+  "name": "HostagePointMathTests",
+  "files": [
+   "src/HostagePointMath.cs",
+   "src/KnockoutMath.cs",
+   "src/AllyRule.cs"
+  ]
+ },
+ {
+  "name": "ThrowLandingTests",
+  "files": [
+   "src/ThrowLanding.cs",
+   "src/KnifeRetakeMath.cs"
+  ]
+ },
+ {
+  "name": "ControlsAndIconsTests",
+  "files": [
+   "src/ControllerIconMath.cs",
+   "src/ControlsSheet.cs",
+   "src/UiLanguage.cs",
+   "src/BazookaReloadMath.cs",
+   "src/BazookaTubeMath.cs",
+   "src/ReloadBones.cs",
+   "src/EquipmentProfile.cs",
+   "src/GripBarMath.cs",
+   "src/NativeHandMesh.cs"
   ]
  },
  {
@@ -364,14 +395,16 @@
    "src/EquipmentProfile.cs",
    "src/ReloadGlowMath.cs",
    "src/RailMath.cs",
-   "src/InertialPump.cs"
+   "src/InertialPump.cs",
+   "src/CoverPush.cs"
   ]
  },
  {
   "name": "ManualReloadTests",
   "files": [
    "src/ManualReloadState.cs",
-   "src/SpreadPolicy.cs"
+   "src/SpreadPolicy.cs",
+   "src/CoverPush.cs"
   ]
  },
  {
@@ -659,6 +692,8 @@
   "name": "MenuLifecycleTests",
   "files": [
    "src/GameUiControls.cs",
+   "src/ControlsSheet.cs",
+   "src/MenuInputMath.cs",
    "src/MenuChord.cs",
    "src/SceneScan.cs",
    "src/QualityOptions.cs",
@@ -1166,6 +1201,30 @@
    "src/MedkitGeometry.cs",
    "src/SnapshotPoseMath.cs",
    "src/NativeHandMesh.cs",
+   "src/DualGripMath.cs",
+   "src/FingerPoseMath.Rim.cs",
+   "src/FingerPoseMath.Chair.cs",
+   "src/FingerPoseMath.Wrap.cs",
+   "src/AshtrayRimGeometry.cs",
+   "src/PropSurfaceGeometry.cs",
+   "src/KeyGripGeometry.cs",
+   "src/ScrewdriverGrip.cs"
+  ]
+ },
+ {
+  "name": "BazookaGripFitTests",
+  "files": [
+   "src/FingerPoseMath.cs",
+   "src/ReloadGripMath.cs",
+   "src/MedkitGeometry.cs",
+   "src/SnapshotPoseMath.cs",
+   "src/NativeHandMesh.cs",
+   "src/BazookaTubeMath.cs",
+   "src/GripBarMath.cs",
+   "src/ReloadBones.cs",
+   "src/EquipmentProfile.cs",
+   "src/ClubMath.cs",
+   "src/MeleeDamageMath.cs",
    "src/DualGripMath.cs",
    "src/FingerPoseMath.Rim.cs",
    "src/FingerPoseMath.Chair.cs",

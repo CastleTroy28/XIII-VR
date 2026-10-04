@@ -33,9 +33,13 @@ internal static class HolsterLayout
     // left-hander) takes from further away and hangs 3 cm further out and 3 cm
     // further back, off the pouch in front of it.
     internal const float BeltLeftGrabRadius=.17f,BeltLeftSnapRadius=.20f;
+    // 0.1.214: the knife and grenade places on the chest take from further
+    // away (the next knife after a throw was hard to find by feel).
+    internal const float ChestGrabRadius=.17f,ChestSnapRadius=.20f;
     internal static bool OverShoulder(HolsterSlot slot)=>slot is HolsterSlot.LeftShoulder or HolsterSlot.RightBack;
-    internal static float GrabRadiusOf(HolsterSlot slot)=>OverShoulder(slot)?ShoulderGrabRadius:slot==HolsterSlot.BeltLeft?BeltLeftGrabRadius:GrabRadius;
-    internal static float SnapRadiusOf(HolsterSlot slot)=>OverShoulder(slot)?ShoulderSnapRadius:slot==HolsterSlot.BeltLeft?BeltLeftSnapRadius:SnapRadius;
+    internal static bool OnChest(HolsterSlot slot)=>slot is HolsterSlot.ChestLeft or HolsterSlot.ChestRight;
+    internal static float GrabRadiusOf(HolsterSlot slot)=>OverShoulder(slot)?ShoulderGrabRadius:slot==HolsterSlot.BeltLeft?BeltLeftGrabRadius:OnChest(slot)?ChestGrabRadius:GrabRadius;
+    internal static float SnapRadiusOf(HolsterSlot slot)=>OverShoulder(slot)?ShoulderSnapRadius:slot==HolsterSlot.BeltLeft?BeltLeftSnapRadius:OnChest(slot)?ChestSnapRadius:SnapRadius;
     internal static float HintRadiusOf(HolsterSlot slot)=>OverShoulder(slot)?ShoulderHintRadius:HintRadius;
     private static readonly HolsterSlot[] Small={HolsterSlot.BeltRight,HolsterSlot.BeltLeft,HolsterSlot.ArmpitLeft,HolsterSlot.ArmpitRight};
     private static readonly HolsterSlot[] Rifle={HolsterSlot.Belly,HolsterSlot.RightBack,HolsterSlot.LeftShoulder};

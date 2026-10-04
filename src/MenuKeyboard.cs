@@ -5,6 +5,11 @@ using UnityEngine;
 namespace XiiiXR;
 // Native start screen and footer legends poll keyboard/Rewired; they are not
 // clickable UI Buttons. Send a short, foreground-only native key pair.
+// 0.1.210: menu keys no longer wait for Windows focus: the game's window is
+// brought to the front for the key (with Virtual Desktop it is often not).
+// 0.1.213: the start screen gets Enter at the press again. The game's
+// any-button input (GetAnyButtonDown) did not answer it, and Enter came only
+// half a second after the last press, so pressing on kept it waiting.
 internal sealed class MenuKeyboard : IDisposable
 {
     private readonly CameraRig rig;
@@ -14,6 +19,7 @@ internal sealed class MenuKeyboard : IDisposable
     private float releaseAt,nextFind;
     private readonly List<StartScreenControl> starts=new();
     private bool startupArmed,menuAArmed,menuBArmed;
+    private float nextStartReport;
     internal MenuKeyboard(CameraRig camera){rig=camera;}
     internal static ushort PromptKey(InputActions action)=>action switch
     {
@@ -24,15 +30,15 @@ internal sealed class MenuKeyboard : IDisposable
     };
     internal bool Pulse(ushort key)
     {
-        if(key==0||heldKey!=0||!Application.isFocused)return false;
+        if(key==0||heldKey!=0)return false;
         if(!EscapeKey.SendKey(key,true))return false;
         heldKey=key;releaseAt=Time.realtimeSinceStartup+.08f;
         Bootstrap.Write("MENU native key="+key);return true;
     }
     internal void Tick()
     {
-        if(heldKey!=0&&(Time.realtimeSinceStartup>=releaseAt||!Application.isFocused))Release();
-        bool valid=Application.isFocused&&rig.HeadTrackingValid;
+        if(heldKey!=0&&Time.realtimeSinceStartup>=releaseAt)Release();
+        bool valid=rig.HeadTrackingValid&&(Application.isFocused||WindowFocus.InVr);
         if(!valid){startupArmed=menuAArmed=menuBArmed=false;navigation.Reset();StickMode=false;return;}
         // 0.1.121: the start screen exists only before a level (no gameplay camera).
         if(!rig.Frontend)starts.Clear();
@@ -52,10 +58,15 @@ internal sealed class MenuKeyboard : IDisposable
         if(!any)startupArmed=true;
         if(waiting)
         {
-            if(any&&startupArmed){startupArmed=false;Pulse(0x0d);rig.DisarmTrigger();}
+            if(any&&startupArmed)
+            {
+                startupArmed=false;rig.DisarmTrigger();
+                bool typed=Pulse(0x0d);
+                if(!typed&&Time.realtimeSinceStartup>=nextStartReport){nextStartReport=Time.realtimeSinceStartup+5;Bootstrap.Warn("START SCREEN Enter could not be typed: "+EscapeKey.LastRefusal);}
+            }
             menuAArmed=menuBArmed=false;navigation.Reset();StickMode=false;return;
         }
-        bool menu=GameUiControls.Current?.PointerMenuOpen==true&&GameUiControls.Current?.WheelOpen!=true&&!QualityMenu.Open;
+        bool menu=GameUiControls.Current?.PointerMenuOpen==true&&GameUiControls.Current?.WheelOpen!=true&&!QualityMenu.Open&&!ControlsSheet.Open;
         bool a=r.Valid&&(r.Held&HandControls.A)!=0,b=r.Valid&&(r.Held&HandControls.B)!=0;
         if(!menu||!r.Valid){menuAArmed=menuBArmed=false;navigation.Reset();StickMode=false;return;}
         if(!a)menuAArmed=true;else if(menuAArmed){menuAArmed=false;Release();Pulse(0x0d);}

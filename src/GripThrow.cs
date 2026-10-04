@@ -89,3 +89,28 @@ internal sealed class ThrowGrip
         return mode==WeaponGripMode.Always?ThrowGripStep.None:ThrowGripStep.Release;
     }
 }
+// 0.1.222: one hand's last grip press and how it was let go (a throw: its
+// direction and speed). A thing taken by a grip press comes into the hand
+// only once the game has drawn it (a moment); a grip let go in a swing
+// before that still throws it (SwungSincePress), as soon as it is there.
+internal sealed class GripLetGo
+{
+    internal const float PressWindow=3f,ThrowWindow=1.5f;
+    internal float PressedAt{get;private set;}=-10;
+    internal float LetGoAt{get;private set;}=-10;
+    internal bool Threw{get;private set;}
+    internal Vector3 Direction{get;private set;}
+    internal float Speed{get;private set;}
+    internal string Why{get;private set;}="";
+    internal void Press(float now){if(float.IsFinite(now))PressedAt=now;}
+    internal void LetGo(float now,bool threw,Vector3 direction,float speed,string why)
+    {
+        if(!float.IsFinite(now))return;
+        LetGoAt=now;Threw=threw&&float.IsFinite(direction.X)&&float.IsFinite(direction.Y)&&float.IsFinite(direction.Z)&&direction.LengthSquared()>1e-6f;
+        Direction=Threw?Vector3.Normalize(direction):Vector3.Zero;Speed=float.IsFinite(speed)?Math.Max(0,speed):0;Why=why??"";
+    }
+    // The last press was let go in a throw, both lately (the press within
+    // PressWindow, the let-go within ThrowWindow).
+    internal bool SwungSincePress(float now)=>Threw&&float.IsFinite(now)&&LetGoAt>=PressedAt&&LetGoAt<=now&&now-PressedAt<=PressWindow&&now-LetGoAt<=ThrowWindow;
+    internal void Spend(){Threw=false;}
+}

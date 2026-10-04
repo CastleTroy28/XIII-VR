@@ -81,9 +81,10 @@ internal sealed class GloveVisual : IDisposable
         var position=CameraRig.UnityPosition(pose);var rotation=Rotation(pose,right);float size=1;bool held=false;
         Vector3 carryPosition=Vector3.zero,carryElbow=Vector3.zero;Quaternion carryRotation=Quaternion.identity;
         bool carrying=GripCarry.Current?.TryCarryHand(right,out carryPosition,out carryRotation,out carryElbow)==true;
-        if(carrying){position=carryPosition;rotation=carryRotation;held=true;gripTarget=.82f;triggerTarget=.82f;}
+        if(carrying){position=carryPosition;rotation=carryRotation;held=true;gripTarget=.82f;triggerTarget=.82f;WeaponHands.Current?.NoteSupportGlove(right,"the hand carrying something");}
         // 0.1.197: riding the zipline, the hand that held the hook is not drawn (only the free hand is there).
         if(!carrying&&ZiplineVr.Current?.HidesHand(right)==true){Hide();return;}
+        bool rocketHeld=false;
         try
         {
             var weapons=WeaponHands.Current;
@@ -94,6 +95,10 @@ internal sealed class GloveVisual : IDisposable
                 if(held){position=gripPosition;rotation=gripRotation;}
                 // 0.1.198: the zipline hook held by its handle: the hand as on a pistol.
                 else if(GameUiControls.Current?.Items.TryToolHand(right,pose,out var toolPosition,out var toolRotation)==true){position=toolPosition;rotation=toolRotation;}
+                // 0.1.217: the bazooka's rocket taken from the pouch: the same hold, closed round its motor tube.
+                else if(weapons.TryRocketHand(right,pose,out var rocketPosition,out var rocketRotation)){position=rocketPosition;rotation=rocketRotation;rocketHeld=true;}
+                // 0.1.227: why the bazooka's support hand is not on its front grip (the log, once).
+                if(!held&&!rocketHeld)weapons.NoteSupportGlove(right,"the glove drawn free at the controller");
             }
             if(held)HandImpact.Clear(right);
             else
@@ -113,10 +118,10 @@ internal sealed class GloveVisual : IDisposable
             // (Also on the rope: the wheel item may be cleared by the game's
             // scripted rope state while the hook is still in this hand.)
             // 0.1.195: in either hand (the grappling or zipline hook), and on the zipline cable.
-            bool gadgetHeld=!held&&(GameUiControls.Current?.ItemHeldOn(right)==true||GrappleVr.Current?.DeviceShown==true&&GrappleVr.Current.Side==(right?1:0));
+            bool gadgetHeld=!held&&(rocketHeld||GameUiControls.Current?.ItemHeldOn(right)==true||GrappleVr.Current?.DeviceShown==true&&GrappleVr.Current.Side==(right?1:0));
             if(gadgetHeld){held=true;size=1;}
             if(!carrying&&ContactRig.Current?.ResolveHand(right,held&&!keyHeld&&!gadgetHeld&&!pickHeld,ref position,ref rotation,!held&&gripTarget>.6f)==false)
-            {root.SetActive(false);return;}
+            {if(held)WeaponHands.Current?.NoteSupportGlove(right,"the glove hidden (the gun not clear of the world)");root.SetActive(false);return;}
             // 0.1.146: a hand laying a bolt along the crossbow rests on its rail.
             if(!carrying)weapons?.RestOnRail(right,ref position,rotation);
             if(native!=null)
@@ -148,7 +153,8 @@ internal sealed class GloveVisual : IDisposable
                 if(held&&!itemHeld&&weapons?.HandProfileFor(right) is string sided)profile=sided;
                 if(keyHeld){var interaction=InteractionDriver.Current!;profile=interaction.KeyGripProfile;interaction.PrepareKeyHand(native);}
                 // 0.1.198: the zipline hook's handle in the closed hand.
-                if(gadgetHeld)profile=GameUiControls.Current?.Items.Kind==HandToolKind.Zipline?WeaponHands.LongHandleGrip:GrappleVr.Current?.HandProfileFor(right)??"gadget";
+                // 0.1.226: the rocket's thicker tube with the fingers and the thumb opened round it.
+                if(gadgetHeld)profile=rocketHeld&&weapons!=null?weapons.RocketGripProfile(right):GameUiControls.Current?.Items.Kind==HandToolKind.Zipline?WeaponHands.LongHandleGrip:GrappleVr.Current?.HandProfileFor(right)??"gadget";
                 if(pickHeld){profile=ScrewdriverGrip.Profile;GameUiControls.Current!.Items.PrepareHand(native);}
                 if(!right&&weapons?.LeftPistolVisible==true)profile="dual_pistol";
                 // 0.1.133: the hand holding a magazine (the right one for a gun in the left hand).
@@ -159,9 +165,11 @@ internal sealed class GloveVisual : IDisposable
             }
         }
         catch(Exception ex){native?.Dispose();native=null;Report(ex);}
+        WeaponHands.Current?.NoteHandDrawn(right,held,position);
         root.transform.SetPositionAndRotation(position,rotation);root.transform.localScale=Vector3.one;
         if(!carrying&&right!=WeaponHands.LeftHanded)InteractionDriver.Current?.RenderKey(root.transform);
         if(!carrying)WeaponHands.Current?.PoseHeldAmmunition(right,position,rotation);
+        if(rocketHeld)WeaponHands.Current?.PoseHeldRocket(right,position,rotation);
         if(wearable!=null)
         {
             var swing=native?.ForearmSwing??System.Numerics.Quaternion.Identity;

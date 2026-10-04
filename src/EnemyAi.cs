@@ -105,7 +105,7 @@ internal sealed class EnemyAi:IDisposable
             string step=File.ReadAllText(Marker).Trim();File.Delete(Marker);
             if(!KnownStep(step)){Bootstrap.Write("ENEMY AI: marker from an older version ("+step+") removed; that step no longer exists");return;}
             if(EnemyOptions.Smarter.Value)EnemyOptions.Smarter.Value=false;
-            Bootstrap.Warn("ENEMY AI: the previous run closed while "+step+"; smarter enemies turned off (VR SETTINGS turns them back on)");
+            Bootstrap.Warn("ENEMY AI: the previous run closed while "+step+"; smarter enemies turned off ([VR] SmarterEnemies in the config file turns them back on)");
         }
         catch(Exception ex){Bootstrap.Warn("ENEMY AI marker: "+ex.Message);}
     }

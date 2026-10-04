@@ -20,8 +20,11 @@ class GrenadeThrowTests
   // Hold, swing forward-up at ~6 m/s, let go at the end of the swing.
   var v=new Vector3(0,2,6);var p=new Vector3(0,0,-.3f);
   for(int i=0;i<25;i++){t+=.011f;p+=v*.011f;r=g.Sample(t,true,p);Check(!r.Throw,"thrown while holding the lever");}
+  // 0.1.214: the landing mark peeks at the throw letting go now would make, changing nothing.
+  Check(g.Peek(t,out var peeked,out float peekHand)&&g.PinPulled&&g.Armed&&Vector3.Distance(peeked,v*GrenadeThrow.Boost)<.3f&&MathF.Abs(peekHand-v.Length())<.2f,"peeking at the swing: "+peeked);
   t+=.011f;p+=v*.011f;r=g.Sample(t,false,p);
   Check(r.Throw&&!g.PinPulled,"swing and release did not throw");
+  {var fresh=new GrenadeThrow();Check(!fresh.Peek(1,out var none,out float noneHand)&&none==Vector3.Zero&&noneHand==0,"peeking without a swing gives a throw");}
   Check(Vector3.Distance(r.Velocity,v*GrenadeThrow.Boost)<.3f&&MathF.Abs(r.HandSpeed-v.Length())<.2f,"throw velocity is not the hand's: "+r.Velocity+" hand "+r.HandSpeed);
   // Released while swinging backwards/sideways: it goes that way (inertia), never forced forward.
   var h=new GrenadeThrow();h.PullPin(true,grenade,grenade);t=10;var side=new Vector3(-4,0,-1);p=Vector3.Zero;

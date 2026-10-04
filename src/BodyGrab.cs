@@ -62,7 +62,7 @@ internal sealed class BodyGrab:IDisposable
         {
             var c=nearby[i];if(c==null||!c.enabled)continue;
             if(rig.PlayerRoot!=null&&c.transform.IsChildOf(rig.PlayerRoot))continue;
-            var npc=c.GetComponentInParent(Il2CppType.Of<NPC>())?.TryCast<NPC>();if(npc==null||CarriedNatively(npc))continue;
+            var npc=c.GetComponentInParent(Il2CppType.Of<NPC>())?.TryCast<NPC>();if(npc==null||CarriedNatively(npc)||NpcAllies.Ally(npc))continue;
             if(!ColliderSurface.TryClosest(c,p,out var point))point=c.bounds.center;
             float d=(point-p).sqrMagnitude;
             if(npc.actorStatus==ActorStatus.KO||npc.actorStatus==ActorStatus.Dead)

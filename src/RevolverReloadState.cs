@@ -8,7 +8,7 @@ internal sealed class RevolverReloadState
     internal int HeldRounds;
     private float tipTime,closingUntil;
     private bool swung;
-    internal RevolverAction Step(float now,float dt,bool reload,bool triggerDown,bool triggerHeld,bool pouch,bool atCylinder,float muzzleUp,float rightVelocity)
+    internal RevolverAction Step(float now,float dt,bool reload,bool takeDown,bool takeHeld,bool pouch,bool atCylinder,float muzzleUp,float rightVelocity)
     {
         if(!float.IsFinite(now)||!float.IsFinite(dt))return RevolverAction.None;
         if(!Open){if(reload)return RevolverAction.Open;return RevolverAction.None;}
@@ -17,8 +17,8 @@ internal sealed class RevolverReloadState
             tipTime=muzzleUp>.65f?tipTime+Math.Clamp(dt,0,.05f):0;
             if(tipTime>.18f)return RevolverAction.Empty;
         }
-        if(Holding){if(!triggerHeld)return RevolverAction.Drop;if(Emptied&&atCylinder)return RevolverAction.Load;return RevolverAction.None;}
-        if(Emptied&&triggerDown&&pouch)return RevolverAction.Take;
+        if(Holding){if(!takeHeld)return RevolverAction.Drop;if(Emptied&&atCylinder)return RevolverAction.Load;return RevolverAction.None;}
+        if(Emptied&&takeDown&&pouch)return RevolverAction.Take;
         if(rightVelocity>.65f){swung=true;closingUntil=now+.35f;}
         if(swung&&now<=closingUntil&&rightVelocity<.10f){swung=false;return RevolverAction.Close;}
         if(now>closingUntil)swung=false;

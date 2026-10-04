@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.XR;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 namespace XiiiXR;
-[BepInPlugin("xiii.vr.xrbootstrap", "XIII XR Bootstrap", "0.1.209")]
+[BepInPlugin("xiii.vr.xrbootstrap", "XIII XR Bootstrap", "0.1.231")]
 [BepInProcess("XIII.exe")]
 public sealed class Plugin : BasePlugin
 {
@@ -15,7 +15,7 @@ public sealed class Plugin : BasePlugin
     public override void Load()
     {
         Output = Log;
-        Log.LogInfo("[XIII-XR] Bootstrap 0.1.209 loaded. left stick=head-relative move; right X=turn; right up=jump; right down=crouch. F3=performance; F9=start; F10=stop; F11=recenter; F6/F12=capture; F7=stereo guard; F8=weapon controls; Shift+F5=aim calibration after 3 seconds; right grip=pick up; other grip at a long gun's muzzle + let go of the handle=held by the barrel (a club); right grip+A=doors; grip=physical door hold. Render-only tracked weapons; right trigger=fire; right B=reload; grappling or zipline hook from the wheel=left hand (right for a left-hander; the zipline hook by its handle, as a pistol), the other grip at it takes it over; rope: left stick climbs, right swings, L3 lets go (fired from the right hand: mirrored, R3 lets go); hold right A=wheel; left stick=select; left grip+X=Escape (either first); menu pointer=the hand whose trigger was pulled last (either trigger clicks). Left-handed (VR settings): left grip=pick up, left grip+X=doors, keys and medkits in the left hand, right grip+A=Escape (either first).");
+        Log.LogInfo("[XIII-XR] Bootstrap 0.1.231 loaded. left stick=head-relative move; right X=turn; right up=jump; right down=crouch. F3=performance; F9=start; F10=stop; F11=recenter; F6/F12=capture; F7=stereo guard; F8=weapon controls; Shift+F5=aim calibration after 3 seconds; right grip=pick up; other grip at a long gun's muzzle + let go of the handle=held by the barrel (a club); right grip+A=doors; grip=physical door hold. Render-only tracked weapons; right trigger=fire; right B=reload (by hand: the other grip takes rounds at the belt and works the bolt); grappling or zipline hook from the wheel=left hand (right for a left-hander; the zipline hook by its handle, as a pistol), the other grip at it takes it over; rope: left stick climbs, right swings, L3 lets go (fired from the right hand: mirrored, R3 lets go); hold right A=wheel; left stick=select; left grip+X=Escape (either first); menu pointer=the hand whose trigger was pulled last (either trigger clicks). Left-handed (VR settings): left grip=pick up, left grip+X=doors, keys and medkits in the left hand, right grip+A=Escape (either first).");
         LocomotionOptions.Load(Config);
         WeaponOptions.Load(Config);
         QualityOptions.Load(Config);

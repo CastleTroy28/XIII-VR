@@ -15,7 +15,7 @@ class VrPromptLabelsTests
   Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,true,host)=="Удерживать левый Grip","generic tutorial Interact still right handed");
   Check(VrPromptLabels.Label(InputActions.Gameplay_HostageTaking,false)=="Hold left Grip","native hostage action");
   Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false,TutorialHintContext.ReleaseBody)=="Release left Grip","body release input wrong");
-  Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false)=="Right Grip","pickup is not right Grip alone");
+  Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false)=="Left/Right Grip","pickup does not name both grips");
   InteractionDriver.Current=new InteractionDriver();InteractionDriver.Door=true;
   Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,true)=="Правый Grip + A","doors lost Grip + A");
   // 0.1.108: water controls in the prompts.
@@ -24,7 +24,7 @@ class VrPromptLabelsTests
    &&VrPromptLabels.Label(InputActions.Movement_Jump,false)=="Right stick up"&&VrPromptLabels.Label(InputActions.Movement_Crouch,false)=="Right stick down","swimming prompts wrong");
   LocomotionDriver.Current=null;
   Check(VrPromptLabels.Label(InputActions.Movement_Jump,false)=="Right stick up"&&VrPromptLabels.Label(InputActions.Movement_ForwardBackwards,false)=="Left stick","land prompts changed");
-  InteractionDriver.Door=false;Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,true)=="Правый Grip","pickup hint not right Grip");
+  InteractionDriver.Door=false;Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,true)=="Левый/правый Grip","pickup hint does not name both grips");
   InteractionDriver.Grapple=true;Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,true)=="Левый триггер (кошка в левой руке)","grapple point not left trigger");InteractionDriver.Grapple=false;
   // 0.1.195: the grappling hook in the right hand; the zipline hook at a cable.
   GameUiControls.Current=new GameUiControls();GameUiControls.Current.Items.GrappleTool=true;GameUiControls.Current.Items.ToolSide=1;
@@ -81,16 +81,16 @@ class VrPromptLabelsTests
   Check(VrPromptLabels.TutorialLabel(tutorial,InputActions.Gameplay_Interact,true)=="Удерживать левый Grip","tutorial wrapper ignores translation");
   VrPromptLabels.TutorialLabel(tutorial,InputActions.Weapon_PrimaryFire,true);Check(I2.Loc.LocalizationManager.Reads==1,"translation repeats for every button");
   tutorial.lastCachedTerm="door";I2.Loc.LocalizationManager.Translation="Open the door";
-  Check(VrPromptLabels.TutorialLabel(tutorial,InputActions.Gameplay_Interact,false)=="Right Grip","tutorial context sticks after message change");
+  Check(VrPromptLabels.TutorialLabel(tutorial,InputActions.Gameplay_Interact,false)=="Left/Right Grip","tutorial context sticks after message change");
   var prompt=new ButtonPrompt{actionForPrompt=InputActions.Gameplay_Interact};var hud=new PlayerHUDControl{Children=new[]{prompt}};
   prompt.Parent=new HUDInteractionPrompt{currentPrimaryType=HUDInteractionPrompt.PromptType.HostagePickup};
   VrPromptLabels.RefreshHud(hud);Check(prompt.textRef.text=="Удерживать левый Grip","visible hostage prompt uses right-ray context");
   prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.General;VrPromptLabels.RefreshHud(hud);
-  Check(prompt.textRef.text=="Правый Grip"&&hud.Scans==1,"HUD target transition stale or rescan every frame");
+  Check(prompt.textRef.text=="Левый/правый Grip"&&hud.Scans==1,"HUD target transition stale or rescan every frame");
   int writes=prompt.Writes;VrPromptLabels.RefreshHud(hud);Check(prompt.Writes==writes,"unchanged HUD prompt rewritten each frame");
   var interaction=new InteractionDriver();InteractionDriver.Current=interaction;
   prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.Key;VrPromptLabels.RefreshHud(hud);
-  Check(prompt.textRef.text=="Правый Grip + A","key gesture replaces draw chord before key exists");
+  Check(prompt.textRef.text=="Клик правого стика","key gesture replaces the draw button before the key exists");
   interaction.KeyActive=true;interaction.KeyGripProfile="key";VrPromptLabels.RefreshHud(hud);
   Check(prompt.textRef.text=="Поверните ключ","short key gesture missing after draw");
   writes=prompt.Writes;VrPromptLabels.RefreshHud(hud);Check(prompt.Writes==writes,"gesture hint rewritten every frame");
@@ -103,16 +103,73 @@ class VrPromptLabelsTests
   prompt.actionForPrompt=InputActions.Weapon_PrimaryFire;VrPromptLabels.RefreshHud(hud);
   Check(prompt.textRef.text=="Right trigger","gesture replaces unrelated button");
   prompt.actionForPrompt=InputActions.Gameplay_Interact;interaction.KeyActive=false;VrPromptLabels.RefreshHud(hud);
-  Check(prompt.textRef.text=="Right Grip + A","completion/cancel leaves stale gesture prompt");
+  Check(prompt.textRef.text=="Right stick click","completion/cancel leaves stale gesture prompt");
+  // 0.1.220: a lockpick door's prompt that is not a lock prompt: the lock aimed at is enough; picking says to hold the pick in the lock.
+  prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.General;InteractionDriver.Lock=true;interaction.KeyActive=true;interaction.KeyLockpick=true;interaction.KeyGripProfile="screwdriver";VrPromptLabels.RefreshHud(hud);
+  Check(prompt.textRef.text=="Turn lockpick","the lockpick out still shows the stick click: "+prompt.textRef.text);
+  interaction.KeyPicking=true;VrPromptLabels.RefreshHud(hud);Check(prompt.textRef.text=="Hold lockpick in lock","picking the lock still says to turn it");
+  foreach(var lang in new[]{"ru","de","fr","es","it","pl","pt"})Check(UiLanguage.L("Hold lockpick in lock",lang)!="Hold lockpick in lock","picking hint untranslated in "+lang);
+  interaction.KeyPicking=false;interaction.KeyLockpick=false;interaction.KeyActive=false;InteractionDriver.Lock=false;prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.Key;interaction.KeyGripProfile="key";VrPromptLabels.RefreshHud(hud);
   // 0.1.150: a left-hander takes things with the left grip, the menu is on the right grip + A.
   WeaponHands.LeftHanded=true;
-  Check(VrPromptLabels.Label(InputActions.Other_Pause,false)=="Right Grip + A"&&VrPromptLabels.Label(InputActions.Gameplay_Interact,true)=="Левый Grip"&&VrPromptLabels.Label(InputActions.Weapon_AimDownSights,false)=="Right Grip: support weapon","left-handed prompts");
+  Check(VrPromptLabels.Label(InputActions.Other_Pause,false)=="Right Grip + A"&&VrPromptLabels.Label(InputActions.Gameplay_Interact,true)=="Левый/правый Grip"&&VrPromptLabels.Label(InputActions.Weapon_AimDownSights,false)=="Right Grip: support weapon","left-handed prompts");
   InteractionDriver.Door=true;Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false)=="Left Grip + X","left-handed door prompt");InteractionDriver.Door=false;
-  interaction.KeyActive=false;prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.Key;VrPromptLabels.RefreshHud(hud);Check(prompt.textRef.text=="Left Grip + X","left-handed key draw chord");
-  WeaponHands.LeftHanded=false;VrPromptLabels.RefreshHud(hud);Check(prompt.textRef.text=="Right Grip + A","right-handed key draw chord back");
+  interaction.KeyActive=false;prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.Key;VrPromptLabels.RefreshHud(hud);Check(prompt.textRef.text=="Left stick click","left-handed key draw is not L3");
+  WeaponHands.LeftHanded=false;VrPromptLabels.RefreshHud(hud);Check(prompt.textRef.text=="Right stick click","right-handed key draw is not R3");
   WeaponHands.Current=new WeaponHands{PrimaryLeft=true};Check(VrPromptLabels.Label(InputActions.Weapon_PrimaryFire,true)=="Левый триггер","the gun in the left hand fires with the left trigger");WeaponHands.Current=null;
   foreach(var lang in new[]{"de","fr","es","it","pl","pt"})foreach(var t in new[]{"Left Grip","Left trigger","Right Grip: support weapon"})Check(UiLanguage.L(t,lang)!=t,"untranslated "+t+" in "+lang);
+  // 0.1.212: opening doors and breaking grates or glass show only the game's icon; key, card and lockpick locks keep their text.
+  I2.Loc.LocalizationManager.CurrentLanguageCode="en";prompt.actionForPrompt=InputActions.Gameplay_Interact;interaction.KeyActive=false;
+  prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.General;InteractionDriver.Door=true;VrPromptLabels.RefreshHud(hud);
+  Check(!prompt.TextShown&&!prompt.ImageShown&&!prompt.BackgroundShown,"a door prompt still shows text, a button or its box");
+  int hiddenWrites=prompt.Writes;VrPromptLabels.RefreshHud(hud);Check(prompt.Writes==hiddenWrites,"an icon-only prompt rewritten every frame");
+  prompt.SetInputHint();Check(!prompt.TextShown&&!prompt.ImageShown&&!prompt.BackgroundShown,"the game's own hint brings the door text back");
+  InteractionDriver.Door=false;int hints=prompt.Hints;VrPromptLabels.RefreshHud(hud);
+  Check(prompt.TextShown&&prompt.textRef.text=="Left/Right Grip"&&prompt.Hints==hints+1,"a pick-up after a door stays hidden (or is not set up anew)");
+  prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.Destructible;VrPromptLabels.RefreshHud(hud);
+  Check(!prompt.TextShown&&!prompt.ImageShown&&!prompt.BackgroundShown,"a grate, panel or glass prompt still shows text");
+  prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.Key;InteractionDriver.Door=true;VrPromptLabels.RefreshHud(hud);
+  Check(prompt.TextShown&&prompt.textRef.text=="Right stick click","a key lock lost its text");
+  foreach(var type in new[]{HUDInteractionPrompt.PromptType.Keycard,HUDInteractionPrompt.PromptType.Lockpick}){prompt.Parent.currentPrimaryType=type;VrPromptLabels.RefreshHud(hud);Check(prompt.TextShown&&prompt.textRef.text=="Right stick click","a "+type+" lock lost its text");}
+  prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.General;InteractionDriver.Turret=true;VrPromptLabels.RefreshHud(hud);Check(prompt.TextShown,"a mounted gun lost its text");InteractionDriver.Turret=false;InteractionDriver.Door=false;
+  // 0.1.213: the hand pointing at a hostage takes him with its own grip.
+  I2.Loc.LocalizationManager.CurrentLanguageCode="en";GripCarry.Current=new GripCarry{HostagePointSide=1};
+  Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false,TutorialHintContext.Hostage)=="Hold right Grip","pointing with the right hand still asks for the left grip");
+  Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,true,TutorialHintContext.Hostage)=="Удерживать правый Grip","the right grip hint is not in Russian");
+  Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false,TutorialHintContext.Body)=="Hold left Grip","a body asks for the right grip");
+  GripCarry.Current.HostagePointSide=0;Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false,TutorialHintContext.Hostage)=="Hold left Grip","pointing with the left hand does not ask for the left grip");
+  GripCarry.Current=null;Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false,TutorialHintContext.Hostage)=="Hold left Grip","the touch hostage lost its left grip");
+  foreach(var lang in new[]{"ru","de","fr","es","it","pl","pt"})Check(UiLanguage.L("Hold right Grip",lang)!="Hold right Grip","untranslated Hold right Grip in "+lang);
+  // 0.1.215: the controller with the button lit: in place of the hand icon on a pick-up, right of the text elsewhere; none on doors.
+  I2.Loc.LocalizationManager.CurrentLanguageCode="en";prompt.actionForPrompt=InputActions.Gameplay_Interact;interaction.KeyActive=false;
+  prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.General;InteractionDriver.Door=false;VrPromptLabels.RefreshHud(hud);
+  Check(PromptIcons.Hand==new IconSpec(IconSide.Either,IconParts.Grip)&&PromptIcons.Beside==null,"a pick-up does not show the controller with the grip in place of the hand");
+  prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.Key;InteractionDriver.Door=true;VrPromptLabels.RefreshHud(hud);
+  Check(PromptIcons.Hand==null&&PromptIcons.Beside==new IconSpec(IconSide.Right,IconParts.Stick),"a key lock does not show the right stick lit beside its text");
+  WeaponHands.LeftHanded=true;VrPromptLabels.RefreshHud(hud);Check(PromptIcons.Beside==new IconSpec(IconSide.Left,IconParts.Stick),"left-handed a key lock does not light the left stick");WeaponHands.LeftHanded=false;
+  prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.General;VrPromptLabels.RefreshHud(hud);
+  Check(PromptIcons.Hand==null&&PromptIcons.Beside==null,"a door shows a controller (it keeps the game's icon alone)");
+  interaction.KeyActive=true;prompt.Parent.currentPrimaryType=HUDInteractionPrompt.PromptType.Key;VrPromptLabels.RefreshHud(hud);
+  Check(PromptIcons.Beside==null,"a key being turned shows a button");interaction.KeyActive=false;InteractionDriver.Door=false;
+  // 0.1.215: a lock aimed at names the stick click in the plain label too.
+  InteractionDriver.Lock=true;Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false)=="Right stick click"&&VrPromptLabels.Label(InputActions.Gameplay_Interact,true)=="Клик правого стика","a lock's label is not R3");
+  WeaponHands.LeftHanded=true;Check(VrPromptLabels.Label(InputActions.Gameplay_Interact,false)=="Left stick click","a left-hander's lock label is not L3");WeaponHands.LeftHanded=false;InteractionDriver.Lock=false;
+  foreach(var lang in new[]{"ru","de","fr","es","it","pl","pt"})Check(UiLanguage.L("Left/Right Grip",lang)!="Left/Right Grip","untranslated Left/Right Grip in "+lang);
+  // 0.1.216: the takedown hint: a hard punch in his back.
+  Check(VrPromptLabels.Label(InputActions.Weapon_TakeDown,false)=="Fist in the back, swing hard"&&VrPromptLabels.Label(InputActions.Weapon_TakeDown,true)=="Кулаком в спину с размаху"&&VrPromptLabels.Label(InputActions.Weapon_Melee,false)=="Grip + swing","the takedown hint");
+  foreach(var lang in new[]{"de","fr","es","it","pl","pt"})Check(UiLanguage.L("Fist in the back, swing hard",lang)!="Fist in the back, swing hard","untranslated takedown hint in "+lang);
+  // 0.1.214: the weapon wheel tutorial's hint names right A, which ends it.
+  WheelTutorial.LabelsA=true;
+  Check(VrPromptLabels.Label(InputActions.Other_Pause,false)=="Right A"&&VrPromptLabels.Label(InputActions.UI_Cancel,false)=="Right A","the wheel tutorial hint still names the menu chord");
+  Check(VrPromptLabels.Label(InputActions.Other_Pause,true)=="A на правом контроллере","the wheel tutorial hint is not in Russian");
+  WeaponHands.LeftHanded=true;Check(VrPromptLabels.Label(InputActions.Other_Pause,false)=="Right A","left-handed the wheel tutorial hint still names the menu chord");WeaponHands.LeftHanded=false;
+  WheelTutorial.LabelsA=false;Check(VrPromptLabels.Label(InputActions.Other_Pause,false)=="Left Grip + X","after the wheel tutorial the pause hint lost the menu chord");
   CameraRig.Current=null;prompt.textRef.text="native";VrPromptLabels.Apply(prompt);Check(prompt.textRef.text=="native","non-VR hints overwritten");
+  Console.WriteLine("PASS: 0.1.216 the takedown hint asks for a hard punch in the back, in 8 languages.");
+  Console.WriteLine("PASS: 0.1.215 a thing to take names either grip; a key, card or lockpick lock names the stick click (R3, L3 left-handed); the controller icon with that button lit takes the hand icon's place on a pick-up and stands beside the text elsewhere, none on doors or a key being turned.");
+  Console.WriteLine("PASS: 0.1.214 the weapon wheel tutorial's hint names right A (which ends it), right- and left-handed, in the game's language; the menu chord again after it.");
+  Console.WriteLine("PASS: 0.1.213 a hostage pointed at with the right hand asks for the right grip, with the left (or touched) the left grip, in 8 languages.");
+  Console.WriteLine("PASS: 0.1.212 door, cabinet and hatch prompts and the things the game breaks show only the game's icon (no text, button or box; not rewritten every frame, kept hidden through the game's own hint, set up anew when shown again); key, card, lockpick and mounted gun prompts keep their text.");
   Console.WriteLine("PASS: Russian/English hostage/body tutorial semantics, shared Interact action, hold/release, unrelated placeholders, current controls, translation cache, message/target changes, one HUD discovery and no per-frame text writes. Engine UI simulated.");
  }
 }
@@ -120,14 +177,19 @@ class Obj{internal T? TryCast<T>()where T:class=>this as T;}
 class Text{internal string text="";}
 class ButtonPrompt:Obj
 {
- internal InputActions actionForPrompt;internal Text textRef=new();internal HUDInteractionPrompt? Parent;internal bool isActiveAndEnabled=>true;internal int Writes;
- internal Obj? GetComponentInParent(Type t)=>Parent;internal void EnableImageRef(bool v){Writes++;}internal void EnableTextRef(bool v){Writes++;}
+ static int next;internal IntPtr Pointer=new(++next);
+ internal InputActions actionForPrompt;internal Text textRef=new();internal HUDInteractionPrompt? Parent;internal bool isActiveAndEnabled=>true;internal int Writes,Hints;
+ internal bool TextShown,ImageShown=true,BackgroundShown=true;
+ internal Obj? GetComponentInParent(Type t)=>Parent;internal void EnableImageRef(bool v){Writes++;ImageShown=v;}internal void EnableTextRef(bool v){Writes++;TextShown=v;}internal void EnablePCBackground(bool v){Writes++;BackgroundShown=v;}
+ // The game's own hint: sets the prompt up for the device, then the mod's hook runs.
+ internal void SetInputHint(){Hints++;TextShown=false;ImageShown=true;BackgroundShown=true;textRef.text="glyph";XiiiXR.VrPromptLabels.Apply(this);}
 }
-class HUDInteractionPrompt:Obj{internal enum PromptType{General,BodyPickup,HostagePickup,Key,Keycard,Lockpick}internal PromptType currentPrimaryType;}
+class HUDInteractionPrompt:Obj{internal enum PromptType{General,BodyPickup,HostagePickup,Key,Keycard,Lockpick,Destructible}internal PromptType currentPrimaryType;}
 class PlayerHUDControl:Obj{internal IntPtr Pointer= new(1);internal ButtonPrompt[] Children=Array.Empty<ButtonPrompt>();internal int Scans;internal Obj[] GetComponentsInChildren(Type t,bool active){Scans++;return Children;}}
 class TutorialController{internal string lastCachedTerm="";}
 namespace Il2CppInterop.Runtime{static class Il2CppType{internal static Type Of<T>()=>typeof(T);}}
-namespace XiiiXR{class LocomotionDriver{internal static LocomotionDriver? Current;internal bool Swimming;}class CameraRig{internal static CameraRig? Current;}class InteractionDriver{internal static InteractionDriver? Current;internal bool BodyTarget=>false;internal bool DoorTarget=>Door;internal static bool Door;internal bool GrappleTarget=>Grapple;internal static bool Grapple;internal bool ZiplineTarget=>Zip;internal static bool Zip;internal bool TurretTarget=>Turret;internal static bool Turret;internal bool KeyActive;internal string KeyGripProfile="key";internal bool KeyLockpick{get;set;}}static class Bootstrap{internal static void Write(string s){}}class GrappleVr{internal static GrappleVr? Current;internal bool OnRope=true;internal bool RightHanded;}class WeaponHands{internal static WeaponHands? Current;internal string Profile="";internal bool PrimaryLeft;internal bool PropThrowable=>Profile=="prop";internal static WeaponGripMode GripMode=WeaponGripMode.Hold;internal static bool LeftHanded;}enum WeaponGripMode{Hold=0,Toggle=1,Always=2}class MountedGunVr{internal static MountedGunVr? Current;internal bool Mounted;}class WheelItems{internal bool GrappleTool,ZiplineTool;internal int ToolSide;}class GameUiControls{internal static GameUiControls? Current;internal WheelItems Items=new();}}
+namespace XiiiXR{static class WheelTutorial{internal static bool LabelsA;}static class PromptIcons{internal static IconSpec? Hand,Beside;internal static void TypeIcon(HUDInteractionPrompt? g,IconSpec? s){Hand=s;}internal static void Show(ButtonPrompt p,IconSpec? s){Beside=s;}}}
+namespace XiiiXR{class LocomotionDriver{internal static LocomotionDriver? Current;internal bool Swimming;}class CameraRig{internal static CameraRig? Current;}class InteractionDriver{internal static InteractionDriver? Current;internal bool BodyTarget=>false;internal bool DoorTarget=>Door;internal static bool Door;internal bool GrappleTarget=>Grapple;internal static bool Grapple;internal bool ZiplineTarget=>Zip;internal static bool Zip;internal bool TurretTarget=>Turret;internal static bool Turret;internal bool LockTarget=>Lock;internal static bool Lock;internal bool KeyActive;internal string KeyGripProfile="key";internal bool KeyLockpick{get;set;}internal bool KeyPicking{get;set;}}static class Bootstrap{internal static void Write(string s){}internal static void Warn(string s){}}class GripCarry{internal static GripCarry? Current;internal int HostagePointSide=-1;}class GrappleVr{internal static GrappleVr? Current;internal bool OnRope=true;internal bool RightHanded;}class WeaponHands{internal static WeaponHands? Current;internal string Profile="";internal bool PrimaryLeft;internal bool PropThrowable=>Profile=="prop";internal static WeaponGripMode GripMode=WeaponGripMode.Hold;internal static bool LeftHanded;}enum WeaponGripMode{Hold=0,Toggle=1,Always=2}class MountedGunVr{internal static MountedGunVr? Current;internal bool Mounted;}class WheelItems{internal bool GrappleTool,ZiplineTool;internal int ToolSide;}class GameUiControls{internal static GameUiControls? Current;internal WheelItems Items=new();}}
 namespace I2.Loc{static class LocalizationManager{internal static string CurrentLanguageCode="ru";internal static string Translation="";internal static int Reads;internal static string GetTranslation(string term,bool a,int b,bool c,bool d,object? e,object? f){Reads++;return Translation;}}}
 
 enum InputActions{GrapplingHook_Extend=602,GrapplingHook_Retract=603,GrapplingHook_LengthChangeHold=604,Camera_LookHorizontal,Camera_LookVertical,EquipmentWheel_ConsumableSlot1,EquipmentWheel_ConsumableSlot2,EquipmentWheel_LeftRightSelection,EquipmentWheel_OpenInventoryWheel,EquipmentWheel_UpDownSelection,Gameplay_HostageTaking,Gameplay_Interact,Gameplay_ObjectiveVisionMode,Items_UseBigMedkit,Items_UseMedkit,Items_UseSmallMedkit,Movement_Crouch,Movement_ForwardBackwards,Movement_Jump,Movement_LeftRight,Movement_Sprint,Other_Pause,UI_ApplyOption,UI_Back,UI_Cancel,UI_DiscardOption,UI_Horizontal,UI_Submit,UI_Vertical,WeaponInventory_AkSlot,WeaponInventory_BazookaSlot,WeaponInventory_CrossbowSlot,WeaponInventory_GrenadeSlot,WeaponInventory_HeavySlot,WeaponInventory_KnifeSlot,WeaponInventory_M16Slot,WeaponInventory_M60Slot,WeaponInventory_NextWeapon,WeaponInventory_PistolSlot,WeaponInventory_PreviousWeapon,WeaponInventory_RevolverSlot,WeaponInventory_RifleSlot,WeaponInventory_ShotgunSlot,WeaponInventory_SniperSlot,WeaponInventory_UnequipWeapon,WeaponInventory_UziSlot,Weapon_AimDownSights,Weapon_Grenade,Weapon_Melee,Weapon_PrimaryFire,Weapon_Reload,Weapon_SecondaryFire,Weapon_TakeDown}

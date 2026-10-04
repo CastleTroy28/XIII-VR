@@ -15,6 +15,7 @@ internal sealed partial class GripCarry:IDisposable
  private Transform? player;private PlayerEquipableInventory? inventory;private PlayerEquipableHandler? handler;
  private Equipable? item;private PlayerCarryAIController? carrier;private PlayerCarryAIController? releasing;
  private PlayMagic.AI.NPC? pendingKnockout;private float knockoutAfter;private bool knockoutRequested;
+ private float nextLostNote;
  private bool dropping,releaseBody,bodyRight;private ulong bodyButton=HandControls.Grip;private float carryStarted,nextHaptic;private int frame=-1;private float nextBind,releaseUntil;
  internal bool Consumed{get;private set;}
  internal bool Owns=>item!=null;
@@ -81,8 +82,13 @@ internal sealed partial class GripCarry:IDisposable
   if(own)Consumed=true;
   if(state.CanAdopt&&item==null&&inventory?.currentEquipable!=null&&inventory.currentEquipable.slot==PlayerEquipableInventory.ActiveEquipmentSlot.Enviromental)
   {item=inventory.currentEquipable;RememberTaken(item);Bootstrap.Write("GRIP prop acquired "+item.identifier+" ("+(pressSide==0?"left":"right")+" grip; "+(WeaponHands.GripMode==WeaponGripMode.Hold?"held while the grip is held, let go: dropped":WeaponHands.GripMode==WeaponGripMode.Toggle?"the next grip press lets go":"a long grip press lets go")+")");}
-  if(item!=null&&(inventory==null||inventory.currentEquipable==null||inventory.currentEquipable.Pointer!=item.Pointer)){item=null;state.Reset();}
-  if(state.ShouldRelease(item!=null,inventory?.isInTransit==true))ReleaseItem();
+  if(item!=null&&(inventory==null||inventory.currentEquipable==null||inventory.currentEquipable.Pointer!=item.Pointer))
+  {
+   if(Time.realtimeSinceStartup>=nextLostNote){nextLostNote=Time.realtimeSinceStartup+5;Bootstrap.Write("GRIP prop "+item.identifier+" left the hand without being let go ("+(inventory?.currentEquipable==null?"nothing":inventory.currentEquipable.identifier)+" in hand"+(inventory?.isInTransit==true?", the game switching":"")+"); taken up again if it comes back");}
+   item=null;state.Lost();
+  }
+  // 0.1.222: not while a swing let go of before it was in the hand is still to throw it.
+  if(state.ShouldRelease(item!=null,inventory?.isInTransit==true)&&WeaponHands.Current?.AwaitsThrow(item!)!=true)ReleaseItem();
   CheckDrop();
   Settle();
   TickBody(leftAllowed);
@@ -126,6 +132,8 @@ internal sealed partial class GripCarry:IDisposable
    if(safe&&holding&&Time.realtimeSinceStartup>=nextHaptic){nextHaptic=Time.realtimeSinceStartup+.32f;rig.PunchHaptics(bodyRight);}
    return;
   }
+  // 0.1.213: either free hand pointing at a hostage takes him with its grip (GripCarry.Point.cs).
+  bool taken=false;PointHostage(allowed,ref taken);if(taken)return;
   if(!allowed||!tracked||!held||handler==null||WeaponHands.Current?.HandFree(false)==false||InteractionDriver.Current?.HandOccupied(false)==true){return;}
   var p=CameraRig.UnityPosition(left);
   if(Time.realtimeSinceStartup<nextBodyFind&&(input.Down&HandControls.Grip)==0)return;
@@ -134,6 +142,7 @@ internal sealed partial class GripCarry:IDisposable
   for(int i=0;i<Math.Min(count,nearby.Length);i++)
   {
    var c=nearby[i];var npc=c?.GetComponentInParent(Il2CppType.Of<PlayMagic.AI.NPC>())?.TryCast<PlayMagic.AI.NPC>();if(npc==null||!checkedNpcs.Add(npc.GetInstanceID()))continue;
+   if(NpcAllies.Ally(npc)){if((input.Down&HandControls.Grip)!=0)NpcAllies.Refused(npc,"grabbed");continue;}
    var target=c!.GetComponentInParent(Il2CppType.Of<NPCHittable>())?.TryCast<IRaycastHittable>();
    target??=npc.GetComponentInChildren(Il2CppType.Of<NPCHittable>(),true)?.TryCast<IRaycastHittable>();if(target==null)continue;
    var bodies=handler.pickupBodiesController;var hostages=handler.playerHostageController;
@@ -160,8 +169,10 @@ internal sealed partial class GripCarry:IDisposable
  private bool HostageAllowed(PlayerHostageController hostages,IRaycastHittable target,PlayMagic.AI.NPC npc,Vector3 hand,out string why,bool pressed)
  {
   why="";
+  // 0.1.218: never an ally; the VR rule only for those the game's own rule allows.
+  if(NpcAllies.Ally(npc)){if(pressed)NpcAllies.Refused(npc,"taken hostage");return false;}
   if(CarryTargetValidation.Hostage(hostages,target,hand))return true;
-  if(npc.actorStatus!=PlayMagic.AI.ActorStatus.Conscious)return false;
+  if(npc.actorStatus!=PlayMagic.AI.ActorStatus.Conscious||!NpcAllies.GameAllowsHostage(npc))return false;
   bool disarmed=false;if(pressed)try{disarmed=Disarmed?.Invoke(npc)==true;}catch(Exception){disarmed=false;}
   if(disarmed){why="VR: disarmed by the player, any side";return true;}
   bool state=false;try{state=hostages.IsAIInCorrectState(npc);}catch(Exception){state=false;}
@@ -191,6 +202,7 @@ internal sealed partial class GripCarry:IDisposable
   Bootstrap.Write((right?"RIGHT":"LEFT")+" TRIGGER hostage "+npc.name);
   return true;
  }
+ partial void PointHostage(bool allowed,ref bool taken);
  partial void InstallBodyAnchor();
  partial void InstallHostageCombat();
  // 0.1.191: a hostage wounded to death in the hands: whether he is let go of now, and his death on the floor.
@@ -248,6 +260,7 @@ internal sealed partial class GripCarry:IDisposable
  partial void SettleAll();
  private void Release(){pendingKnockout=null;releasing=null;try{ReleaseBody();}finally{ReleaseItem();}}
  internal void Cancel()=>Release();
- internal void Forget(Equipable consumed){if(item!=null&&item.Pointer==consumed.Pointer){item=null;state.Released();Consumed=false;}}
+ // 0.1.222: also before it was taken up here (thrown at once): not taken up after.
+ internal void Forget(Equipable consumed){if(item==null||item.Pointer==consumed.Pointer){item=null;state.Released();Consumed=false;}}
  public void Dispose(){try{Release();SettleAll();}finally{patches.UnpatchSelf();if(Current==this)Current=null;}}
 }

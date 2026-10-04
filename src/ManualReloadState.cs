@@ -48,6 +48,8 @@ internal sealed class ManualReloadState
     }
     private bool pressing,racking,insertEntered,pulled,previousTipValid;
     private bool supplyArmed=true;
+    // 0.1.223: the M60's box in the hand has been away from its place (it goes in where it is taken from).
+    private bool boxAway;
     private float pressAt;
     private Vector3 rackStart,insertStart,previousTip;
     // 0.1.117: arrow = crossbow: one bolt pushed along the rail like a shell,
@@ -76,13 +78,15 @@ internal sealed class ManualReloadState
         if(pulled&&RackTravel<=full*.2f){NeedsRack=pulled=false;RackTravel=0;return ReloadAction.Chamber;}
         return ReloadAction.None;
     }
-    internal void Supply(int rounds){racking=false;Holding=true;DiscardOnly=false;HeldRounds=Math.Max(0,rounds);insertEntered=previousTipValid=false;OnRail=false;RailOffset=0;}
+    internal void Supply(int rounds){racking=false;Holding=true;DiscardOnly=false;HeldRounds=Math.Max(0,rounds);insertEntered=previousTipValid=false;OnRail=false;RailOffset=0;boxAway=true;}
     internal void Detach(int rounds,bool take)
-    {ObserveRounds(rounds);insertEntered=previousTipValid=false;Installed=false;NeedsRack=true;if(take){Holding=true;DiscardOnly=false;HeldRounds=Math.Max(0,rounds);}pressing=Hint=false;}
+    {ObserveRounds(rounds);insertEntered=previousTipValid=false;Installed=false;NeedsRack=true;if(take){Holding=true;DiscardOnly=false;HeldRounds=Math.Max(0,rounds);}pressing=Hint=false;boxAway=false;}
+    // 0.1.223: the M60's open cover pressed shut by a hand (CoverPush).
+    internal ReloadAction PushCoverShut(){if(!lidded||!CoverOpen||Holding)return ReloadAction.None;CoverOpen=false;return ReloadAction.CloseCover;}
     internal void ConsumeHeld(){Holding=false;DiscardOnly=false;HeldRounds=0;insertEntered=previousTipValid=false;OnRail=false;RailOffset=0;}
     internal int ReturnHeld(){int refund=Holding?HeldRounds:0;ConsumeHeld();return refund;}
     internal void Inserted(int previousRounds)
-    {Installed=true;NeedsRack=!arrow&&(!shell||NeedsRack||previousRounds==0);ConsumeHeld();}
+    {supplyArmed=true;Installed=true;NeedsRack=!arrow&&(!shell||NeedsRack||previousRounds==0);ConsumeHeld();}
     // 0.1.183: a full magazine put in at once and the slide let go forward
     // (a pistol struck against the chest; a weapon reloaded by itself).
     internal void QuickLoad()
@@ -92,20 +96,31 @@ internal sealed class ManualReloadState
     }
     internal int Suspend()
     {
-        int refund=ReturnHeld();pressing=Hint=racking=false;
+        int refund=ReturnHeld();pressing=Hint=racking=false;supplyArmed=true;
         // A half-cycled shotgun remains open across focus loss/weapon swaps.
         if(!shell)pulled=false;RackTravel=shell&&pulled?FullTravel:0;return refund;
     }
+    // 0.1.221: the gun wants rounds from the belt: its magazine out (a box
+    // gun: its cover open, no box in), or a single-round gun not full.
+    internal bool WantsSupply(int rounds,int capacity)=>!Holding&&(Single?rounds<capacity:!Installed)&&(!lidded||CoverOpen&&!Installed);
+    // takeDown/takeHeld (0.1.221): the hand's grip takes, holds and lets go of
+    // the magazine or rounds (and the M60's box and cover) in place of its
+    // trigger; 0.1.223: it racks a bolt too (the trigger no longer does). From
+    // the belt only when the gun wants rounds (the left belt's holster place
+    // takes a pistol otherwise).
     internal ReloadAction Step(float now,bool bDown,bool bHeld,bool bUp,bool triggerDown,bool triggerHeld,
         bool atPouch,Vector3 hand,Vector3 magazine,Vector3 port,Vector3 bolt,Vector3 insertAxis,int rounds,int capacity,
-        bool gripHeld=false,Vector3? tip=null,bool aligned=true,Vector3? cover=null,float railLength=0)
+        bool gripHeld=false,Vector3? tip=null,bool aligned=true,Vector3? cover=null,float railLength=0,bool? takeDown=null,bool? takeHeld=null)
     {
         if(!float.IsFinite(now)||!float.IsFinite(hand.LengthSquared()))return ReloadAction.None;
-        if(!triggerHeld||!atPouch)supplyArmed=true;
+        bool gripTakes=takeDown.HasValue;bool tDown=takeDown??triggerDown,tHeld=takeHeld??triggerHeld;
+        // Taken once per press at the belt; armed again away from it (held on
+        // after a round went in, it takes the next).
+        if(!tHeld||!atPouch)supplyArmed=true;
         if(lidded)
         {
             if(bDown&&!CoverOpen&&!Holding&&!racking){CoverOpen=true;return ReloadAction.OpenCover;}
-            if(CoverOpen&&!Holding&&triggerDown)
+            if(CoverOpen&&!Holding&&tDown)
             {
                 float toCover=cover is Vector3 c?Vector3.Distance(hand,c):float.PositiveInfinity;
                 float toBox=Installed?Vector3.Distance(hand,magazine):float.PositiveInfinity;
@@ -115,7 +130,7 @@ internal sealed class ManualReloadState
         }
         if(bDown&&!Single&&!lidded&&Installed){pressing=true;pressAt=now;}
         Hint=pressing&&bHeld&&now-pressAt>=.3f;
-        if(Hint&&triggerDown&&!Holding&&Vector3.Distance(hand,magazine)<.11f)return ReloadAction.TakeInstalled;
+        if(Hint&&tDown&&!Holding&&Vector3.Distance(hand,magazine)<.11f)return ReloadAction.TakeInstalled;
         if(pressing&&(bUp||!bHeld))
         {
             pressing=Hint=false;
@@ -124,8 +139,17 @@ internal sealed class ManualReloadState
         if(Holding)
         {
             racking=false;
-            if(!triggerHeld)return ReloadAction.DropHeld;
+            if(!tHeld)return ReloadAction.DropHeld;
             if(DiscardOnly||(!Single&&Installed)||(Single&&rounds>=capacity)||lidded&&!CoverOpen){OnRail=false;return ReloadAction.None;}
+            // 0.1.223: the M60's box goes in when brought to its place (where it
+            // is taken from), however it is turned - not pushed along a feed line
+            // to a point behind it (that took a long time to find).
+            if(lidded)
+            {
+                float seat=Vector3.Distance(hand,magazine);
+                if(seat>BoxReach*1.3f)boxAway=true;
+                return boxAway&&seat<BoxReach?ReloadAction.Insert:ReloadAction.None;
+            }
             var point=tip??hand;var d=point-port;
             if(arrow)
             {
@@ -178,11 +202,12 @@ internal sealed class ManualReloadState
         // comes first: a pull under way, or a gun waiting for one with the
         // hand at its bolt, never takes from the pouch.
         bool nearBolt=NeedsRack&&Installed&&!CoverOpen&&Vector3.Distance(hand,bolt-Vector3.UnitZ*VisualRackTravel)<.14f;
-        if(triggerHeld&&atPouch&&supplyArmed&&!Holding&&!(!shell&&(racking||nearBolt))&&(!Single||rounds<capacity)&&(!lidded||CoverOpen&&!Installed))
+        if(tHeld&&atPouch&&supplyArmed&&!Holding&&!(!shell&&(racking||nearBolt))&&(!Single||rounds<capacity)&&(!lidded||CoverOpen&&!Installed)&&(!gripTakes||WantsSupply(rounds,capacity)))
         {supplyArmed=false;racking=false;return ReloadAction.TakeSupply;}
-        bool rackHeld=shell?gripHeld:triggerHeld;
+        // 0.1.223: with the grip taking rounds, the grip also works the bolt (was the trigger).
+        bool rackHeld=shell?gripHeld:gripTakes?tHeld:triggerHeld;
         // Grip may already be held as support when the shotgun fires.
-        if(!racking&&nearBolt&&(shell?gripHeld:triggerDown))
+        if(!racking&&nearBolt&&(shell?gripHeld:gripTakes?tDown:triggerDown))
         {racking=true;rackStart=hand+Vector3.UnitZ*(SlideLocked?FullTravel-.008f:RackTravel);maxBack=0;}
         if(racking)
         {

@@ -53,6 +53,20 @@ class GripThrowTests
    a.Step(WeaponGripMode.Always,true,true,none);Check(a.Step(WeaponGripMode.Always,false,false,none)==ThrowGripStep.None,"always: let go without a swing keeps it");
    a.Step(WeaponGripMode.Always,true,true,none);Check(a.Step(WeaponGripMode.Always,false,false,swing)==ThrowGripStep.Throw,"always: press, swing, let go throws");
   }
-  Console.WriteLine("PASS: throwables held by the grip: letting go at the fastest of a forward swing throws along it (forward of the controller or the look), letting go slowly or drawing back does not; hold / toggle / always-in-hand grip modes (the take's own release keeps it in toggle, a slow let-go keeps it in always).");
+  // 0.1.222: grabbed and thrown in one motion: the grip let go in a swing before the thing was in the hand still throws it.
+  {
+   var g=new GripLetGo();
+   Check(!g.SwungSincePress(1),"nothing pressed: a throw");
+   g.Press(1);g.LetGo(1.3f,true,new Vector3(0,0,2),3.2f,"");
+   Check(g.SwungSincePress(1.5f)&&Math.Abs(g.Direction.Length()-1)<1e-4f&&g.Speed==3.2f,"a press let go in a swing is not kept for the thing still being drawn");
+   Check(!g.SwungSincePress(1.3f+GripLetGo.ThrowWindow+.01f),"a swing kept too long");
+   Check(!g.SwungSincePress(1+GripLetGo.PressWindow+.01f),"a press long ago counts");
+   g.Press(2);Check(!g.SwungSincePress(2.1f),"a new press (held now) still throws with the old swing");
+   g.LetGo(2.2f,false,new Vector3(0,0,1),.4f,"slow");Check(!g.SwungSincePress(2.3f),"a let-go without a swing throws");
+   g.Press(3);g.LetGo(3.1f,true,new Vector3(0,0,1),3,"");g.Spend();Check(!g.SwungSincePress(3.2f),"a swing thrown twice");
+   g.Press(4);g.LetGo(4.1f,true,new Vector3(float.NaN,0,1),3,"");Check(!g.SwungSincePress(4.2f),"a broken direction throws");
+   g.Press(5);g.LetGo(5,true,new Vector3(0,1,0),3,"");Check(g.SwungSincePress(5),"press and let-go in one frame");
+  }
+  Console.WriteLine("PASS: throwables held by the grip: letting go at the fastest of a forward swing throws along it (forward of the controller or the look), letting go slowly or drawing back does not; hold / toggle / always-in-hand grip modes (the take's own release keeps it in toggle, a slow let-go keeps it in always); 0.1.222 a grip let go in a swing while the thing was still being drawn into the hand is kept for it (not a slow one, a new press, an old one, or twice).");
  }
 }

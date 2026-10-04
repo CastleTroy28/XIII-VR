@@ -51,6 +51,14 @@ internal sealed partial class FingerPoseMath
         var end=rest[last].Translation+(rest[last].Translation-rest[chain[1]].Translation)*.65f-Vector3.UnitY*.005f;
         return Vector3.Transform(end,inverse);
     }
+    // 0.1.231: the index fingertip's pad (from the wrist, canonical frame) in the pose of `profile` (trigger at rest).
+    internal Vector3 IndexPad(string profile)=>IndexPad(profile,out _);
+    // And its knuckle (the web of the hand on the handle).
+    internal Vector3 IndexPad(string profile,out Vector3 knuckle)
+    {
+        var pose=Pose(1,0,profile);var chain=fingers[indexFinger];knuckle=pose[chain[0]].Translation;
+        return Vector3.Transform(RimLocalPad(chain),pose[chain[2]]);
+    }
     internal Vector3[] RimPads(Matrix4x4[] pose)=>fingers.Append(thumb)
         .Select(c=>Vector3.Transform(RimLocalPad(c),pose[c[2]])+Vector3.UnitZ*NativeHandMesh.WristZ).ToArray();
     internal Vector3 RimContact(string profile,float thickness=.0286f)

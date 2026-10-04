@@ -122,6 +122,7 @@ internal sealed partial class NpcHitReactions
             var col=near[i];if(col==null)continue;
             NPC? npc=null;try{npc=col.GetComponentInParent(Il2CppType.Of<NPC>())?.TryCast<NPC>();}catch(Exception){}
             if(npc==null||!seen.Add(npc.Pointer))continue;
+            if(NpcAllies.Ally(npc)){why+=" "+npc.name+": an ally;";continue;}
             if(!npc.IsAlive||!npc.IsConscious||npc.isRagdoll){why+=" "+npc.name+": down;";continue;}
             if(npc.isHeldByPlayer||GrabSide(npc.Pointer)>=0){why+=" "+npc.name+": held already;";continue;}
             var inv=AnimOf(npc)?.Inventory;if(inv==null)inv=npc.GetComponentInChildren(Il2CppType.Of<EnemyInventory>(),true)?.TryCast<EnemyInventory>();

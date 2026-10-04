@@ -31,20 +31,24 @@ internal sealed partial class WeaponHands
     {
         hold=Quaternion.identity;
         foreach(var key in new[]{"pistol","revolver","uzi"})if(handleGrips.TryGetValue(key,out var g)){hold=g.rotation;return true;}
-        foreach(var entry in handleGrips)if(HolsterLayout.Firearm(entry.Key)){hold=entry.Value.rotation;return true;}
+        foreach(var entry in handleGrips)if(HolsterLayout.Firearm(entry.Key)&&entry.Key!="bazooka"){hold=entry.Value.rotation;return true;}
         return false;
     }
     // Hand `right` holding the zipline hook: where the hand is (at the
     // controller, turned as on a pistol) and the hook in that hand's frame.
-    internal bool TryToolHold(bool right,PoseValue pose,GripBarMath.Bar bar,out Vector3 handAt,out Quaternion hand,out Vector3 itemAt,out Quaternion itemTurn)
+    // fist, along (0.1.227): the thing's line through this point of the hand
+    // instead, this way up it (the bazooka's rocket: the fingers' curls round it).
+    internal bool TryToolHold(bool right,PoseValue pose,GripBarMath.Bar bar,out Vector3 handAt,out Quaternion hand,out Vector3 itemAt,out Quaternion itemTurn,Vector3? fist=null,Vector3? along=null)
     {
         handAt=itemAt=Vector3.zero;hand=itemTurn=Quaternion.identity;
         if(!TryPistolHold(out var hold))return false;
         if(!right)hold=MirrorQ(hold);
         hand=HandAim(pose,right)*hold;handAt=CameraRig.UnityPosition(pose);
-        var contact=LongHandleContact(right?rightNative:leftNative,1)+FistShift+ToolShift;
+        var contact=fist??LongHandleContact(right?rightNative:leftNative,1)+FistShift+ToolShift;
         var inverse=Quaternion.Inverse(hold);
         var g=inverse*ToU(ClubMath.GripLine);var f=inverse*ToU(ClubMath.GripForward);
+        // 0.1.227: a thing fitted in the fingers (fist given) lies along their line (FitGrip's; along: its way up the thing).
+        if(fist!=null)g=along is Vector3 a&&a.sqrMagnitude>.25f?a.normalized:new Vector3(g.x<0?-1:1,0,0);
         var placed=GripBarMath.Hold(bar,ToN(g),ToN(f),ToN(contact));
         itemTurn=new Quaternion(placed.rotation.X,placed.rotation.Y,placed.rotation.Z,placed.rotation.W);itemAt=new Vector3(placed.position.X,placed.position.Y,placed.position.Z);
         return true;

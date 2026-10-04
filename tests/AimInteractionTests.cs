@@ -70,5 +70,16 @@ internal static class AimInteractionTests
         item=true;pick.Sample(Hand(g),true,()=>item);Check(!pick.Action.Held,"held grip swept onto an item grabs it");
         pick.Sample(Hand(a|g),true,()=>item);Check(pick.Action.Down,"grip+A no longer picks up");
         Console.WriteLine("PASS: right grip+A chord, each modifier alone excluded, release either modifier, neutral rearm on startup/focus/menu; fresh grip alone picks up items, not doors.");
+        // 0.1.215: at a key, card or lockpick lock a fresh stick click (R3, L3 left-handed) takes the item out; Grip + A still does.
+        ulong st=HandControls.Stick;var lk=new InteractionState();bool lockAimed=true;
+        lk.Sample(Hand(0),true,null,false,()=>lockAimed);
+        lk.Sample(new HandControls(true,st,st,0),true,null,false,()=>lockAimed);Check(lk.Action.Down&&lk.Action.Held&&lk.LockHeld,"a stick click at a lock does not take the item out");
+        lk.Sample(Hand(st),true,null,false,()=>lockAimed);Check(lk.Action.Held&&!lk.Action.Down,"the held stick click repeats its edge");
+        lk.Sample(Hand(0),true,null,false,()=>lockAimed);Check(lk.Action.Up&&!lk.LockHeld,"letting go of the stick does not end it");
+        lockAimed=false;lk.Sample(new HandControls(true,st,st,0),true,null,false,()=>lockAimed);Check(!lk.Action.Held&&!lk.LockHeld,"a stick click away from a lock interacts (it is the secondary fire there)");
+        lk.Sample(Hand(0),true,null,false,()=>lockAimed);lk.Sample(Hand(st),true,null,false,()=>lockAimed);lockAimed=true;lk.Sample(Hand(st),true,null,false,()=>lockAimed);Check(!lk.Action.Held,"a stick held from before takes the item out when aimed at a lock");
+        lk.Sample(Hand(0),true,null,false,()=>lockAimed);lk.Sample(Hand(a|g),true,null,false,()=>lockAimed);Check(lk.Action.Down,"Grip + A no longer takes the item out at a lock");
+        var off=new InteractionState();off.Sample(Hand(0),true,null,true,()=>true);off.Sample(new HandControls(true,st,st,0),true,null,true,()=>true);Check(!off.Action.Held,"the other hand's stick takes the item out");
+        Console.WriteLine("PASS: 0.1.215 a fresh stick click at a lock takes the key, card or lockpick out (not one held from before, not away from a lock, not the other hand's); Grip + A still does.");
     }
 }

@@ -114,6 +114,8 @@ namespace XiiiXR
         internal const string LongHandleGrip="prop_long_handle";
         internal void RegisterHand(NativeHandVisual native,bool right){}
         internal void PoseHeldAmmunition(bool right,UnityEngine.Vector3 p,UnityEngine.Quaternion q){}
+        internal bool TryRocketHand(bool right,PoseValue pose,out UnityEngine.Vector3 p,out UnityEngine.Quaternion q){p=default;q=default;return false;}
+        internal void PoseHeldRocket(bool right,UnityEngine.Vector3 p,UnityEngine.Quaternion q){}internal string RocketGripProfile(bool right)=>LongHandleGrip;internal void NoteSupportGlove(bool right,string why){}internal void NoteHandDrawn(bool right,bool held,UnityEngine.Vector3 at){}
         internal void RestOnRail(bool right,ref UnityEngine.Vector3 p,UnityEngine.Quaternion q){}
         internal bool TryPoseHand(NativeHandVisual n,bool r,out UnityEngine.Vector3 p,out UnityEngine.Quaternion q,out float size)
         {p=UnityEngine.Vector3.From(Anchor);q=new UnityEngine.Quaternion(N.Quaternion.Identity);size=.76f;return Attached;}

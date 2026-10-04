@@ -50,12 +50,17 @@ internal sealed partial class WeaponHands
         // one drops it from the hand. "Throwing: hold + flight path": the arc is
         // drawn while the grip is held, letting go throws along the controller.
         var mode=GripMode;bool held=(input.Held&HandControls.Grip)!=0,down=(input.Down&HandControls.Grip)!=0;
-        ThrowHeld(side,weapon.GetInstanceID(),mode,held);
+        int key=weapon.GetInstanceID();float now=Time.realtimeSinceStartup;
+        bool fresh=ThrowHeld(side,key,mode,held);
+        // 0.1.222: grabbed and let go in a swing before the game had it in the hand.
+        NoteLateThrow(side,key,fresh,held,mode,now);
         if(!rig.SampleWorldHands(out var left,out var right,out bool leftValid)||side==0&&!leftValid)return;
         var aim=ControllerAim.Rotation(side==1?right:left)*Vector3.forward;
         var origin=visual.FittedToWorld.MultiplyPoint3x4(HandleSided(NativeGrip(true,Vector3.zero)));
         float native=ThrowTrajectory.Speed(weapon.CurrentEquipableParameters.primaryProjectileSpeed);
         bool arc=QualityOptions.ThrowArc.Value;
+        if(LateThrow(side,key,origin,native,now))return;
+        if(held&&throwGrips[side].Armed)AimPropLanding(side,origin,aim,native,arc);
         if(arc&&held&&throwGrips[side].Armed){throwAiming=true;DrawThrowPreview(origin+aim*.09f,aim*native,true,4);}
         else if(throwAiming){throwAiming=false;throwRoot?.SetActive(false);}
         Vector3 direction=default;float speed=0;string why="";
@@ -65,7 +70,8 @@ internal sealed partial class WeaponHands
             return SwingThrow(side,out direction,out speed,out why);
         });
         if(step==ThrowGripStep.None)return;
-        throwHeldKey[side]=-1;
+        // 0.1.222: this let-go is dealt with (not thrown again as a late swing next frame).
+        throwHeldKey[side]=-1;letGo[side].Spend();lateKey=-1;
         if(throwAiming){throwAiming=false;throwRoot?.SetActive(false);}
         throwRotation=visual.FittedToWorld.rotation;
         if(step==ThrowGripStep.Throw)
@@ -89,6 +95,8 @@ internal sealed partial class WeaponHands
         if(propThrow==null||!propThrow.CanStart())return;
         launchUntil=Time.realtimeSinceStartup+2;throwTaskIssued=false;throwProjectiles.Clear();throwTraceLeft=12;throwTraceFrom=Time.realtimeSinceStartup;
         WriteMuzzle(propThrow);
+        // 0.1.214: where it lands, marked until it gets there.
+        FreezeLanding(right?1:0,throwOrigin,throwLaunch,Physics.gravity);
         propThrow.usageType=propThrow.isPrimary?PlayerEquipableHandler.UsageType.primary:PlayerEquipableHandler.UsageType.secondary;
         // Begin initializes damage/ammo/animation dependencies that HandleProjectile
         // alone skipped. Execute once; suppress the later animation duplicate.

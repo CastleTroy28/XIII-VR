@@ -2,6 +2,7 @@ using System;using XiiiXR;
 class StoryModeTests
 {
  static void Check(StoryMode actual,StoryMode expected,string why){if(actual!=expected)throw new Exception(why+": "+actual);}
+ static void Ok(bool ok,string why){if(!ok)throw new Exception(why);}
  static void Main()
  {
   Check(StoryModePolicy.Select(false,false,false,false,false,false,false,false),StoryMode.Frontend,"main menu");
@@ -23,6 +24,11 @@ class StoryModeTests
   var skip=new StorySkipLatch();
   if(skip.Sample(true,true)||skip.Sample(true,false)||!skip.Sample(true,true)||skip.Sample(true,true))throw new Exception("cutscene skip must require release then press, once per press");
   skip.Sample(false,false);if(skip.Sample(true,true))throw new Exception("focus reconnect skips scene");
+  // 0.1.230: a story Timeline that is no Cutscene is fast-forwarded too; not a looping, hand-run, ambient or played-out one.
+  Ok(StorySkipPolicy.Skippable(24,3,2,1)&&StorySkipPolicy.Skippable(24,3,0,2)&&!StorySkipPolicy.Skippable(24,3,1,1)&&!StorySkipPolicy.Skippable(24,3,2,3)
+   &&!StorySkipPolicy.Skippable(24,23.9,2,1)&&!StorySkipPolicy.Skippable(3600,3,2,1)&&!StorySkipPolicy.Skippable(double.PositiveInfinity,3,2,1)&&!StorySkipPolicy.Skippable(.2,0,2,1),"which story timeline a skip fast-forwards");
+  Ok(StorySkipPolicy.HeldAtEnd(24,24,0)&&!StorySkipPolicy.HeldAtEnd(24,12,0)&&!StorySkipPolicy.HeldAtEnd(24,24,2),"a Hold timeline at its last frame is played out");
+  Console.WriteLine("PASS: 0.1.230 a story timeline that is no Cutscene (the last mission's memory opening) is skipped by fast-forward; never a looping, hand-run or ambient one; a Hold timeline ends the skip at its last frame.");
   Console.WriteLine("PASS: movie, scripted jump, authored scene, playable flashback, pause and next-mission policy. No forced native unlock.");
  }
 }

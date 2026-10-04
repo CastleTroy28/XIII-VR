@@ -11,6 +11,10 @@ internal sealed partial class WeaponVisual
 {
     internal const float CoverOpenDegrees=75,CoverDegreesPerSecond=420;
     internal bool CoverOpen{get;set;}
+    // 0.1.223: how far a hand pressing on it leaves it open (degrees; null: as far as it goes).
+    internal float? CoverPushDegrees{get;set;}
+    // The cover's hinge and its free edge (closed), fitted frame.
+    internal bool CoverFrame(out Vector3 hinge,out Vector3 edge){hinge=coverHinge;edge=coverFront;return coverReady;}
     private bool coverReady;private Vector3 coverHinge,coverFront;private float coverAngle;private Matrix4x4 coverMeshToFit;
     private WeaponMechanism? coverMechanism;
     // Where the left hand takes the cover (fitted gun space), at its current angle.
@@ -59,6 +63,8 @@ internal sealed partial class WeaponVisual
     {
         if(!coverReady||coverMechanism==null)return;
         float target=CoverOpen?CoverOpenDegrees:0;
+        // 0.1.223: pressed by a hand: no further open than the hand lets it (at once, with the hand).
+        if(CoverOpen&&CoverPushDegrees is float pushed&&float.IsFinite(pushed)){target=Math.Clamp(pushed,0,CoverOpenDegrees);if(coverAngle>target)coverAngle=target;}
         float step=CoverDegreesPerSecond*Math.Max(0,Time.deltaTime);
         coverAngle=Mathf.MoveTowards(coverAngle,target,step);
         coverMechanism.CoverActive=coverAngle>.2f;

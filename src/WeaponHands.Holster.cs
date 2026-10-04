@@ -213,6 +213,8 @@ internal sealed partial class WeaponHands
         int gameSide=GameSide(currentKey);
         // 0.1.130: the hand that just let go may still catch it (floor/air only).
         int catching=-1;
+        // 0.1.214: the next knife at once after a throw (KnifeRetake).
+        if(!leaving&&gameSide>=0)KnifeRetake(gameSide,hands[gameSide]);
         if(leaving){int side=LeftThrowBusy?0:putAwaySide;busy[side]=true;if(!LeftThrowBusy&&!Redrawing)catching=side;}
         else if(weapon!=null&&gameSide>=0&&Releasable(profile)&&!inventory.isInTransit)TickGameWeapon(gameSide,hands,l,r,mode,busy);
         else if(gameSide>=0)busy[gameSide]=true;

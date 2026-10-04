@@ -28,6 +28,15 @@ class CarryGripTests {
   h.Released();h.Sample(true,true,false,7,false,true,0);h.Sample(false,true,false,7.3f,true,true,0);h.Sample(false,true,false,7.4f,true,false,0);
   Check(h.ShouldRelease(true,false),"hold: focus loss keeps it");
  }
+ // 0.1.222: the thing gone from the hand for a moment (the game's switch to it) is taken up again by the same press.
+ {
+  var l=new CarryGripState();
+  l.Sample(true,true,false,0,false,true,0);l.Sample(false,true,false,.1f,true,true,0);
+  l.Lost();Check(l.CanAdopt&&!l.ShouldRelease(false,false),"lost: the press that took it no longer counts");
+  l.Sample(false,false,true,.2f,false,true,0);l.Sample(false,false,false,.4f,true,true,0);Check(l.ShouldRelease(true,false),"lost: back in the hand with the grip open, not let go");
+  l.Released();l.Sample(true,true,false,1,false,true,0);l.Lost();l.Sample(false,true,false,7,false,true,0);l.Sample(false,false,true,7.1f,false,true,0);l.Sample(false,false,false,7.2f,false,true,0);
+  Check(!l.CanAdopt,"lost: a press long ago still takes things up");
+ }
  // Toggle (1): the press that took it keeps it; the next press holds it until let go.
  {
   var t=new CarryGripState();

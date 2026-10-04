@@ -35,6 +35,8 @@ internal static class QualityOptions
     internal static ConfigEntry<bool>? BeltPistols,ArmpitPistols;
     // 0.1.151: the mod's memory cleaned in small steps (ModGcPacer).
     internal static ConfigEntry<bool>? GcSteps;
+    // 0.1.214: the mark where a throw lands (WeaponHands.Landing).
+    internal static ConfigEntry<bool>? ThrowLanding;
     internal const int RenderScaleDefaults=182;
     internal static void Load(ConfigFile c)
     {
@@ -47,6 +49,7 @@ internal static class QualityOptions
         if(scaleDefaults.Value<RenderScaleDefaults){if(MathF.Abs(RenderScale.Value-.75f)<.001f)RenderScale.Value=1f;scaleDefaults.Value=RenderScaleDefaults;}
         Hints=c.Bind("VR","InteractionHints",true,"Show original gameplay interaction hints, including doors, cabinets and key/card locks, with VR button labels.");
         ThrowArc=c.Bind("VR","ThrowAimArc",false,"false (0.1.149): knives, bottles, ashtrays are held by the grip and thrown by letting go of it during a swing (letting go without a swing puts a knife back on the chest, drops a bottle). true: while the grip holds it the flight path is shown; letting go throws where the controller points.");
+        ThrowLanding=c.Bind("VR","ThrowLandingMarker",true,"0.1.214: while a knife, a grenade with its pin out, a bottle or an ashtray is ready to be thrown, a ring marks where it would land (during a swing: where letting go now throws it; otherwise a plain throw along the controller); once thrown, where it lands. false = no ring. Config file only.");
         GrappleAlong=c.Bind("VR","GrappleGripAlongMm",10,"Grappling hook in the left hand: shift along the knuckles (negative = toward the little finger), mm. Config file only.");
         GrappleUp=c.Bind("VR","GrappleGripUpMm",0,"Grappling hook in the left hand: shift toward the back of the hand (negative = into the palm), mm.");
         GrappleForward=c.Bind("VR","GrappleGripForwardMm",20,"Grappling hook in the left hand: shift toward the fingertips (negative = toward the wrist), mm.");
@@ -83,7 +86,8 @@ internal static class QualityMenu
     internal static bool Open {get;private set;}
     private static bool chordArmed,axisArmed,triggerArmed;
     private static int row;
-    private const int Rows=20;
+    // 0.1.224: no "Smarter enemies" row (its setting stays as it is: on, config file only).
+    private const int Rows=19;
     private static readonly bool[] adjusted=new bool[Rows];
     private static float pending=1f;
     private static bool applyRequested;
@@ -114,7 +118,7 @@ internal static class QualityMenu
             axisArmed=false;
             if(Math.Abs(v.Y)>Math.Abs(v.X))row=(row+(v.Y>0?Rows-1:1))%Rows;
             else if(row==0)pending=Clamp(pending+(v.X>0?.10f:-.10f));
-            else if(row<6||row>=10&&row<=19){Adjust(v.X>0?1:-1,false);adjusted[row]=true;}
+            else if(row<6||row>=10&&row<Rows-1){Adjust(v.X>0?1:-1,false);adjusted[row]=true;}
         }
         bool trigger=(right.Held&(HandControls.Trigger|HandControls.A))!=0;
         // While the controller ray is on the VR page the trigger clicks rows
@@ -138,11 +142,11 @@ internal static class QualityMenu
     {
         if(!Open||r<0||r>=Rows)return;row=r;
         if(side!=0&&r==0){pending=Clamp(pending+side*.10f);return;}
-        if(side!=0&&(r<6||r>=10&&r<=19)){Adjust(side,false);adjusted[r]=true;return;}
+        if(side!=0&&(r<6||r>=10&&r<Rows-1)){Adjust(side,false);adjusted[r]=true;return;}
         Confirm(true);
     }
     internal static bool Adjustable(int r)=>r==0||r==4||r==GunTurnRow;
-    internal const int GunTurnRow=18;
+    internal const int GunTurnRow=17;
     internal const int GunTurnMax=45,GunTurnStep=5;
     internal static int GunTurnDegrees=>Math.Clamp(QualityOptions.GunTurn?.Value??15,0,GunTurnMax);
     private static void Confirm(bool pointer)
@@ -157,13 +161,12 @@ internal static class QualityMenu
     private static void Adjust(int direction,bool toggle)
     {
         if(row==10)QualityOptions.Hints.Value=toggle?!QualityOptions.Hints.Value:direction>0;
-        if(row==13&&QualityOptions.MountedHandles!=null){QualityOptions.MountedHandles.Value=toggle?!QualityOptions.MountedHandles.Value:direction>0;Bootstrap.Write("VR SETTINGS mounted gun="+(QualityOptions.MountedHandles.Value?"handles":"pointing"));}
-        if(row==14&&QualityOptions.WeaponGrip!=null){int v=Math.Clamp(QualityOptions.WeaponGrip.Value,0,2);QualityOptions.WeaponGrip.Value=toggle?(v+1)%3:(v+direction+3)%3;Bootstrap.Write("VR SETTINGS weapon grip="+(QualityOptions.WeaponGrip.Value==0?"hold":QualityOptions.WeaponGrip.Value==1?"toggle":"always"));}
-        if(row==15&&QualityOptions.LeftHanded!=null){QualityOptions.LeftHanded.Value=toggle?!QualityOptions.LeftHanded.Value:direction<0;Bootstrap.Write("VR SETTINGS left-handed="+QualityOptions.LeftHanded.Value);}
-        if(row==16&&QualityOptions.BeltPistols!=null){QualityOptions.BeltPistols.Value=toggle?!QualityOptions.BeltPistols.Value:direction>0;Bootstrap.Write("VR SETTINGS pistols on the belt="+QualityOptions.BeltPistols.Value);}
-        if(row==17&&QualityOptions.ArmpitPistols!=null){QualityOptions.ArmpitPistols.Value=toggle?!QualityOptions.ArmpitPistols.Value:direction>0;Bootstrap.Write("VR SETTINGS pistols under the arms="+QualityOptions.ArmpitPistols.Value);}
+        if(row==12&&QualityOptions.MountedHandles!=null){QualityOptions.MountedHandles.Value=toggle?!QualityOptions.MountedHandles.Value:direction>0;Bootstrap.Write("VR SETTINGS mounted gun="+(QualityOptions.MountedHandles.Value?"handles":"pointing"));}
+        if(row==13&&QualityOptions.WeaponGrip!=null){int v=Math.Clamp(QualityOptions.WeaponGrip.Value,0,2);QualityOptions.WeaponGrip.Value=toggle?(v+1)%3:(v+direction+3)%3;Bootstrap.Write("VR SETTINGS weapon grip="+(QualityOptions.WeaponGrip.Value==0?"hold":QualityOptions.WeaponGrip.Value==1?"toggle":"always"));}
+        if(row==14&&QualityOptions.LeftHanded!=null){QualityOptions.LeftHanded.Value=toggle?!QualityOptions.LeftHanded.Value:direction<0;Bootstrap.Write("VR SETTINGS left-handed="+QualityOptions.LeftHanded.Value);}
+        if(row==15&&QualityOptions.BeltPistols!=null){QualityOptions.BeltPistols.Value=toggle?!QualityOptions.BeltPistols.Value:direction>0;Bootstrap.Write("VR SETTINGS pistols on the belt="+QualityOptions.BeltPistols.Value);}
+        if(row==16&&QualityOptions.ArmpitPistols!=null){QualityOptions.ArmpitPistols.Value=toggle?!QualityOptions.ArmpitPistols.Value:direction>0;Bootstrap.Write("VR SETTINGS pistols under the arms="+QualityOptions.ArmpitPistols.Value);}
         if(row==GunTurnRow&&QualityOptions.GunTurn!=null){int v=GunTurnDegrees;QualityOptions.GunTurn.Value=toggle?(v>=GunTurnMax?0:v+GunTurnStep):Math.Clamp(v+direction*GunTurnStep,0,GunTurnMax);Bootstrap.Write("VR SETTINGS two-handed gun in one hand turned "+QualityOptions.GunTurn.Value+" degrees toward the other hand");}
-        if(row==12){EnemyOptions.Smarter.Value=toggle?!EnemyOptions.Smarter.Value:direction>0;Bootstrap.Write("VR SETTINGS smarter enemies="+EnemyOptions.Smarter.Value);}
         if(row==11){QualityOptions.ThrowArc.Value=toggle?!QualityOptions.ThrowArc.Value:direction>0;Bootstrap.Write("VR SETTINGS throw="+(QualityOptions.ThrowArc.Value?"arc":"gesture"));}
         if(row==1)QualityOptions.Collisions.Value=toggle?!QualityOptions.Collisions.Value:direction>0;
         if(row==2)LocomotionOptions.Teleport.Value=toggle?!LocomotionOptions.Teleport.Value:direction>0;
@@ -230,14 +233,13 @@ internal static class QualityMenu
         +Line(6,L("Recenter"))+Line(7,L("Reset hands"))+Line(8,L("Calibrate right hand (3 s)"))+Line(9,L("Test vibration"))
         +Line(10,L("Interaction hints")+": "+OnOff(QualityOptions.Hints.Value))
         +Line(11,L("Throwing")+": "+L(QualityOptions.ThrowArc.Value?"hold + flight path":"gesture (draw back, snap)"))
-        +Line(12,L("Smarter enemies")+": "+OnOff(EnemyOptions.Smarter.Value))
-        +Line(13,L("Mounted gun")+": "+L(QualityOptions.MountedHandles?.Value!=false?"handles (inverted)":"pointing"))
-        +Line(14,L("Weapon in hand")+": "+L(Math.Clamp(QualityOptions.WeaponGrip?.Value??0,0,2) switch{0=>"hold grip",1=>"grip press (take/let go)",_=>"always"}))
-        +Line(15,L("Dominant hand")+": "+L(QualityOptions.LeftHanded?.Value==true?"left-handed":"right-handed"))
-        +Line(16,L("Pistols on the belt")+": "+OnOff(QualityOptions.BeltPistols?.Value!=false))
-        +Line(17,L("Pistols under the arms")+": "+OnOff(QualityOptions.ArmpitPistols?.Value!=false))
+        +Line(12,L("Mounted gun")+": "+L(QualityOptions.MountedHandles?.Value!=false?"handles (inverted)":"pointing"))
+        +Line(13,L("Weapon in hand")+": "+L(Math.Clamp(QualityOptions.WeaponGrip?.Value??0,0,2) switch{0=>"hold grip",1=>"grip press (take/let go)",_=>"always"}))
+        +Line(14,L("Dominant hand")+": "+L(QualityOptions.LeftHanded?.Value==true?"left-handed":"right-handed"))
+        +Line(15,L("Pistols on the belt")+": "+OnOff(QualityOptions.BeltPistols?.Value!=false))
+        +Line(16,L("Pistols under the arms")+": "+OnOff(QualityOptions.ArmpitPistols?.Value!=false))
         +Line(GunTurnRow,L("Two-handed gun in one hand")+": "+(GunTurnDegrees==0?L("straight"):GunTurnDegrees+"° "+L("toward the other hand")))
-        +Line(19,L("Close"))
+        +Line(Rows-1,L("Close"))
         +"\n"+Resolution+"\n"+L("Right controller: point and pull the trigger (‹ › adjust).")+"\n"+L("Left stick: select / adjust. A: confirm. B: close.")+"\n"
         +(LocomotionOptions.Teleport.Value?L("Teleport: left stick forward, aim with the left hand, release. Back to cancel.")+"\n":"")
         +(status.Length==0?"":L(status)+(statusResolution?" "+Resolution:""));

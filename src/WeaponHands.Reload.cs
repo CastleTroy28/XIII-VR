@@ -30,6 +30,59 @@ internal sealed partial class WeaponHands
     // The game's gun in the left hand reloads by hand (its magazine, bolt,
     // pouch with the right hand) when the manual reload is on for it.
     private bool MirroredManual=>PrimaryLeft&&ManualReady&&copyKey[1]<0;
+    // 0.1.221: the button of the other hand that takes magazines, rounds and
+    // rockets from the belt and holds them (its grip; it was its trigger).
+    internal const ulong AmmoButton=HandControls.Grip;
+    // The reloading hand at the belt while the gun in play wants rounds from
+    // it: its grip takes them, not a weapon from the left belt's holster place.
+    private bool PouchTakes(int s,Vector3 hand)
+    {
+        try
+        {
+            if(pouch==null||!pouch.Shown||weapon==null||ammo==null||(s==1)!=ReloadRight)return false;
+            int rounds=ammo.PrimaryMagazineAmmoCount,capacity=ammo.MaxPrimaryMagazineAmmoCount;
+            bool reserve=ammo.ammoPool.IsInfinite||ammo.PrimaryReserveAmmoCount>0;
+            if(!reserve)return false;
+            if(BazookaManual)return rounds<=0&&rocketSide<0&&pouch.Near(hand);
+            if(BreakReady)return BreakWantsShell(hand);
+            if(RevolverReady)return revolver.Open&&revolver.Emptied&&!revolver.Holding&&pouch.Near(hand);
+            if(!ManualReady)return false;
+            return reload.WantsSupply(rounds,capacity)&&(profile=="shotgun"?pouch.NearShell(hand):pouch.Near(hand));
+        }
+        catch(Exception){return false;}
+    }
+    private int pouchFrame=-1;private readonly bool[] pouchNow=new bool[2];
+    private bool PouchTakesNow(int s)
+    {
+        if(pouchFrame!=Time.frameCount)
+        {
+            pouchFrame=Time.frameCount;pouchNow[0]=pouchNow[1]=false;
+            if(pouch!=null&&pouch.Shown&&rig.SampleWorldHands(out var l,out var r,out bool lv))
+            {pouchNow[1]=PouchTakes(1,CameraRig.UnityPosition(r));if(lv)pouchNow[0]=PouchTakes(0,CameraRig.UnityPosition(l));}
+        }
+        return pouchNow[s];
+    }
+    // 0.1.223: the M60's open cover as a solid thing for the hands (CoverPush).
+    private readonly CoverPush coverPush=new();
+    private static readonly Vector3 PalmPoint=new(0,-.03f,.05f);
+    private ReloadAction PushCover(PoseValue l,PoseValue r,bool leftValid)
+    {
+        if(visual==null)return ReloadAction.None;
+        if(!reload.CoverOpen){coverPush.Reset();visual.CoverPushDegrees=null;return ReloadAction.None;}
+        if(reload.Holding||!visual.CoverFrame(out var hinge,out var edge)){visual.CoverPushDegrees=float.IsNaN(coverPush.Opening)?null:coverPush.Opening;return ReloadAction.None;}
+        var inverse=visual.FittedToWorld.inverse;bool shut=false;
+        for(int s=0;s<2;s++)
+        {
+            if(s==0&&!leftValid)continue;var pose=s==1?r:l;
+            var palm=CameraRig.UnityPosition(pose)+GloveVisual.Rotation(pose,s==1)*PalmPoint;
+            if(coverPush.Step(s,ToN(inverse.MultiplyPoint3x4(palm)),ToN(hinge),ToN(edge),WeaponVisual.CoverOpenDegrees))shut=true;
+        }
+        visual.CoverPushDegrees=float.IsNaN(coverPush.Opening)?null:coverPush.Opening;
+        if(!shut)return ReloadAction.None;
+        var action=reload.PushCoverShut();
+        if(action!=ReloadAction.None)Bootstrap.Write("M60 COVER pressed shut by hand");
+        return action;
+    }
     internal bool ReloadHandHolding(bool right)=>right==ReloadRight&&(BreakHolding||reload.Holding&&ManualReady&&!BreakReady||RevolverReady&&revolver.Holding);
     private bool lastReloadRight;
     // The trigger that fires the gun must not fire as the magazine goes in.
@@ -42,7 +95,8 @@ internal sealed partial class WeaponHands
         if(!ManualReady||visual==null)return false;
         // 0.1.194: the double-barrelled shotgun's open chamber.
         if(BreakReady)return BreakAccess(visual.AmmunitionTip(hand,rotation,ReloadRight),out point,out axis);
-        var local=reload.Holding&&!reload.DiscardOnly?visual.ReloadPort:reload.Hint?visual.MagazineCenter:reload.NeedsRack?visual.ReloadBolt-Vector3.forward*reload.VisualRackTravel:Vector3.positiveInfinity;
+        // 0.1.223: the M60's box goes in at its own place.
+        var local=reload.Holding&&!reload.DiscardOnly?(EquipmentProfile.Lidded(profile)?visual.MagazineCenter:visual.ReloadPort):reload.Hint?visual.MagazineCenter:reload.NeedsRack?visual.ReloadBolt-Vector3.forward*reload.VisualRackTravel:Vector3.positiveInfinity;
         point=visual.FittedToWorld.MultiplyPoint3x4(local);
         axis=visual.FittedToWorld.MultiplyVector(visual.InsertAxis).normalized;
         bool right=ReloadRight;
@@ -51,7 +105,7 @@ internal sealed partial class WeaponHands
     }
     internal bool LeftReloadHolding=>ReloadHandHolding(false);
     internal bool ReloadContactFree=>ManualReady&&EquipmentProfile.TightContact(profile)&&(reload.Active||reload.Holding);
-    internal string ReloadLabel=>!ManualReady||foreEndOnly||PrimaryLeft&&!MirroredManual?"":BreakReady?BreakLabel:reload.CoverOpen&&!reload.Holding&&reload.Installed?"COVER":reload.Holding?(reload.DiscardOnly?"DROP":"INSERT"):reload.Hint?"GRAB":!reload.Installed||EquipmentProfile.Arrow(profile)&&ammo!=null&&ammo.PrimaryMagazineAmmoCount<=0?"POUCH":reload.NeedsRack?"RACK":"";
+    internal string ReloadLabel=>BazookaManual&&ammo!=null&&ammo.PrimaryMagazineAmmoCount<=0?(rocketSide>=0?"INSERT":"POUCH"):!ManualReady||foreEndOnly||PrimaryLeft&&!MirroredManual?"":BreakReady?BreakLabel:reload.CoverOpen&&!reload.Holding&&reload.Installed?"COVER":reload.Holding?(reload.DiscardOnly?"DROP":"INSERT"):reload.Hint?"GRAB":!reload.Installed||EquipmentProfile.Arrow(profile)&&ammo!=null&&ammo.PrimaryMagazineAmmoCount<=0?"POUCH":reload.NeedsRack?"RACK":"";
     private void BindReload()
     {
         if(weapon==null)return;
@@ -111,7 +165,8 @@ internal sealed partial class WeaponHands
         // The B of the hand holding the gun (tap: magazine out; hold: take
         // it): the right B, or the left Y for the gun in the left hand
         // (0.1.142; it was the right B either way); the reloading
-        // hand's trigger and grip.
+        // hand's grip takes and holds the magazine or rounds (0.1.221: was
+        // its trigger), its trigger racks a bolt.
         var right=mirrored?rig.LeftControls:rig.RightControls;var left=mirrored?rig.RightControls:rig.LeftControls;
         // Resolve this tracking sample, not last frame's world-space glove pose.
         // Locomotion and support release can move the receiver between frames.
@@ -127,11 +182,13 @@ internal sealed partial class WeaponHands
         bool bolt=EquipmentProfile.Arrow(profile);float railLength=bolt?visual.ArrowLength:0;
         if(bolt){tip-=heldForward*railLength;aligned=Vector3.Dot(heldForward,visual.InsertAxis)>.80f;}
         bool wasOnRail=reload.OnRail;float railBefore=reload.RailOffset;
-        var action=reload.Step(now,(right.Down&HandControls.B)!=0,(right.Held&HandControls.B)!=0,(right.Up&HandControls.B)!=0,
+        // 0.1.223: the M60's open cover pressed shut by either hand.
+        var pushed=PushCover(l,r,validLeft);
+        var action=pushed!=ReloadAction.None?pushed:reload.Step(now,(right.Down&HandControls.B)!=0,(right.Held&HandControls.B)!=0,(right.Up&HandControls.B)!=0,
             (left.Down&HandControls.Trigger)!=0,(left.Held&HandControls.Trigger)!=0,pouch!=null&&(profile=="shotgun"?pouch.NearShell(world):pouch.Near(world)),
             ToN(local),ToN(visual.MagazineCenter),ToN(visual.ReloadPort),ToN(visual.ReloadBolt),ToN(visual.InsertAxis),
             ammo.PrimaryMagazineAmmoCount,ammo.MaxPrimaryMagazineAmmoCount,(left.Held&HandControls.Grip)!=0,ToN(tip),aligned,
-            visual.CoverGrab is Vector3 cover?ToN(cover):null,railLength);
+            visual.CoverGrab is Vector3 cover?ToN(cover):null,railLength,(left.Down&AmmoButton)!=0,(left.Held&AmmoButton)!=0);
         RailHaptics(wasOnRail,railBefore,dt);
         if(reload.BlocksFire){StopOwnedFire();if(profile!="shotgun"||reload.Holding)ReleaseSupport();}
         if(action==ReloadAction.None)return;
@@ -403,6 +460,8 @@ internal sealed partial class WeaponHands
         // 0.1.183: a pistol reloaded against the chest never reloads the game's way.
         // 0.1.194: neither of the game's two pistols reloads the game's way while they reload against the chest.
         if(c!=null&&c.DualChestOn&&c.OwnsAmmo(__instance))return false;
+        // 0.1.215: the bazooka reloaded by hand (a rocket from the pouch) never reloads the game's way.
+        if(c!=null&&c.BazookaManual&&c.ammo!=null&&c.ammo.Pointer==__instance.Pointer)return false;
         return c==null||!c.ManualEnabled||c.PrimaryLeft&&!c.MirroredManual&&!c.ChestGame||c.ammo!.Pointer!=__instance.Pointer;
     }
 

@@ -58,6 +58,30 @@ class MenuLifecycleTests
         Check(wheel.HoverCount==0,"right stick still selects weapons");
         rig.LeftStick=new StickSample(true,System.Numerics.Vector2.UnitX,false);ui.Tick();Check(wheel.HoverCount>0,"left stick cannot select");
         Setup();wheel.OpenWheel(false);Application.isFocused=false;Step(false,false);Check(wheel.IsOpen,"VR driver closed a wheel it did not own");
+        // 0.1.210: the game's weapon wheel tutorial opens the wheel itself and locks the controls until it closes.
+        Setup();Step(false,false);wheel.OpenWheel(false);Step(false,false);Check(wheel.IsOpen&&GameInputManager.Locked,"the game's wheel closed while nobody held A");
+        Step(true,false,1,0);Check(ui.WheelOpen&&ui.BlocksGameplay&&wheel.HoverCount>0&&wheel.OpenCount==1,"holding A does not take over the wheel the game opened (the left stick cannot choose)");
+        Step(false,false);Check(!wheel.IsOpen&&wheel.Equips==1&&wheel.CloseCount==1&&!GameInputManager.Locked,"letting go of A does not choose in the game's wheel (the tutorial stays stuck)");
+        Check(wheel.deselectOnZeroCursorOffset,"native wheel setting not restored after the game's wheel");
+        // 0.1.213: the menu chord types Escape first (the game answers it and ends its tutorial); only when it cannot be typed is the game's wheel closed.
+        Setup();EscapeKey.Downs=0;Step(false,false);wheel.OpenWheel(false);Step(false,true);
+        Check(EscapeKey.Downs==1&&wheel.IsOpen,"the menu chord does not type Escape for the wheel the game opened");
+        Setup();EscapeKey.Downs=0;EscapeKey.Accept=false;GamePause.Opens=0;Step(false,false);wheel.OpenWheel(false);Step(false,true);
+        Check(!wheel.IsOpen&&wheel.Equips==0&&!GameInputManager.Locked&&GamePause.Opens==0,"with Escape refused the menu chord does not close the wheel the game opened");EscapeKey.Accept=true;
+        // 0.1.214: right A ends the game's weapon wheel tutorial (its hint names right A); the game closes its wheel.
+        Setup();WheelTutorial.Ends=0;Step(false,false);WheelTutorial.Forced=true;wheel.OpenWheel(false);Step(false,false);Check(WheelTutorial.Ends==0,"the tutorial ended without right A");
+        Step(true,false,1,0);Check(WheelTutorial.Ends==1&&wheel.HoverCount==0&&wheel.CloseCount==0,"right A does not end the weapon wheel tutorial, or the mod takes its wheel over");
+        Check(WheelTutorial.LastOpen,"the tutorial's open wheel not reported to its end");
+        wheel.CloseWheel(true,false);Step(true,false,1,0);Step(true,false,1,0);Check(wheel.OpenCount==1&&WheelTutorial.Ends==1,"the A that ended the tutorial opens the wheel while still held");
+        Step(false,false);Step(true,false,1,0);Check(wheel.OpenCount==2&&ui.WheelOpen,"after the tutorial right A does not open the wheel again");
+        Setup(true);WheelTutorial.Ends=0;WheelTutorial.Forced=true;wheel.OpenWheel(false);Step(true,false);Check(WheelTutorial.Ends==0,"an A held from before the tutorial ended it");
+        Step(false,false);WheelTutorial.Forced=true;Step(true,false);Check(WheelTutorial.Ends==1,"a fresh right A press does not end the tutorial");
+        Setup();WheelTutorial.Ends=0;Step(false,false);WheelTutorial.Forced=true;Step(true,false);Check(WheelTutorial.Ends==1&&!WheelTutorial.LastOpen&&wheel.OpenCount==0,"right A before the tutorial's wheel opened does not end it, or the mod opens a wheel");
+        WheelTutorial.Forced=false;
+        Check(WheelTutorialMath.Labels(true,99)&&WheelTutorialMath.Labels(false,.5f)&&!WheelTutorialMath.Labels(false,WheelTutorialMath.HintWindow+.1f)&&!WheelTutorialMath.Labels(false,-1),"the tutorial hint's labels");
+        // In VR the wheel works without Windows focus (Virtual Desktop); outside VR it does not.
+        Setup();WindowFocus.InVr=true;Application.isFocused=false;Step(false,false);Step(true,false,1,0);Check(ui.WheelOpen,"in VR the wheel does not open without Windows focus");
+        Step(false,false);Check(wheel.Equips==1,"in VR the wheel does not choose without Windows focus");WindowFocus.InVr=false;Application.isFocused=true;
         Setup();Step(false,false,extra:HandControls.A);Check(ui.ObjectivesOpen && ui.BlocksGameplay,"X failed to open tasks/block gameplay");
         Step(false,false,extra:HandControls.A);Check(ui.ObjectivesOpen,"held X repeated");
         Step(false,false);Step(false,true);Check(!ui.ObjectivesOpen,"grip+X failed to close tasks");
@@ -126,6 +150,8 @@ class MenuLifecycleTests
         ui.OnSceneChanged();Check(!ui.WheelOpen&&!ui.PendingConsumable&&!ui.ObjectivesOpen&&!QualityMenu.Open,"scene retains wheel/item/UI lock");
         Step(false,false);Check(ui.Hud!=null&&!ui.BlocksGameplay,"scene cannot reacquire live native HUD");
         ui.Dispose();
+        Console.WriteLine("PASS: 0.1.214 right A ends the game's weapon wheel tutorial (a fresh press, not one held from before; also before its wheel opened); the A held on opens no wheel until let go; the tutorial hint names right A while it runs.");
+        Console.WriteLine("PASS: 0.1.210 the wheel the game opens itself (its weapon wheel tutorial) is taken over by holding A: the left stick chooses, letting go confirms and unlocks; the menu chord types Escape for it, or closes it when Escape cannot be typed; in VR the wheel works without Windows focus.");
         Console.WriteLine("PASS: 0.1.158 menu chord in either order (button first, grip within 0.5 s; left-handed the wheel that A opened closes); refused Escape opens the pause menu directly in play, not in the main menu.");
         Console.WriteLine("PASS: left-handed: the menu chord moves to the right grip + A (the left grip + X opens doors), the grip in the open wheel still takes the weapon.");
         Console.WriteLine("PASS: equipment chords execute once, modifier release is latched, native wheel preserved, focus/lock guard.");
@@ -185,6 +211,7 @@ namespace XiiiXR
     }
     internal sealed class ZiplineVr{internal static ZiplineVr? Current=>null;internal bool HandBusy(bool right)=>false;}
     internal static class Bootstrap {internal static void Write(string s){}internal static void Warn(string s){}}
+    internal static class WindowFocus {internal static bool InVr;internal static bool Playable=>InVr||UnityEngine.Application.isFocused;}
     internal sealed class ArmMedkits{internal ArmMedkits(CameraRig c,WheelItems w){}internal void Tick(bool a,PlayerEquipableInventory? i,InventoryWheel? w){}internal void Reset(){}}
 }
 
@@ -205,5 +232,6 @@ namespace XiiiXR{internal sealed class WeaponHands{internal static WeaponHands? 
 namespace XiiiXR
 {
     static class EscapeKey{internal static bool Accept=true;internal static int Downs;internal static string LastRefusal="";internal static bool Send(bool down){if(!down)return true;if(!Accept){LastRefusal="test refusal";return false;}Downs++;LastRefusal="";return true;}}
+    static class WheelTutorial{internal static bool Forced,LastOpen;internal static int Ends;internal static string End(bool open,int player){Ends++;Forced=false;LastOpen=open;return "test";}}
     static class GamePause{internal static int Opens;internal static bool TryOpen(out string how){Opens++;how="";return true;}}
 }

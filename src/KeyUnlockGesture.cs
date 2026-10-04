@@ -113,8 +113,16 @@ internal sealed class KeyUnlockGesture:IDisposable
         // Unnamed doors: accept the lock region on this same interaction surface,
         // rather than forcing the player back to the original aim pixel.
         if(fallbackSurface!=null&&ColliderSurface.TryClosest(fallbackSurface,contact,out var nearest))target=nearest;
+        // 0.1.220: a pick turned in the lock: the game's own time is counted down first.
+        if(pickStarted>=0){TickPicking(contact,target);return;}
         if(card?!gesture.Card(CardTouches(contact,target),ContactWorld.V(contact),ContactWorld.V(target),Time.realtimeSinceStartup)
             :!gesture.Sample(false,ContactWorld.V(contact),new System.Numerics.Quaternion(q.x,q.y,q.z,q.w),ContactWorld.V(target),Time.realtimeSinceStartup))return;
+        if(pick&&BeginPicking(target))return;
+        Complete(target);
+    }
+    private void Complete(Vector3 target)
+    {
+        if(action==null||actor==null||inventory==null||item==null)return;
         var pending=action;var who=actor;var inv=inventory;var key=item;
         if(!inv.HasItemToResolveConditional(pending.conditional,card?pending.keyCardTypeToCheck:pending.keyTypeToCheck)){Cancel();return;}
         bool usedPick=pick;
@@ -153,6 +161,62 @@ internal sealed class KeyUnlockGesture:IDisposable
         rig.PunchHaptics(true);Bootstrap.Write("KEY UNLOCKED "+pending.name+(usedPick?" with lockpick":"")+(usedCard?"; native card reader events completed":physicalDoor?"; door waits for touch or fresh Grip+A":"; native key events completed (not a door)"));
     }
     private readonly ChairImpactClip keyTurn=new(KeyTurnSound.Wav,"key-turn recording",1,12);
-    internal void Cancel(){pick=false;action=null;actor=null;inventory=null;item=previousItem=null;anchor=null;fallbackSurface=null;reader.Clear();visual?.Dispose();visual=null;gesture.Reset();rig.DisarmTrigger();}
+    // 0.1.220: picking the lock (the game's lockpicking: its time, its HUD
+    // countdown, its picking sound and noise), from the turn of the pick.
+    private float pickStarted=-1,pickTime,nextNoise;private bool pickNoiseFailed,pickSounding;
+    private FMOD.Studio.EventInstance pickSound;private LockpickComponent? lockpick;
+    internal bool Picking=>pickStarted>=0;
+    private bool BeginPicking(Vector3 target)
+    {
+        if(item==null)return false;
+        float configured=float.NaN;bool instant=false;
+        try{lockpick=item.GetOptionalEquipableComponent<LockpickComponent>();if(lockpick!=null){configured=lockpick.lockpickTime;instant=lockpick.playerState!=null&&lockpick.playerState.InstantLockPick;}}
+        catch(Exception ex){lockpick=null;Bootstrap.Warn("LOCKPICK time unreadable: "+ex.Message);}
+        if(instant){Bootstrap.Write("LOCKPICK instant (the game's instant lockpicking is on)");return false;}
+        pickTime=LockpickTimerMath.Time(configured);pickStarted=Time.realtimeSinceStartup;nextNoise=0;pickNoiseFailed=false;
+        try{GameUIManager.ToggleLockpickingHud(true,0);GameUIManager.UpdateLockpickingHud(pickTime,0);}
+        catch(Exception ex){Bootstrap.Warn("LOCKPICK HUD: "+ex.Message);}
+        PickSound(target);rig.PunchHaptics(!WeaponHands.LeftHanded);
+        Bootstrap.Write("LOCKPICK turned in "+(action!=null?action.name:"?")+": picking for "+pickTime.ToString("F1")+" s"+(float.IsFinite(configured)?" (the game's lockpick time)":" (the game's time unreadable: the default)")+"; pulled out of the lock it stops");
+        return true;
+    }
+    private void TickPicking(Vector3 contact,Vector3 target)
+    {
+        float now=Time.realtimeSinceStartup;
+        if(LockpickTimerMath.PulledOut((contact-target).magnitude)){StopPicking("pulled out of the lock: turn it again to start over");gesture.Reset();return;}
+        float left=LockpickTimerMath.Remaining(pickStarted,pickTime,now);
+        try{GameUIManager.UpdateLockpickingHud(left,0);}catch(Exception){}
+        // The game's own picking noise (guards nearby can hear it).
+        if(!pickNoiseFailed&&now>=nextNoise)
+        {
+            nextNoise=now+.25f;
+            try{var noise=lockpick?.noiseComponent;if(noise!=null)noise.GenerateNoise(5,true,0f);}
+            catch(Exception ex){pickNoiseFailed=true;Bootstrap.Warn("LOCKPICK noise: "+ex.Message);}
+        }
+        // Its picking sound, started again whenever it ends while picking.
+        if(pickSounding&&pickSound.getPlaybackState(out var state)==FMOD.RESULT.OK&&state==FMOD.Studio.PLAYBACK_STATE.STOPPED){ReleasePickSound();PickSound(target);}
+        if(left>0)return;
+        StopPicking("");Bootstrap.Write("LOCKPICK done after "+pickTime.ToString("F1")+" s");
+        Complete(target);
+    }
+    private void PickSound(Vector3 at)
+    {
+        if(item==null||pickSounding)return;
+        pickSounding=NativeItemCue.Start(item,AudioComponent.AudioTrigger.Lockpick,at,out pickSound)||NativeItemCue.Start(item,AudioComponent.AudioTrigger.Equip,at,out pickSound);
+    }
+    private void ReleasePickSound()
+    {
+        if(!pickSounding)return;pickSounding=false;
+        try{pickSound.stop(FMOD.Studio.STOP_MODE.ALLOWFADEOUT);pickSound.release();}catch(Exception){}
+        pickSound=default;
+    }
+    private void StopPicking(string why)
+    {
+        if(pickStarted<0)return;pickStarted=-1;
+        try{GameUIManager.ToggleLockpickingHud(false,0);}catch(Exception ex){Bootstrap.Warn("LOCKPICK HUD: "+ex.Message);}
+        ReleasePickSound();
+        if(why.Length>0)Bootstrap.Write("LOCKPICK stopped: "+why);
+    }
+    internal void Cancel(){StopPicking("put away");lockpick=null;pick=false;action=null;actor=null;inventory=null;item=previousItem=null;anchor=null;fallbackSurface=null;reader.Clear();visual?.Dispose();visual=null;gesture.Reset();rig.DisarmTrigger();}
     public void Dispose(){Cancel();keyTurn.Dispose();}
 }

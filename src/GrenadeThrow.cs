@@ -40,8 +40,17 @@ internal sealed class GrenadeThrow
         if(rightHeld||!armed)return default;
         armed=false;
         if(now-armedAt<MinHold)return default;
-        // Fastest hand velocity over ~40 ms windows ending in the last 120 ms:
-        // the trigger tends to open just after the fastest point of the swing.
+        PinPulled=false;
+        if(!Fastest(now,out var velocity,out float bestSpeed))return new Result(Vector3.Zero,0);   // no history: it simply drops
+        return new Result(velocity,bestSpeed);
+    }
+    // 0.1.214: the throw letting go now would make (the landing mark), the
+    // gesture left as it is.
+    internal bool Peek(float now,out Vector3 velocity,out float handSpeed)=>Fastest(now,out velocity,out handSpeed);
+    // Fastest hand velocity over ~40 ms windows ending in the last 120 ms:
+    // the trigger tends to open just after the fastest point of the swing.
+    private bool Fastest(float now,out Vector3 velocity,out float handSpeed)
+    {
         Vector3 best=Vector3.Zero;float bestSpeed=-1;
         for(int i=0;i<count;i++)
         {
@@ -56,11 +65,11 @@ internal sealed class GrenadeThrow
                 break;
             }
         }
-        PinPulled=false;
-        if(bestSpeed<0)return new Result(Vector3.Zero,0);   // no history: it simply drops
-        var velocity=best*Boost;float speed=velocity.Length();
+        handSpeed=Math.Max(0,bestSpeed);velocity=Vector3.Zero;
+        if(bestSpeed<0)return false;
+        velocity=best*Boost;float speed=velocity.Length();
         if(speed>MaxSpeed)velocity*=MaxSpeed/speed;
-        return new Result(velocity,bestSpeed);
+        return true;
     }
     // 0.1.138: as briskly as a thrown prop. The hand's own speed against the
     // game's double gravity (20 m/s^2) dropped the grenade a few metres away,

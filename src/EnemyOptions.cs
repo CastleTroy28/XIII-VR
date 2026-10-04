@@ -11,7 +11,7 @@ internal static class EnemyOptions
     internal static bool Reenabled;
     internal static void Load(ConfigFile c)
     {
-        Smarter=c.Bind("VR","SmarterEnemies",true,"Searching enemies head roughly towards the player, idle less and search longer; armed enemies may pursue. Game menu > VR SETTINGS.");
+        Smarter=c.Bind("VR","SmarterEnemies",true,"Searching enemies head roughly towards the player, idle less and search longer; armed enemies may pursue. Config file only (0.1.224: no longer in VR SETTINGS).");
         Revision=c.Bind("VR","SmarterEnemiesRevision",0,"Internal: version of the smarter-enemies feature (do not edit).");
         Reenabled=false;
         if(Revision.Value<CurrentRevision)

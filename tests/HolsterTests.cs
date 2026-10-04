@@ -65,6 +65,10 @@ class HolsterTests
   Check(HolsterLayout.GrabRadiusOf(HolsterSlot.Belly)==HolsterLayout.GrabRadius&&HolsterLayout.SnapRadiusOf(HolsterSlot.BeltRight)==HolsterLayout.SnapRadius,"other places keep their reach");
   // 0.1.169: the left belt place (the pouch side) takes from further away, and hangs further off the pouch.
   Check(HolsterLayout.GrabRadiusOf(HolsterSlot.BeltLeft)>HolsterLayout.GrabRadius&&HolsterLayout.SnapRadiusOf(HolsterSlot.BeltLeft)>HolsterLayout.GrabRadiusOf(HolsterSlot.BeltLeft)&&HolsterLayout.HintRadiusOf(HolsterSlot.BeltLeft)>HolsterLayout.SnapRadiusOf(HolsterSlot.BeltLeft),"left belt reach");
+  // 0.1.214: the knife and grenade places on the chest take from further away; the nearer of the two is taken.
+  foreach(var sl in new[]{HolsterSlot.ChestLeft,HolsterSlot.ChestRight})
+   Check(HolsterLayout.GrabRadiusOf(sl)>HolsterLayout.GrabRadius&&HolsterLayout.SnapRadiusOf(sl)>HolsterLayout.GrabRadiusOf(sl)&&HolsterLayout.HintRadiusOf(sl)>HolsterLayout.SnapRadiusOf(sl),"chest reach "+sl);
+  Check(System.Numerics.Vector3.Distance(HolsterLayout.Pose(HolsterSlot.ChestLeft,false).Reach,HolsterLayout.Pose(HolsterSlot.ChestRight,false).Reach)>HolsterLayout.ChestGrabRadius,"one chest place's reach swallows the other's place");
   {var pouch=new System.Numerics.Vector3(-.19f,-.57f,.15f);Check(System.Numerics.Vector3.Distance(HolsterLayout.Pose(HolsterSlot.BeltLeft,false).Reach,pouch)>.21f,"left belt pistol still on the pouch");
    Check(System.Numerics.Vector3.Distance(HolsterLayout.Pose(HolsterSlot.BeltLeft,false).Reach,HolsterLayout.Pose(HolsterSlot.ArmpitLeft,false).Reach)>.15f,"left belt reach swallows the armpit place");
    Check(HolsterLayout.Pose(HolsterSlot.BeltRight,true).Reach==new System.Numerics.Vector3(-.20f,-.45f,0)&&HolsterLayout.Pose(HolsterSlot.BeltLeft,true).Reach==new System.Numerics.Vector3(.23f,-.45f,-.03f),"left-hander's belt places not mirrored");}

@@ -164,7 +164,11 @@ internal sealed partial class WeaponHands
         int g=GameSide(CurrentKey);if(g<0||weapon==null)return right;
         return (foreEndOnly?1-g:g)==s;
     }
-    internal bool PunchBlocked(bool right)=>!MeleeHand(right)&&(SupportsCopy(right)||(right?ForeEndHeld(1,CurrentKey):OffhandOccupied));
+    internal bool PunchBlocked(bool right)=>!MeleeHand(right)&&(SupportsCopy(right)||(right?ForeEndHeld(1,CurrentKey):OffhandOccupied)
+        // 0.1.221: a hand holding a magazine, rounds or a rocket by its grip does not punch with it.
+        ||ReloadHandHolding(right)||rocketSide==(right?1:0)||PouchTakesNow(right?1:0)
+        // 0.1.223: nor a hand working a bolt with its grip.
+        ||right==ReloadRight&&ManualReady&&reload.Racking);
     internal bool RightAtLeftGrenade{get;private set;}
     // The free hand collides with the game's weapon held by the other hand.
     // 0.1.196: not the hand holding its barrel.
@@ -200,14 +204,14 @@ internal sealed partial class WeaponHands
     private bool AtGameWeapon(Vector3 hand)
     {
         if(weapon==null||!poseValid||visual==null)return false;
-        var a=visual.FittedToWorld.MultiplyPoint3x4(HandleSided(NativeGrip(true,Vector3.zero)));var b=aimPosition;var ab=b-a;
+        var a=visual.FittedToWorld.MultiplyPoint3x4(PrimaryHandPoint());var b=aimPosition;var ab=b-a;
         float t=ab.sqrMagnitude>1e-8f?Mathf.Clamp01(Vector3.Dot(hand-a,ab)/ab.sqrMagnitude):0;
         return Vector3.Distance(hand,a+ab*t)<.16f;
     }
     private bool NearHandle(Vector3 hand)
     {
         if(weapon==null||visual==null)return false;
-        return Vector3.Distance(hand,visual.FittedToWorld.MultiplyPoint3x4(HandleSided(NativeGrip(true,Vector3.zero))))<HolsterLayout.GrabRadius+.03f;
+        return Vector3.Distance(hand,visual.FittedToWorld.MultiplyPoint3x4(PrimaryHandPoint()))<HolsterLayout.GrabRadius+.03f;
     }
     // 0.1.130: also while the game switches weapons (a weapon tossed up is
     // caught at once) and, while the game's weapon hangs by its fore-end in the
@@ -215,7 +219,9 @@ internal sealed partial class WeaponHands
     private bool HandFreeForWeapon(int s,Vector3 hand,bool valid,int key)
     {
         var c=s==0?rig.LeftControls:rig.RightControls;
-        if(!valid||!c.Valid||copyKey[s]>=0||CopySupported(1-s)||DualActive||LeftThrowBusy||MountedGunVr.HidesHands||inventory==null)return false;
+        if(!valid||!c.Valid||copyKey[s]>=0||CopySupported(1-s)||DualActive||LeftThrowBusy||MountedGunVr.HidesHands||inventory==null||rocketSide==s)return false;
+        // 0.1.221: at the belt while the gun wants rounds, the grip takes them (not a weapon there).
+        if(PouchTakes(s,hand))return false;
         bool leftJustNow=key==putAwayKey&&Time.realtimeSinceStartup-putAwayAt<1.5f;
         int g=leftJustNow?-1:GameSide(key);
         if(g==s&&!foreEndOnly)return false;
@@ -667,6 +673,8 @@ internal sealed partial class WeaponHands
         int s=right?1:0;
         // 0.1.196: the fist closed round a gun's barrel (a club).
         if(Clubbing(right))return ClubHandProfile(right);
+        // 0.1.219: a bazooka grip: the fingers closed round it.
+        if(copyKey[s]<0&&BazookaGripHand(right,out string bazookaGrip))return bazookaGrip;
         // 0.1.150: a long stick in the left hand (a left-hander): the left hand
         // at its end holds it as the right hand would, mirrored; the right hand
         // further up holds it with its own hold (the left's support hold mirrored).
@@ -751,6 +759,7 @@ internal sealed partial class WeaponHands
         }
         if(!rig.SampleLeftRelative(out var local,out var toWorld))return;
         var result=leftGrenadeGesture.Sample(now,held,ToN(local));
+        if(!result.Throw&&leftGrenadeGesture.PinPulled&&held)AimGrenadeLanding(0,leftGrenadeGesture,center,toWorld,holsters?.WeaponOf(copyKey[0]));
         if(result.Throw){StartLeftThrow(center,toWorld*new Vector3(result.Velocity.X,result.Velocity.Y,result.Velocity.Z),copy.Rotation,result.HandSpeed);return;}
         if(leftGrenadeGesture.PinPulled){copyGrip[0].Reset();return;}
         if(copyGrip[0].Step(mode,held,down))PutAwayCopy(0,hand);

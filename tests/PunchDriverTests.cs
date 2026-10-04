@@ -30,6 +30,9 @@ class PunchDriverTests
         f=new Fixture();f.Warm();Physics.Hits=new[]{new RaycastHit{collider=f.NpcCollider,distance=.03f},new RaycastHit{collider=new Collider(),distance=.01f}};f.Swing();Check(f.Melee.Hits==0&&f.Melee.Comics==1&&f.Melee.ImpactSounds==1&&f.Rig.Pulses==1&&PropImpactAudio.World==1&&PropImpactAudio.PropNpc==0,"wall should stop damage and produce one impact feedback");
         f=new Fixture();f.Warm();Physics.Hits=Enumerable.Repeat(new RaycastHit{collider=f.NpcCollider,distance=.01f},64).ToArray();f.Swing();Check(f.Melee.Hits==0,"saturated query should not guess nearest collider");
         f=new Fixture();f.Warm();f.Npc.CanDamage=false;f.Swing();Check(f.Melee.Hits==0,"invulnerable NPC damaged");
+        // 0.1.218: an ally: no damage, impact sound, comic picture, reaction or haptic pulse.
+        NpcHitReactions.Current!.Hits=0;NpcAllies.AllyNpc=true;f=new Fixture();f.Warm();f.Swing();
+        Check(f.Melee.Hits==0&&f.Melee.ImpactSounds==0&&f.Melee.Comics==0&&NpcHitReactions.Current.Hits==0&&f.Rig.Pulses==0&&NpcAllies.Told>0,"an ally punched");NpcAllies.AllyNpc=false;
         f=new Fixture();f.Warm();f.Weapon.slot=PlayerEquipableInventory.ActiveEquipmentSlot.Pistol;f.Swing();Check(f.Melee.Hits==0,"armed gun produced fist damage");
         f=new Fixture();f.Warm();for(int i=0;i<25;i++)f.Tick(new N.Vector3(0,0,i*.03f),N.Vector3.Zero,true);Check(f.Melee.Hits==0,"stick locomotion caused punch");
         f=new Fixture();f.Warm();for(int i=0;i<30;i++)f.Tick(new N.Vector3(0,0,i*.013f),new N.Vector3(0,0,i*.013f),true);Check(f.Melee.Hits==0&&f.Rig.Pulses==0,"gentle 1.3 m/s touching caused punch damage/impact");
@@ -198,6 +201,7 @@ namespace XiiiXR
         internal static Vector3 UnityPosition(PoseValue p)=>new(p.Position);internal void PunchHaptics(bool r){Pulses++;}
     }
 }
+namespace XiiiXR { static class NpcAllies { internal static bool AllyNpc;internal static int Told;internal static bool Ally(PlayMagic.AI.NPC? n)=>n!=null&&AllyNpc;internal static bool AllyCollider(UnityEngine.Collider? c,out PlayMagic.AI.NPC? n){n=c?.Npc;return Ally(n);}internal static void Refused(PlayMagic.AI.NPC? n,string what){Told++;} } }
 namespace Il2CppInterop.Runtime
 {
     static class Il2CppType{internal static Type Of<T>()=>typeof(T);}

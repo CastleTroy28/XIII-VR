@@ -90,7 +90,7 @@ internal sealed partial class NpcHitReactions:IDisposable
     // point, direction: world; speed: the hand's (m/s); from: where the fist came from.
     internal void Hit(NPC npc,Collider? collider,Vector3 point,Vector3 direction,float speed,bool held,Vector3 from)
     {
-        if(!WeaponOptions.NpcReactions.Value||npc==null)return;
+        if(!WeaponOptions.NpcReactions.Value||npc==null||NpcAllies.Ally(npc))return;
         try
         {
             if(direction.sqrMagnitude<1e-8f)direction=point-from;

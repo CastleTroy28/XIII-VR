@@ -9,7 +9,7 @@ class Verify
   using var p=ModuleDefinition.ReadModule(args.Length>0?args[0]:"xiii-xr/XIII.XRBootstrap.dll");
   var plugin=p.Types.Single(t=>t.Name=="Plugin");
   var info=plugin.CustomAttributes.Single(a=>a.AttributeType.Name=="BepInPlugin");
-  Require((string)info.ConstructorArguments[2].Value=="0.1.209","compiled plugin reports version 0.1.209");
+  Require((string)info.ConstructorArguments[2].Value=="0.1.231","compiled plugin reports version 0.1.231");
   var sceneHands=p.Types.Single(x=>x.Name=="WeaponHands");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="OnSceneChanged")).Any(x=>x.Name=="Clear"),"scene change clears weapon state");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="RegisterHand")).Any(x=>x.Name=="Clear"),"new native skeleton invalidates cached grip anchors");
@@ -141,7 +141,7 @@ class Verify
   var copyFire=Calls(weaponHandsType.Methods.Single(x=>x.Name=="CopyFire")).ToList();
   Require(Calls(weaponHandsType.Methods.Single(x=>x.Name=="TickCopy")).Any(x=>x.Name=="CopyFire")&&copyFire.Any(x=>x.Name=="FireBullet")&&copyFire.Any(x=>x.Name=="ExecuteFireTask"),"a weapon in the other hand does not fire by itself");
   Require(weaponHandsType.Methods.Single(x=>x.Name=="HitPoint").Body.Instructions.Any(i=>i.Operand is FieldReference f&&f.Name=="copyShooting")&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="BeforeProjectile")).Any(x=>x.Name=="CopyShotBy")&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="AimLaunch")).Any(x=>x.Name=="CopyShotBy"),"a copy's shot aims along the camera, not the copy");
-  Require(Calls(weaponHandsType.Methods.Single(x=>x.Name=="RenderPose")).Any(x=>x.Name=="HandleSided")&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="TryPoseHand")).Any(x=>x.Name=="LeftHandle"),"left-hand weapon not offset into the palm");
+  Require((Calls(weaponHandsType.Methods.Single(x=>x.Name=="RenderPose")).Any(x=>x.Name=="HandleSided")||Calls(weaponHandsType.Methods.Single(x=>x.Name=="RenderPose")).Any(x=>x.Name=="PrimaryHandPoint")&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="PrimaryHandPoint")).Any(x=>x.Name=="HandleSided"))&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="TryPoseHand")).Any(x=>x.Name=="LeftHandle"),"left-hand weapon not offset into the palm");
   Require(Calls(p.Types.Single(x=>x.Name=="PunchDriver").Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="MeleeHand")&&Calls(p.Types.Single(x=>x.Name=="PunchDriver").Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="PunchBlocked"),"only the right hand hits with a weapon");
   Require(!Calls(weaponHandsType.Methods.Single(x=>x.Name=="HandFreeForWeapon")).Any(x=>x.Name=="get_isInTransit")&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="TickHolstersCore")).Any(x=>x.Name=="TrySelectSlot"),"a weapon tossed up cannot be caught while the game switches");
   Require(Calls(weaponHandsType.Methods.Single(x=>x.Name=="PickUpInto")).Any(x=>x.Name=="TakeAnother")&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="TakeAnother")).Any(x=>x.Name=="AddLoose"),"a ground weapon of an owned kind takes the owned one off the body");
@@ -272,7 +272,7 @@ class Verify
   Require(durableCalls.Contains("DurableProp")&&durableCalls.Contains("PropHits")&&durableCalls.Contains("WearHeldProp")&&durableCalls.Contains("BreakHeldProp")&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="WearHeldProp")).Any(x=>x.Name=="BreakHeldProp"),"a broom or a shovel still breaks on its first blow");
   var mainInteraction=p.Types.Single(x=>x.Name=="InteractionDriver");
   Require(Calls(mainInteraction.Methods.Single(x=>x.Name=="Sample")).Any(x=>x.Name=="get_MainControls")&&Calls(mainInteraction.Methods.Single(x=>x.Name=="PrepareRay")).Any(x=>x.Name=="get_MainRight")&&Calls(p.Types.Single(x=>x.Name=="GripCarry").Methods.Single(x=>x.Name=="DropPosition")).Any(x=>x.Name=="get_LeftHanded"),"a left-hander still takes things and opens doors with the right hand");
-  foreach(var (type,method) in new[]{("GloveVisual","Pose"),("WheelItems","Render"),("WheelItems","Tick"),("KeyUnlockGesture","Tick"),("GameUiControls","Tick"),("VrPromptLabels","Label"),("WristHud","PoseGlove")})
+  foreach(var (type,method) in new[]{("GloveVisual","Pose"),("WheelItems","Render"),("WheelItems","Tick"),("KeyUnlockGesture","Tick"),("GameUiControls","Tick"),("VrPromptLabels","Source"),("WristHud","PoseGlove")})
    Require(Calls(p.Types.Single(x=>x.Name==type).Methods.Single(x=>x.Name==method)).Any(x=>x.Name=="get_LeftHanded"),"left-handed: "+type+"."+method+" still right-handed");
   Require(Calls(weaponHandsType.Methods.Single(x=>x.Name=="RenderPose")).Count(x=>x.Name=="HandLedGrip")>=2&&Calls(weaponHandsType.Methods.Single(x=>x.Name=="RenderPose")).Any(x=>x.Name=="MirrorQ"),"a thing held in the left hand is not held mirrored");
   Require(Calls(weaponHandsType.Methods.Single(x=>x.Name=="UpdatePropThrow")).Any(x=>x.Name=="Forget"&&x.DeclaringType.Name=="GripCarry")&&!Calls(weaponHandsType.Methods.Single(x=>x.Name=="UpdatePropThrow")).Any(x=>x.Name=="TryDropCurrentEquipableAndAmmo"),"a bottle's throw and the game's own drop both act on one release");
@@ -632,7 +632,7 @@ class Verify
   var loco197=p.Types.Single(x=>x.Name=="LocomotionDriver");var grapple197=p.Types.Single(x=>x.Name=="GrappleVr");
   Require(Calls(grapple197.Methods.Single(x=>x.Name=="Up")).Any(x=>x.Name=="get_ClimbStick")&&Calls(grapple197.Methods.Single(x=>x.Name=="Down")).Any(x=>x.Name=="get_ClimbStick")
    &&Calls(loco197.Methods.Single(x=>x.Name=="Inject")).Any(x=>x.Name=="Pressed"&&x.DeclaringType.Name=="RopeRelease")&&Calls(loco197.Methods.Single(x=>x.Name=="get_RopeSwing")).Any(x=>x.Name=="get_RightHanded")
-   &&Calls(C("VirtualButton")).Any(x=>x.Name=="get_RopeRightHanded")&&Calls(p.Types.Single(x=>x.Name=="VrPromptLabels").Methods.Single(x=>x.Name=="Label"&&x.Parameters.Count>=2&&x.Parameters[0].ParameterType.Name=="InputActions")).Any(x=>x.Name=="get_RightHanded"),"the rope of a hook fired from the right hand not mirrored (right stick climbs, left stick swings, R3 lets go)");
+   &&Calls(C("VirtualButton")).Any(x=>x.Name=="get_RopeRightHanded")&&Calls(p.Types.Single(x=>x.Name=="VrPromptLabels").Methods.Single(x=>x.Name=="Source"&&x.Parameters.Count>=1&&x.Parameters[0].ParameterType.Name=="InputActions")).Any(x=>x.Name=="get_RightHanded"),"the rope of a hook fired from the right hand not mirrored (right stick climbs, left stick swings, R3 lets go)");
   Require(Calls(p.Types.Single(x=>x.Name=="WheelItems").Methods.Single(x=>x.Name=="Render")).Any(x=>x.Name=="TryHeld")&&Calls(p.Types.Single(x=>x.Name=="HeldItemVisual").Methods.Single(x=>x.Name=="PoseMatrix")).Any(x=>x.Name=="Decompose"&&x.DeclaringType.Name=="ItemPlacement"),"the zipline hook not held as the game's arm holds it");
   // 0.1.198: the barrel deeper in the curled fingers; the zipline hook held by its handle as a pistol by its grip.
   var tool198=p.Types.Single(x=>x.Name=="WeaponHands");var items198=p.Types.Single(x=>x.Name=="WheelItems");var held198=p.Types.Single(x=>x.Name=="HeldItemVisual");
@@ -693,6 +693,167 @@ class Verify
    &&Calls(reader208).Any(x=>x.Name=="Classify"&&x.DeclaringType.Name=="TouchControlMath")&&Calls(reader208).Any(x=>x.Name=="get_doorRaycastTargets")
    &&p.Types.Single(x=>x.Name=="TouchControlReader").Methods.Where(m=>m.HasBody).SelectMany(Calls).Any(x=>x.Name=="Read"&&x.DeclaringType.Name=="DoorMotion")
    &&Str(touch208,"TOUCH BUTTON nothing pressed at ")&&Str(p.Types.Single(x=>x.Name=="TouchControlMath"),"AlarmActivator"),"a touch presses only interactions named as buttons (the alarm power boxes and some lifts never)");
+  // 0.1.210: the start screen through the game's any-button input; the game's own wheel (its tutorial) taken over; menus without Windows focus in VR.
+  var keyboard210=p.Types.Single(x=>x.Name=="MenuKeyboard");var ui210=p.Types.Single(x=>x.Name=="GameUiControls");
+  Require(Calls(keyboard210.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="Pulse")&&!Str(keyboard210,"GetAnyButtonDown")
+   &&Calls(ui210.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="AdoptGameWheel")&&Calls(ui210.Methods.Single(x=>x.Name=="OpenGameMenu")).Any(x=>x.Name=="CloseGameWheel")&&Calls(ui210.Methods.Single(x=>x.Name=="CloseGameWheel")).Any(x=>x.Name=="CloseWheel")
+   &&Calls(ui210.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="get_Playable")&&Calls(p.Types.Single(x=>x.Name=="VrMenuPointer").Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="get_Playable"),
+   "the start screen needs Windows focus, or the wheel the game's tutorial opens cannot be closed");
+  // 0.1.212: door and breakable prompts show only the game's icon; key, card and lockpick locks keep their text.
+  var labels212=p.Types.Single(x=>x.Name=="VrPromptLabels");var apply212=labels212.Methods.Single(x=>x.Name=="Apply");
+  Require(Calls(apply212).Any(x=>x.Name=="IconOnly")&&Calls(apply212).Any(x=>x.Name=="EnablePCBackground")&&Calls(apply212).Any(x=>x.Name=="SetInputHint")
+   &&Calls(labels212.Methods.Single(x=>x.Name=="IconOnly")).Any(x=>x.Name=="get_DoorTarget")
+   &&!labels212.Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.Operand is string t&&(t=="Push or pull it with your hand"||t=="Hit it with your hand or a weapon")),"door and grate prompts still show text");
+  // 0.1.213: a hostage taken by pointing a free hand at him and holding its grip; the start screen gets Enter at the press.
+  var carry213=p.Types.Single(x=>x.Name=="GripCarry");MethodDefinition C3(string n)=>carry213.Methods.Single(x=>x.Name==n);
+  Require(Calls(C3("PointHostage")).Any(x=>x.Name=="TakeHostage")&&Calls(C3("Pointed")).Any(x=>x.Name=="RaycastNonAlloc")&&Calls(C3("Pointed")).Any(x=>x.Name=="HostageAllowed")
+   &&Calls(C3("Pointed")).Any(x=>x.Name=="FirstNpc")&&Calls(C3("TickBody")).Any(x=>x.Name=="PointHostage")&&Calls(C3("HostagePrompt")).Any(x=>x.Name=="TogglePrompt")
+   &&Calls(p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Single(x=>x.Name=="FilterHints")).Any(x=>x.Name=="HostagePrompt")
+   &&Str(p.Types.Single(x=>x.Name=="VrPromptLabels"),"Hold right Grip"),"a hostage still has to be touched with the left hand");
+  // 0.1.214: right A ends the weapon wheel tutorial (its hint names right A); the next knife at once after a throw; the landing mark of throws.
+  var hands214=p.Types.Single(x=>x.Name=="WeaponHands");MethodDefinition H4(string n)=>hands214.Methods.Single(x=>x.Name==n);
+  var tutorial214=p.Types.Single(x=>x.Name=="WheelTutorial");MethodDefinition uiTick214=ui210.Methods.Single(x=>x.Name=="Tick");
+  Require(Calls(uiTick214).Any(x=>x.Name=="Ends"&&x.DeclaringType.Name=="WheelTutorialMath")&&Calls(uiTick214).Any(x=>x.Name=="End"&&x.DeclaringType.Name=="WheelTutorial")
+   &&Calls(tutorial214.Methods.Single(x=>x.Name=="End")).Any(x=>x.Name=="set_forceOpenWeaponWheel")&&Calls(tutorial214.Methods.Single(x=>x.Name=="End")).Any(x=>x.Name=="SetInputLock")
+   &&Calls(labels212.Methods.Single(x=>x.Name=="Source")).Any(x=>x.Name=="get_LabelsA")&&Calls(H4("TutorialStep")).Any(x=>x.Name=="Started"),"the weapon wheel tutorial still ends only with the menu chord");
+  Require(Calls(H4("TickHolstersCore")).Any(x=>x.Name=="KnifeRetake")&&Calls(H4("KnifeRetake")).Any(x=>x.Name=="Retake")&&Calls(H4("ThrowGameKnife")).Any(x=>x.Name=="KnifeReady")&&Calls(H4("TickKnifeThrow")).Any(x=>x.Name=="KnifeReady")
+   &&Calls(p.Types.Single(x=>x.Name=="HolsterLayout").Methods.Single(x=>x.Name=="GrabRadiusOf")).Any(x=>x.Name=="OnChest"),"the next knife still waits for the hand to be emptied after a throw");
+  Require(Calls(H4("KnifeGrip")).Any(x=>x.Name=="AimKnifeLanding")&&Calls(H4("TickCopyKnife")).Any(x=>x.Name=="AimKnifeLanding")&&Calls(H4("UpdatePropThrow")).Any(x=>x.Name=="AimPropLanding")
+   &&Calls(H4("TickGrenade")).Any(x=>x.Name=="AimGrenadeLanding")&&Calls(H4("TickLeftGrenade")).Any(x=>x.Name=="AimGrenadeLanding")&&Calls(H4("Tick")).Any(x=>x.Name=="TickLanding")
+   &&Calls(H4("ShowLanding")).Any(x=>x.Name=="Land")&&Calls(H4("LandingCast")).Any(x=>x.Name=="SphereCastNonAlloc")&&Calls(H4("LaunchProp")).Any(x=>x.Name=="FreezeLanding")&&Calls(H4("KnifeLaunch")).Any(x=>x.Name=="WatchKnifeFlight")
+   &&Calls(H4("AimGrenadeLanding")).Any(x=>x.Name=="Peek"),"throws show no landing mark");
+  // 0.1.215: keys on the stick click, the controller icons, the VR controls page, the bazooka by hand and its aim dot.
+  var interaction215=p.Types.Single(x=>x.Name=="InteractionDriver");
+  Require(Calls(interaction215.Methods.Single(x=>x.Name=="Sample")).Any(x=>x.Name=="Sample"&&x.DeclaringType.Name=="InteractionState"&&x.Parameters.Count==5)
+   &&Calls(interaction215.Methods.Single(x=>x.Name=="LockAimed")).Any(x=>x.Name=="get_conditionalResolved")
+   &&Calls(hands214.Methods.Single(x=>x.Name=="VirtualButton")).Any(x=>x.Name=="Taken"&&x.DeclaringType.Name=="LockStick")
+   &&Calls(p.Types.Single(x=>x.Name=="LocomotionDriver").Methods.Single(x=>x.Name=="Inject")).Any(x=>x.Name=="Taken"&&x.DeclaringType.Name=="LockStick")
+   &&Str(labels212,"Left/Right Grip")&&Str(labels212,"Right stick click")&&Calls(labels212.Methods.Single(x=>x.Name=="Apply")).Any(x=>x.Name=="TypeIcon")&&Calls(labels212.Methods.Single(x=>x.Name=="Apply")).Any(x=>x.Name=="Show"&&x.DeclaringType.Name=="PromptIcons"),
+   "keys still on grip + A, or hints without the controller icon");
+  var icons215=p.Types.Single(x=>x.Name=="PromptIcons");
+  Require(Calls(icons215.Methods.Single(x=>x.Name=="SpriteFor")).Any(x=>x.Name=="Paint")&&Calls(icons215.Methods.Single(x=>x.Name=="SpriteFor")).Any(x=>x.Name=="CreateSprite")
+   &&Calls(icons215.Methods.Single(x=>x.Name=="TypeIcon")).Any(x=>x.Name=="set_overrideSprite"),"the controller icon is not drawn into the game's hint");
+  var page215=p.Types.Single(x=>x.Name=="VrSettingsPage");
+  Require(Calls(page215.Methods.Single(x=>x.Name=="Ensure")).Any(x=>x.Name=="Copy")&&Calls(page215.Methods.Single(x=>x.Name=="RenderControls")).Any(x=>x.Name=="Body")
+   &&Calls(page215.Methods.Single(x=>x.Name=="OpenFrom")).Any(x=>x.Name=="Show"&&x.DeclaringType.Name=="ControlsSheet"),"no VR controls page");
+  Require(Calls(H4("Tick")).Any(x=>x.Name=="TickBazooka")&&Calls(H4("TickBazookaCore")).Any(x=>x.Name=="Take"&&x.DeclaringType.Name=="BazookaReloadMath")
+   &&Calls(H4("TickBazookaCore")).Any(x=>x.Name=="Insert"&&x.DeclaringType.Name=="BazookaReloadMath")&&Calls(H4("InsertRocket")).Any(x=>x.Name=="FireSound")
+   &&Calls(H4("InsertRocket")).Any(x=>x.Name=="TryRemoveAmmo")&&Calls(H4("ShowAimDot")).Any(x=>x.Name=="RaycastNonAlloc")
+   &&Calls(H4("AllowStockReload")).Any(x=>x.Name=="get_BazookaManual")&&Calls(H4("TakeRocket")).Any(x=>x.Name=="get_projectileUsedByPlayer"),"the bazooka still reloads the game's way, or has no aim dot");
+  // 0.1.216: a hard fist in an enemy's back knocks him out (the game's knockout, its takedown rule); a pointed hostage needs the grip held still.
+  var punch216=p.Types.Single(x=>x.Name=="PunchDriver");MethodDefinition P6(string n)=>punch216.Methods.Single(x=>x.Name==n);
+  Require(Calls(P6("Tick")).Any(x=>x.Name=="BackKnockout")&&Calls(P6("BackKnockout")).Any(x=>x.Name=="Knockout"&&x.DeclaringType.Name=="NPC")&&Calls(P6("BackKnockout")).Any(x=>x.Name=="CanBeStealthAttacked")
+   &&Calls(P6("BackKnockout")).Any(x=>x.Name=="FromBehind")&&Calls(P6("BackKnockout")).Any(x=>x.Name=="Hard")
+   &&Calls(p.Types.Single(x=>x.Name=="GripCarry").Methods.Single(x=>x.Name=="PointHostage")).Any(x=>x.Name=="HoldStep"),"a hard punch in the back does not knock out, or a punch takes the hostage");
+  // 0.1.217: no hand ball for the hand riding the zipline; the rocket held in the fist; the tube's own mouth; the hand-loaded rocket drawn in the tube.
+  var rig217=p.Types.Single(x=>x.Name=="CameraRig");var hands217=p.Types.Single(x=>x.Name=="WeaponHands");var visual217=p.Types.Single(x=>x.Name=="WeaponVisual");
+  MethodDefinition H7(string n)=>hands217.Methods.Single(x=>x.Name==n);
+  Require(Calls(rig217.Methods.Single(x=>x.Name=="UpdateMarkers")).Count(x=>x.Name=="HidesHand"&&x.DeclaringType.Name=="ZiplineVr")==2
+   &&Calls(H7("TickBazookaCore")).Any(x=>x.Name=="RocketInTube")&&Calls(H7("TickBazookaCore")).Any(x=>x.Name=="RocketHold")&&Calls(H7("RocketHold")).Any(x=>x.Name=="TryToolHold")&&Calls(H7("RocketHold")).Any(x=>x.Name=="HoldBar")
+   &&Calls(H7("BazookaMouth")).Any(x=>x.Name=="get_TubeMouth")&&Calls(visual217.Methods.Single(x=>x.Name=="MeasureTube")).Any(x=>x.Name=="Mouth")
+   &&Calls(visual217.Methods.Single(x=>x.Name=="RocketInTube")).Any(x=>x.Name=="Keep")&&Calls(visual217.Methods.Single(x=>x.Name=="RocketInTube")).Any(x=>x.Name=="set_Hidden")
+   &&Calls(p.Types.Single(x=>x.Name=="GloveVisual").Methods.Single(x=>x.Name=="Pose")).Any(x=>x.Name=="TryRocketHand")&&Calls(p.Types.Single(x=>x.Name=="GloveVisual").Methods.Single(x=>x.Name=="Pose")).Any(x=>x.Name=="PoseHeldRocket")
+   &&Calls(p.Types.Single(x=>x.Name=="NativeSkinSnapshot").Methods.Single(x=>x.Name=="Bake")).Any(x=>x.Name=="op_Multiply"),"a ball where the zipline hand was, the rocket not in the fist, the glow ahead of the tube, or the hand-loaded rocket not drawn");
+  // 0.1.218: the player's allies are left alone: no hostage, punch, thrown hit, gun grab, body grab or hit reaction.
+  bool AllyGuard(string type,string method)=>p.Types.Single(x=>x.Name==type).Methods.Where(x=>x.Name==method).SelectMany(Calls).Any(x=>x.DeclaringType.Name=="NpcAllies"&&(x.Name=="Ally"||x.Name=="AllyCollider"));
+  Require(AllyGuard("GripCarry","HostageAllowed")&&AllyGuard("GripCarry","TickBody")&&AllyGuard("PunchDriver","Tick")&&AllyGuard("PunchDriver","Thrown")&&AllyGuard("NpcHitReactions","Hit")
+   &&AllyGuard("NpcHitReactions","TryGrab")&&AllyGuard("BodyGrab","Grab")&&Calls(p.Types.Single(x=>x.Name=="GripCarry").Methods.Single(x=>x.Name=="HostageAllowed")).Any(x=>x.Name=="GameAllowsHostage")
+   &&Calls(p.Types.Single(x=>x.Name=="NpcAllies").Methods.Single(x=>x.Name=="Ally")).Any(x=>x.Name=="get_canBeHurtByPlayer")&&Calls(p.Types.Single(x=>x.Name=="NpcAllies").Methods.Single(x=>x.Name=="Ally")).Any(x=>x.Name=="get_canBeTakenHostageEvenIfCannotBeHurt"),"an ally can be taken hostage, punched, grabbed or made to react");
+  // 0.1.219: the bazooka's grips held as a pistol's, fingers closed round them; the left hand mirrored across the handle.
+  var hands219=p.Types.Single(x=>x.Name=="WeaponHands");MethodDefinition H9(string n)=>hands219.Methods.Single(x=>x.Name==n);
+  // (0.1.224: the front grip where the game's hands are, not a closed hand's grip point: see below.)
+  Require(Calls(H9("NativeGrip")).Any(x=>x.Name=="BazookaGrip")&&Calls(H9("BazookaHold")).Any(x=>x.Name=="get_FrontGripBar")
+   &&Calls(H9("HandProfileFor")).Any(x=>x.Name=="BazookaGripHand")&&Calls(p.Types.Single(x=>x.Name=="WeaponVisual").Methods.Single(x=>x.Name=="FindGripBars")).Any(x=>x.Name=="GripBar"),"the bazooka's grips held with flat hands, or the left hand off the handle");
+  // 0.1.221: the other hand's grip takes magazines, rounds and rockets from the belt (the trigger racks); the belt's
+  // holster place yields while the gun wants rounds; the bazooka's support hand placed in its own frame on the
+  // front grip (its bracket trimmed), the handle left to the game's hold; the bazooka mirrored across its tube.
+  var hands221=p.Types.Single(x=>x.Name=="WeaponHands");MethodDefinition H1(string n)=>hands221.Methods.Single(x=>x.Name==n);
+  var gripBit=p.Types.Single(x=>x.Name=="HandControls").Fields.Single(x=>x.Name=="Grip").Constant;
+  var visual221=p.Types.Single(x=>x.Name=="WeaponVisual");
+  Require(hands221.Fields.Any(x=>x.Name=="AmmoButton"&&x.HasConstant&&Equals(x.Constant,gripBit))
+   &&Calls(H1("TickReload")).Any(x=>x.Name==".ctor"&&x.DeclaringType.Name.StartsWith("Nullable"))&&Calls(H1("HandFreeForWeapon")).Any(x=>x.Name=="PouchTakes")
+   &&Calls(H1("HandFree")).Any(x=>x.Name=="PouchTakesNow")&&Calls(H1("PunchBlocked")).Any(x=>x.Name=="PouchTakesNow")
+   &&Calls(H1("PouchTakes")).Any(x=>x.Name=="WantsSupply")
+   &&!Calls(H1("BazookaGrip")).Any(x=>x.Name=="get_RearGripBar")&&Calls(H1("NativeGrip")).Any(x=>x.Name=="get_SymmetryX")
+   &&visual221.Fields.Any(x=>x.Name=="FrontTrim")&&Calls(visual221.Methods.Single(x=>x.Name=="FindGripBars")).Any(x=>x.Name=="GripBar")
+   &&Str(p.Types.Single(x=>x.Name=="ControlsSheet"),"Left Grip at the belt pouch, then into the gun"),"magazines still taken with the trigger, the belt's holster taking the grip, or the bazooka's support hand off its grip");
+  // 0.1.222: a bottle grabbed and thrown in one motion: the grip let go in a swing while the game was still drawing it throws it once it is in the hand; the carry neither drops it meanwhile nor forgets the press that took it.
+  var hands222=p.Types.Single(x=>x.Name=="WeaponHands");MethodDefinition H2(string n)=>hands222.Methods.Single(x=>x.Name==n);
+  var carry222=p.Types.Single(x=>x.Name=="GripCarry").Methods.Single(x=>x.Name=="Tick");
+  Require(Calls(H2("SampleSwings")).Any(x=>x.Name=="NoteGrips")&&Calls(H2("NoteGrips")).Any(x=>x.Name=="SwingThrow")&&Calls(H2("NoteGrips")).Any(x=>x.Name=="LetGo"&&x.DeclaringType.Name=="GripLetGo")
+   &&Calls(H2("UpdatePropThrow")).Any(x=>x.Name=="NoteLateThrow")&&Calls(H2("UpdatePropThrow")).Any(x=>x.Name=="LateThrow")&&Calls(H2("NoteLateThrow")).Any(x=>x.Name=="SwungSincePress")
+   &&Calls(H2("LateThrow")).Any(x=>x.Name=="CanStart")&&Calls(H2("LateThrow")).Any(x=>x.Name=="LaunchProp")&&Calls(H2("LateThrow")).Any(x=>x.Name=="Forget")
+   &&Calls(carry222).Any(x=>x.Name=="AwaitsThrow")&&Calls(carry222).Any(x=>x.Name=="Lost"),"a bottle grabbed and let go in one swing stays in the hand (a second press needed to throw it)");
+  // 0.1.223: the grip works bolts too; the M60's box goes in at its place and its open cover is pressed shut by a hand;
+  // the bazooka's front grip held as the game holds its handle (moved, mirrored), the handle's fingers closed on the trigger.
+  var hands223=p.Types.Single(x=>x.Name=="WeaponHands");MethodDefinition H3(string n)=>hands223.Methods.Single(x=>x.Name==n);
+  Require(Calls(H3("TickReload")).Any(x=>x.Name=="PushCover")&&Calls(H3("PushCover")).Any(x=>x.Name=="Step"&&x.DeclaringType.Name=="CoverPush")&&Calls(H3("PushCover")).Any(x=>x.Name=="PushCoverShut")
+   &&Calls(H3("PushCover")).Any(x=>x.Name=="set_CoverPushDegrees")&&Calls(p.Types.Single(x=>x.Name=="WeaponVisual").Methods.Single(x=>x.Name=="TickCover")).Any(x=>x.Name=="get_CoverPushDegrees")
+   &&Calls(H3("BazookaHold")).Any(x=>x.Name=="get_TriggerGripBar")&&Str(hands223,"bazooka_trigger")
+   &&Calls(p.Types.Single(x=>x.Name=="WeaponVisual").Methods.Single(x=>x.Name=="FindGripBars")).Any(x=>x.Name=="TriggerGripBone")
+   &&Str(p.Types.Single(x=>x.Name=="ControlsSheet"),"Left Grip at the bolt or pump, pull back")&&!Str(p.Types.Single(x=>x.Name=="ControlsSheet"),"Left trigger at the bolt, pull back (pump: Left Grip)"),
+   "bolts still worked with the trigger, the M60 box or cover the old way, or the bazooka's hands as before");
+  // 0.1.224: no "Smarter enemies" row in VR SETTINGS; the enemies themselves unchanged (still ticked, still guarded).
+  var menu224=p.Types.Single(x=>x.Name=="QualityMenu");
+  Require(!Str(menu224,"Smarter enemies")&&!menu224.Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.Operand is FieldReference f&&f.DeclaringType.Name=="EnemyOptions")
+   &&Calls(p.Types.Single(x=>x.Name=="EnemyAi").Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="get_Value"),"the smarter enemies row is still in VR SETTINGS, or the enemies no longer follow their setting");
+  // 0.1.226: the left hand on the handle in the left hand; the rocket held with the fingers and thumb opened round its tube.
+  // 0.1.227: each hand closed round its grip (the middle of the fingers' curls on the grip's line, each finger onto
+  // it, the thumb clear of it), not at a place a game's hand once had; the rocket's tube along the fingers' line
+  // through their curls; why a two-hand support hand is not drawn on the front grip is written to the log.
+  var hands225=p.Types.Single(x=>x.Name=="WeaponHands");MethodDefinition H5(string n)=>hands225.Methods.Single(x=>x.Name==n);
+  var tube227=p.Types.Single(x=>x.Name=="BazookaTubeMath");var fingers227=p.Types.Single(x=>x.Name=="FingerPoseMath");MethodDefinition F7(string n)=>fingers227.Methods.Single(x=>x.Name==n);
+  Require(Calls(H5("BazookaGrip")).Any(x=>x.Name=="BazookaHold")&&Calls(H5("BazookaLeftHandle")).Any(x=>x.Name=="BazookaHold")
+   &&Calls(H5("BazookaHold")).Any(x=>x.Name=="GripFit"&&x.DeclaringType.Name=="NativeHandVisual")&&Calls(H5("BazookaHold")).Any(x=>x.Name=="OnGrip")&&Calls(H5("BazookaHold")).Any(x=>x.Name=="DrawnChannel")
+   &&!tube227.Fields.Any(x=>x.Name is "RightOnHandle" or "LeftOnFront" or "RightOnFront" or "LeftOnHandle")&&!tube227.Methods.Any(x=>x.Name=="get_LeftTurn")
+   &&Calls(H5("TryPoseHand")).Any(x=>x.Name=="BazookaLeftHandle")&&Calls(H5("TryPoseHand")).Any(x=>x.Name=="SupportMiss")
+   &&Calls(H5("PrimaryHandPoint")).Any(x=>x.Name=="BazookaLeftHandle")&&hands225.Methods.Where(m=>m.Name=="RenderPose").SelectMany(Calls).Any(x=>x.Name=="PrimaryHandPoint")
+   &&!Calls(H5("BazookaHold")).Any(x=>x.Name=="TryPistolHold"||x.Name=="LongHandleContact"||x.Name=="MoveHold"||x.Name=="TryWeaponGrip")
+   &&Calls(F7("FitGrip")).Any(x=>x.Name=="GripChannel")&&Calls(F7("FitGrip")).Any(x=>x.Name=="Clearance")&&Calls(F7("GripChannel")).Any(x=>x.Name=="FingerCircle")
+   &&Calls(F7("HeldPose")).Any(x=>x.Name=="GripFit")&&Calls(F7("HeldPose")).Any(x=>x.Name=="ThumbAmount")
+   &&Calls(H5("RocketHold")).Any(x=>x.Name=="RocketWrap")&&Calls(H5("RocketWrap")).Any(x=>x.Name=="GripFit")&&Calls(H5("RocketHold")).Any(x=>x.Name=="TryToolHold")
+   &&Calls(p.Types.Single(x=>x.Name=="GloveVisual").Methods.Single(x=>x.Name=="Pose")).Any(x=>x.Name=="RocketGripProfile")
+   &&Calls(H5("BazookaGripHand")).Any(x=>x.Name=="get_PrimaryLeft"),"the bazooka's hands at a game hand's old place (off the grips), or the rocket's tube off the fingers' curls");
+  // 0.1.228: the bazooka fitted without its rocket at its usual scale (a second one, its rocket held further back,
+  // came out a third bigger and the hands off its handles); the thumb wraps round the handle too; the hold worked
+  // out when the hands are drawn before the gun; why a bazooka hand is not on its handle is written to the log.
+  var visual228=p.Types.Single(x=>x.Name=="WeaponVisual");
+  Require(Calls(visual228.Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="TrimRocket")&&Calls(visual228.Methods.Single(x=>x.Name=="TrimRocket")).Any(x=>x.Name=="RocketBone")
+   &&Calls(visual228.Methods.Single(x=>x.Name=="TrimRocket")).Any(x=>x.Name=="WithoutAttachment")&&p.Types.Single(x=>x.Name=="WeaponGeometry").Fields.Any(x=>x.Name=="BazookaScale")
+   &&Calls(visual228.Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="Fit"&&x.DeclaringType.Name=="WeaponGeometry"&&x.Parameters.Count==4)
+   &&visual228.Methods.Single(x=>x.Name=="Build").Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-1.1f/.402614f)<1e-4f)
+   &&Calls(H5("TryPoseHand")).Count(x=>x.Name=="NativeGrip")>=1&&Calls(p.Types.Single(x=>x.Name=="GloveVisual").Methods.Single(x=>x.Name=="Pose")).Any(x=>x.Name=="NoteSupportGlove")
+   &&Str(hands225,"BAZOOKA the hand holding it is not drawn on its handle: "),"the bazooka fitted by its length with its rocket (its size and handles changing with the rocket's place)");
+  // 0.1.229: the bazooka drawn still as taken (its fit and grips were measured so), only its rocket moving with the
+  // game (a shot, a reload or its empty pose moved the whole drawn bazooka off the hands); a hold report every few seconds.
+  var snapshot229=p.Types.Single(x=>x.Name=="NativeSkinSnapshot");
+  Require(Calls(visual228.Methods.Single(x=>x.Name=="RefreshAnimation")).Any(x=>x.Name=="BakeStill")&&Calls(visual228.Methods.Single(x=>x.Name=="RefreshAnimation")).Any(x=>x.Name=="get_HeldStill")
+   &&Calls(snapshot229.Methods.Single(x=>x.Name=="BakeStill")).Any(x=>x.Name=="get_Initial")&&Calls(snapshot229.Methods.Single(x=>x.Name=="BakeStill")).Any(x=>x.Name=="Sample")
+   &&Calls(visual228.Methods.Single(x=>x.Name=="MeasureTube")).Any(x=>x.Name=="BindRelation")&&Calls(visual228.Methods.Single(x=>x.Name=="LivePoses")).Any(x=>x.Name=="get_HeldStill")
+   &&Calls(H5("TickBazooka")).Any(x=>x.Name=="BazookaHoldReport")&&Str(hands225,"BAZOOKA HOLD ")&&Calls(H5("BazookaHoldReport")).Any(x=>x.Name=="StillDrift")
+   &&Calls(p.Types.Single(x=>x.Name=="GloveVisual").Methods.Single(x=>x.Name=="Pose")).Any(x=>x.Name=="NoteHandDrawn")
+   &&Calls(H5("TryPoseHand")).Any(x=>x.Name=="WeaponState")&&Calls(H5("WeaponState")).Any(x=>x.Name=="ControlGate")&&Calls(H5("TryPoseHand")).Any(x=>x.Name=="NoteHold"),
+   "the bazooka drawn as the game animates it (off the hands on its grips), or no hold report");
+  // 0.1.230: a story Timeline that is no Cutscene (the last mission's memory opening) is skipped too; in a memory (a playable
+  // flashback) nobody is taken hostage, punched or grabbed (the game's own hostage rule there; Kim was taken by the VR rule).
+  var rig229=p.Types.Single(x=>x.Name=="CameraRig");MethodDefinition R9(string n)=>rig229.Methods.Single(x=>x.Name==n);
+  var allies229=p.Types.Single(x=>x.Name=="NpcAllies");
+  Require(Calls(R9("SkipStoryInput")).Any(x=>x.Name=="StoryDirector")&&Calls(R9("SkipStoryInput")).Count(x=>x.Name=="StartFastForward")>=2
+   &&Calls(R9("StoryDirector")).Any(x=>x.Name=="get_VirtualCameraGameObject")&&Calls(R9("StoryDirector")).Any(x=>x.Name=="FindObjectsOfType")&&Calls(R9("Skippable")).Any(x=>x.Name=="Skippable"&&x.DeclaringType.Name=="StorySkipPolicy")
+   &&Calls(R9("TickStoryFastForward")).Any(x=>x.Name=="Finished")&&Calls(R9("Finished")).Any(x=>x.Name=="HeldAtEnd")
+   &&Calls(allies229.Methods.Single(x=>x.Name=="Ally")).Any(x=>x.Name=="get_InFlashback")&&Calls(allies229.Methods.Single(x=>x.Name=="GameAllowsHostage")).Any(x=>x.Name=="get_InFlashback")
+   &&Calls(allies229.Methods.Single(x=>x.Name=="get_InFlashback")).Any(x=>x.Name=="get_IsInFlashback"&&x.DeclaringType.Name=="GameManager"),
+   "a story timeline that is no Cutscene cannot be skipped, or someone in a memory can be taken hostage");
+  // 0.1.231: the hand on the bazooka's handle moved up it until the index fingertip is level with the trigger (its bone measured).
+  Require(Calls(H5("BazookaHold")).Any(x=>x.Name=="RaiseToTrigger")&&Calls(H5("BazookaHold")).Any(x=>x.Name=="IndexPad"&&x.DeclaringType.Name=="NativeHandVisual")
+   &&Calls(H5("BazookaHold")).Any(x=>x.Name=="get_TriggerPoint")&&Calls(H5("BazookaHold")).Any(x=>x.Name=="get_TriggerGripTop")
+   &&Calls(visual228.Methods.Single(x=>x.Name=="FindGripBars")).Any(x=>x.Name=="TriggerBone")&&Calls(visual228.Methods.Single(x=>x.Name=="FindGripBars")).Any(x=>x.Name=="TopAlong"),
+   "the bazooka's handle hand left low on the handle (its index below the trigger)");
+  // 0.1.220: a turned lockpick runs the game's lockpicking time on its HUD before the lock opens.
+  var key220=p.Types.Single(x=>x.Name=="KeyUnlockGesture");MethodDefinition K0(string n)=>key220.Methods.Single(x=>x.Name==n);
+  Require(Calls(K0("Tick")).Any(x=>x.Name=="BeginPicking")&&Calls(K0("Tick")).Any(x=>x.Name=="TickPicking")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="ToggleLockpickingHud")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="get_lockpickTime")
+   &&Calls(K0("BeginPicking")).Any(x=>x.Name=="get_InstantLockPick")&&Calls(K0("TickPicking")).Any(x=>x.Name=="UpdateLockpickingHud")&&Calls(K0("TickPicking")).Any(x=>x.Name=="Complete")&&Calls(K0("TickPicking")).Any(x=>x.Name=="GenerateNoise")
+   &&Calls(K0("StopPicking")).Any(x=>x.Name=="ToggleLockpickingHud")&&Calls(K0("Cancel")).Any(x=>x.Name=="StopPicking")&&Calls(K0("PickSound")).Any(x=>x.Name=="Start"&&x.DeclaringType.Name=="NativeItemCue"),"a lockpick opens the lock at the turn, without the game's lockpicking time");
   var key203=p.Types.Single(x=>x.Name=="KeyUnlockGesture");MethodDefinition K3(string n)=>key203.Methods.Single(x=>x.Name==n);
   Require(Calls(K3("Tick")).Any(x=>x.Name=="Card"&&x.DeclaringType.Name=="UnlockGestureMath")&&Calls(K3("Tick")).Any(x=>x.Name=="CardTouches")
    &&Calls(K3("CardTouches")).Any(x=>x.Name=="WorldProbe")&&Calls(K3("Intercept")).Any(x=>x.Name=="CollectReader")
@@ -869,7 +1030,7 @@ class Verify
   Require(!interaction.Methods.SelectMany(Calls).Any(x=>new[]{"PickupItem","TryPickupItem","AddItem","TriggerAction"}.Contains(x.Name)),"interaction uses native ray/button pipeline without forcing inventory or quest actions");
   var keyGate=p.Types.Single(x=>x.Name=="KeyUnlockGesture");
   Require(Calls(keyGate.Methods.Single(x=>x.Name=="Intercept")).Any(x=>x.Name=="HasItemToResolveConditional"),"gesture requires owned native key/card");
-  Require(Calls(keyGate.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="ResolveConditional")&&!keyGate.Methods.SelectMany(Calls).Any(x=>x.Name=="set_conditionalResolved"||x.Name=="TriggerInteractions"),"gesture resumes native conditional without forcing unlocked state");
+  Require(Calls(keyGate.Methods.Single(x=>x.Name=="Complete")).Any(x=>x.Name=="ResolveConditional")&&Calls(keyGate.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="Complete")&&!keyGate.Methods.SelectMany(Calls).Any(x=>x.Name=="set_conditionalResolved"||x.Name=="TriggerInteractions"),"gesture resumes native conditional without forcing unlocked state");
   Require(Calls(interaction.Methods.Single(x=>x.Name=="TryUseTool")).Any(x=>x.Name=="IsRaycastHittablePingValid")&&Calls(interaction.Methods.Single(x=>x.Name=="TryUseTool")).Any(x=>x.Name=="IsInteractionBlocked"),"wheel tool respects native target permission");
   var touch=p.Types.Single(x=>x.Name=="TouchButtons");
   Require(Calls(touch.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="PingRaycastHittable")&&!touch.Methods.SelectMany(Calls).Any(x=>x.Name=="TriggerInteractions"),"touch buttons use native ping validation");
@@ -980,7 +1141,8 @@ class Verify
   Require(Calls(nativeHand.Methods.Single(x=>x.Name=="Build")).Any(x=>x.DeclaringType.Name=="NativeHandMath"&&x.Name=="Frame"),"crop uses tested neutral frame independent of renderer scale");
   Require(Calls(nativeHand.Methods.Single(x=>x.Name=="TryWeaponGrip")).Any(x=>x.Name=="get_GameWorldToFitted"),"hands and weapons share fitted coordinate system");
   Require(Calls(weapons.Methods.Single(x=>x.Name=="TryPoseHand")).Any(x=>x.Name=="get_SupportHeld"),"left hand attachment gated by live support grip state");
-  Require(Calls(weapons.Methods.Single(x=>x.Name=="RenderPose")).Count(x=>x.Name=="NativeGrip")==2,"both primary and support grips drive tracked weapon pose");
+  // 0.1.225: the primary grip through PrimaryHandPoint (the bazooka's left hand on its handle).
+  Require(Calls(weapons.Methods.Single(x=>x.Name=="RenderPose")).Count(x=>x.Name=="NativeGrip")+Calls(weapons.Methods.Single(x=>x.Name=="RenderPose")).Count(x=>x.Name=="PrimaryHandPoint")==2&&Calls(weapons.Methods.Single(x=>x.Name=="PrimaryHandPoint")).Any(x=>x.Name=="NativeGrip"),"both primary and support grips drive tracked weapon pose");
   Require(!nativeHand.Methods.SelectMany(Calls).Any(x=>x.Name=="Instantiate"||x.DeclaringType.Name=="Animator"&&x.Name!="IsInTransition"&&!x.Name.StartsWith("get_")),"native hand adapter only reads animator state; never clones or drives gameplay animation");
   var punch=p.Types.Single(x=>x.Name=="PunchDriver");
   Require(Calls(punch.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.DeclaringType.Name=="PropImpactAudio"&&x.Name=="Surface"),"physical contacts use scoped prop NPC impact sound routing");
@@ -994,7 +1156,7 @@ class Verify
   Require(!chairAudio.Methods.SelectMany(Calls).Any(x=>x.DeclaringType.Name is "AudioSource" or "AudioClip"),"chair recording uses game FMOD output, not inactive Unity audio");
   Require(Calls(chairAudio.Methods.Single(x=>x.Name=="Play"&&x.Parameters.Count==4)).Any(x=>x.Name=="set3DAttributes")&&Calls(chairAudio.Methods.Single(x=>x.Name=="Play"&&x.Parameters.Count==4)).Any(x=>x.Name=="getChannelGroup"),"chair impact has a contact position and routes through game master bus");
   Require(Calls(punch.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="ApplyDamageTo"&&x.DeclaringType.Name=="MeleeComponent"),"physical contact uses native melee damage pipeline");
-  Require(!punch.Methods.SelectMany(Calls).Any(x=>new[]{"ReceiveDamage","set_Health","Die","Knockout","DoMeleeAttack","TryHit"}.Contains(x.Name)),"punch driver neither writes health nor performs remote/native duplicate area attacks");
+  Require(!punch.Methods.Where(x=>x.Name!="BackKnockout").SelectMany(Calls).Any(x=>new[]{"ReceiveDamage","set_Health","Die","Knockout","DoMeleeAttack","TryHit"}.Contains(x.Name))&&!Calls(punch.Methods.Single(x=>x.Name=="BackKnockout")).Any(x=>new[]{"ReceiveDamage","set_Health","Die","DoMeleeAttack","TryHit"}.Contains(x.Name)),"punch driver neither writes health nor performs remote/native duplicate area attacks (only the knockout from behind uses the game's Knockout)");
   Require(Calls(punch.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="PhysicalHand"),"punch speed derives from physical tracking, not world locomotion");
   Require(!Calls(weapons.Methods.Single(x=>x.Name=="UpdateSocket")).Any(x=>x.Name=="CreatePrimitive"),"support grip marker is invisible");
   Require(Calls(weapons.Methods.Single(x=>x.Name=="RenderPose")).Any(x=>x.DeclaringType.Name=="WeaponInertia"&&x.Name=="Step"),"inertia feeds the actual render and firing pose");

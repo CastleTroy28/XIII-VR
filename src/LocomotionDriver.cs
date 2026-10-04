@@ -332,6 +332,8 @@ internal sealed partial class LocomotionDriver : IDisposable
                 result|=phase==0?e.Held:phase==1?e.Down:e.Up;
                 return;
             }
+            // 0.1.215: L3 at a key, card or lockpick lock (left-handed) takes the item out, not a sprint.
+            if(button==c.sprintAction&&LockStick.Taken(false))return;
             var action = button == c.jumpAction ? c.state.Jump : button==c.sprintAction ? c.state.Sprint : c.state.Crouch;
             result |= phase == 0 ? action.Held : phase == 1 ? action.Down : action.Up;
             if(button==c.crouchAction)result|=phase==0?c.physicalHold||c.physicalPulse>0:phase==1?c.physicalDown:c.physicalUp;

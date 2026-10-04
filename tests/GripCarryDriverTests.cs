@@ -37,6 +37,8 @@ class GripCarryDriverTests
   rig.RightControls=new(true,HandControls.Trigger,0,0);Tick();Tick();Check(hostage.Released==released,"held right trigger released the hostage");
   rig.RightControls=new(true,0,0,HandControls.Trigger);Tick();Tick();Check(hostage.Released==released+1&&npc.Knocked==knocked+1,"right trigger release fails to release/knock out");
   hostage.Permit=false;npc.actorStatus=ActorStatus.Conscious;Check(!carry.TryTriggerHostage(false,npc,touched,new Vector3(1,1,1)),"trigger hostage bypassed native permission");hostage.Permit=true;
+  // 0.1.218: an ally is never taken, even where the game's check would let him be.
+  NpcAllies.Allies.Add(npc);Check(!carry.TryTriggerHostage(false,npc,touched,new Vector3(1,1,1))&&hostage.Taken==taken+1&&NpcAllies.Told>0,"an ally taken hostage");NpcAllies.Allies.Clear();
   // 0.1.112: grabbing from behind (the NPC faces away from the head) works even when the
   // native check (body/camera based) refuses; never when the NPC is not in a hostage state.
   rig.LeftControls=new(true,0,0,0);rig.RightControls=new(true,0,0,0);Tick();Tick();
@@ -149,11 +151,12 @@ namespace XiiiXR
   internal static Vector3 UnityPosition(PoseValue p)=>p.Position;internal void PunchHaptics(bool right){if(!right)Haptics++;}
  }
  class GameUiControls{internal static GameUiControls? Current=null;internal bool BlocksGameplay=>false;}
- class WeaponHands{internal static WeaponHands? Current=null;internal bool HandFree(bool right)=>true;internal static bool LeftHanded=>false;internal bool PrimaryLeft=>false;internal static WeaponGripMode GripMode=WeaponGripMode.Always;}
+ class WeaponHands{internal static WeaponHands? Current=null;internal bool HandFree(bool right)=>true;internal static bool LeftHanded=>false;internal bool PrimaryLeft=>false;internal static WeaponGripMode GripMode=WeaponGripMode.Always;internal bool AwaitsThrow(PlayMagic.Weapons.Equipable e)=>false;}
  enum WeaponGripMode{Hold=0,Toggle=1,Always=2}
  class InteractionDriver{internal static InteractionDriver? Current;internal bool Occupied;internal bool HandOccupied(bool right)=>!right&&Occupied;}
  class ContactRig{internal static ContactRig? Current=null;internal bool ResolveHand(bool r,bool attached,ref Vector3 p,ref Quaternion q)=>true;}
  static class ControllerAim{internal static Quaternion Rotation(PoseValue p)=>new();}
  static class Bootstrap{internal static void Write(string s){}internal static void Warn(string s)=>throw new Exception(s);}
 }
+namespace XiiiXR { static class NpcAllies { internal static readonly System.Collections.Generic.HashSet<PlayMagic.AI.NPC> Allies=new();internal static int Told;internal static bool Ally(PlayMagic.AI.NPC? n)=>n!=null&&Allies.Contains(n);internal static bool GameAllowsHostage(PlayMagic.AI.NPC n)=>!Ally(n);internal static void Refused(PlayMagic.AI.NPC? n,string what){Told++;} } }
 namespace XiiiXR { static class WindowFocus { internal static bool Playable=>UnityEngine.Application.isFocused; } }

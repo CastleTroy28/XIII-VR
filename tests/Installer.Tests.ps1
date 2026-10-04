@@ -43,6 +43,11 @@ try {
     $found=@(Get-RetiredFiles $game | ForEach-Object { Split-Path $_ -Leaf } | Sort-Object)
     Check (($found -join ',') -eq (($retired | Sort-Object) -join ',')) ('retired helpers found: '+($found -join ','))
     Check (@(Get-RetiredFiles (Join-Path $root 'missing-game')).Count -eq 0) 'retired helpers found in a missing folder'
+    # 0.1.210: the launchers run the installer whatever the PowerShell script policy (Windows blocks scripts by default).
+    foreach ($launcher in @('Install-XIII-VR.cmd','Restore-XIII-VR.cmd')) {
+        $text=[IO.File]::ReadAllText((Join-Path (Split-Path $scriptPath -Parent) $launcher))
+        Check ($text -match 'powershell\.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-XIII-VR\.ps1"') ($launcher+' does not bypass the script execution policy')
+    }
     $ini=Join-Path $root 'doorstop.ini'
     [IO.File]::WriteAllText($ini,"[General]`nEnabled = true`nTarget_Assembly = BepInEx/core/BepInEx.Unity.IL2CPP.dll`n[Il2Cpp]`nCoreClr_Path = dotnet/coreclr.dll`n")
     $parsed=Read-Ini $ini
@@ -76,6 +81,6 @@ try {
     $unpack=Join-Path $root 'unpack';[void][IO.Directory]::CreateDirectory($unpack)
     $rejected=$false;try { Extract-Safe $archive $unpack } catch { $rejected=$true }
     Check $rejected 'Archive traversal not rejected';Check (-not (Test-Path -LiteralPath (Join-Path $root 'escape.txt'))) 'Archive wrote outside staging'
-    Write-Host 'PASS: parser; OpenComposite DLL check (64-bit, its own DLL); leftover Doorstop winhttp.dll recognised, another program''s refused; old extractor and audio helpers retired, the log collector kept; path boundaries; portable/external INI; rollback; user modification preservation; archive traversal.'
+    Write-Host 'PASS: parser; OpenComposite DLL check (64-bit, its own DLL); leftover Doorstop winhttp.dll recognised, another program''s refused; old extractor and audio helpers retired, the log collector kept; launchers bypass the script policy; path boundaries; portable/external INI; rollback; user modification preservation; archive traversal.'
     Write-Host 'Does not launch the game, access the network or test the full Windows installer.'
 } finally { Remove-Item -LiteralPath $root -Recurse -Force }

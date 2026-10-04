@@ -221,6 +221,7 @@ namespace XiiiXR { internal sealed class CeilingFans { internal static CeilingFa
 namespace XiiiXR { internal static class AudioLanguages { internal static int Installs; internal static void Install(){Installs++;} } }
 namespace XiiiXR { internal static class RenderBudget { internal static int Ticks,Releases; internal static void Tick(UnityEngine.XR.XRDisplaySubsystem d,CameraRig? r){Ticks++;} internal static void Release(){Releases++;} } }
 namespace XiiiXR { internal static class EyeCapture { internal static System.Collections.IEnumerator Capture(UnityEngine.XR.XRDisplaySubsystem d) { yield break; } } }
+namespace XiiiXR { internal static class StereoCheck { internal static int Ticks; internal static void Tick(UnityEngine.MonoBehaviour owner,UnityEngine.XR.XRDisplaySubsystem? d,CameraRig? r){Ticks++;} } }
 
 namespace XiiiXR
 {

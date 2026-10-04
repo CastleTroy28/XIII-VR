@@ -80,7 +80,7 @@ namespace UnityEngine
 namespace UnityEngine.UI{class CanvasScaler:UnityEngine.Object{internal bool enabled=true;}}
 namespace XiiiXR
 {
- class CameraRig{internal bool Frontend,Scripted,MovieActive=false;internal Vector3 HeadPosition;internal Quaternion HeadRotation;internal Camera MainCamera=null!;}
+ class CameraRig{internal bool Frontend,Scripted,MovieActive=false;internal Vector3 HeadPosition;internal Quaternion HeadRotation;internal Vector3 CinemaPosition=>HeadPosition;internal Quaternion CinemaRotation=>HeadRotation;internal Camera MainCamera=null!;}
  class CinematicFrame:IDisposable{internal static bool FailDiscover,FailRender,Rendered;internal static int Discoveries;internal void Discover(){Discoveries++;if(FailDiscover)throw new NullReferenceException("stale native frame");}internal void Render(bool b){if(FailRender)throw new NullReferenceException("stale native renderer");Rendered=true;}public void Dispose(){}}
  static class Bootstrap{internal static void Write(string s){}internal static void Warn(string s){}}
  class GameUiControls{internal static GameUiControls? Current=>null;internal bool PointerMenuOpen=>false;}

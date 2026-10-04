@@ -80,7 +80,10 @@ internal static class HolsterLayout
     internal static bool Visible(HolsterSlot slot)=>slot!=HolsterSlot.None;
     // 0.1.140: the places a long gun can hang on.
     internal static bool LongGunPlace(HolsterSlot slot)=>slot is HolsterSlot.Belly or HolsterSlot.LeftShoulder or HolsterSlot.RightBack;
-    internal static HolsterPose Pose(HolsterSlot slot,bool leftHanded)
+    // 0.1.234: how far the player moved each place (HolsterPlaces; right-hander frame).
+    internal static Func<HolsterSlot,Vector3> Offset=_=>Vector3.Zero;
+    internal static HolsterPose Pose(HolsterSlot slot,bool leftHanded)=>Pose(slot,leftHanded,true);
+    internal static HolsterPose Pose(HolsterSlot slot,bool leftHanded,bool moved)
     {
         var p=slot switch
         {
@@ -98,6 +101,11 @@ internal static class HolsterLayout
             HolsterSlot.ChestRight=>new HolsterPose(new(.10f,-.22f,.15f),-Vector3.UnitY,Vector3.UnitZ,new(.10f,-.22f,.15f)),
             _=>new HolsterPose(Vector3.Zero,Vector3.UnitZ,Vector3.UnitY,Vector3.Zero)
         };
+        if(moved&&slot!=HolsterSlot.None)
+        {
+            var o=Offset(slot);
+            if(float.IsFinite(o.X)&&float.IsFinite(o.Y)&&float.IsFinite(o.Z)&&o.LengthSquared()>0)p=new HolsterPose(p.Grip+o,p.Forward,p.Up,p.Reach+o);
+        }
         if(!leftHanded)return p;
         static Vector3 M(Vector3 v)=>new(-v.X,v.Y,v.Z);
         return new HolsterPose(M(p.Grip),M(p.Forward),M(p.Up),M(p.Reach));

@@ -213,7 +213,7 @@ internal sealed class CameraRig : IDisposable
         if(storyMode!=mode)
         {
             bool returning=Scripted&&!scripted;
-            storyMode=mode;Scripted=scripted;preparedFrame=-1;
+            storyMode=mode;Scripted=scripted;preparedFrame=-1;cutsceneView.Reset();screenSet=false;
             if(returning){recenter=true;bodyAnchor.Reset();WeaponHands.Current?.OnRelocated();}
             if(scripted)GameUiControls.Current?.CancelTransient();
         }
@@ -224,7 +224,52 @@ internal sealed class CameraRig : IDisposable
             Bootstrap.Write("STORY MODE "+mode+" broad="+broad+" timeline="+timeline+" authored="+authored+" inputLock="+inputLock+" axisLock="+axisLock+" restricted="+restricted+" player="+storyPlayerId+" camera="+(main==null?"none":main.name)+" virtual="+(storyBrain?.ActiveVirtualCamera?.Name??"none"));
         }
     }
+    // 0.1.234: the steady cutscene view (CutsceneView; VR SETTINGS "Cutscene camera").
+    private readonly CutsceneView cutsceneView=new();
+    private float nextCutReport;
+    // 0.1.238: where the cutscene's frame and subtitles are drawn (CinematicMask,
+    // FrontendMenu): turned as the film camera on the screen that stands
+    // still, else with the head as before.
+    internal UVector CinemaPosition{get;private set;}
+    internal UQuat CinemaRotation{get;private set;}=UQuat.identity;
+    // The cutscene is on the screen that stands still (its surround a closed box).
+    internal bool CinemaScreen{get;private set;}
+    private bool screenSet;private System.Numerics.Quaternion screenFacing=System.Numerics.Quaternion.Identity;private int cinemaModeSeen=-1;
     private void ReadCinematicPose()
+    {
+        ReadFilmPose();
+        int mode=QualityOptions.CutsceneMode;CinemaScreen=false;
+        if(mode!=cinemaModeSeen){cinemaModeSeen=mode;screenSet=false;cutsceneView.Reset();}
+        if(mode==0&&tracking.HeadValid)
+        {
+            var screenFilm=new System.Numerics.Quaternion(HeadRotation.x,HeadRotation.y,HeadRotation.z,HeadRotation.w);
+            var screenHead=tracking.Head.Rotation;
+            if(!screenSet){screenSet=true;screenFacing=CutsceneScreen.Facing(screenHead);Bootstrap.Write("STORY cutscene on a screen that stands still: in front of the head's heading "+CutsceneView.YawDegrees(screenHead).ToString("F0")+" degrees; the film turns its camera, the head looks about the screen");}
+            var view=CutsceneScreen.View(screenFilm,screenFacing,screenHead);
+            CinemaPosition=HeadPosition;CinemaRotation=HeadRotation;CinemaScreen=true;
+            HeadRotation=new UQuat(view.X,view.Y,view.Z,view.W);
+            return;
+        }
+        if(mode!=1||!tracking.HeadValid){if(cutsceneView.Active){cutsceneView.Reset();Bootstrap.Write("STORY cutscene view: the film camera's (VR SETTINGS)");}CinemaPosition=HeadPosition;CinemaRotation=HeadRotation;return;}
+        var film=new System.Numerics.Vector3(HeadPosition.x,HeadPosition.y,HeadPosition.z);
+        var filmTurn=new System.Numerics.Quaternion(HeadRotation.x,HeadRotation.y,HeadRotation.z,HeadRotation.w);
+        var head=tracking.Head;
+        var (p,q)=cutsceneView.View(film,filmTurn,head.Position,head.Rotation);
+        HeadPosition=new UVector(p.X,p.Y,p.Z);HeadRotation=new UQuat(q.X,q.Y,q.Z,q.W);
+        CinemaPosition=HeadPosition;CinemaRotation=HeadRotation;
+        if(cutsceneView.CutThisCall&&Time.realtimeSinceStartup>=nextCutReport)
+        {
+            nextCutReport=Time.realtimeSinceStartup+2;
+            Bootstrap.Write("STORY cutscene view steady: "+(cutsceneView.Cuts==1?"first shot":"cut "+cutsceneView.Cuts+" (the film camera jumped "+cutsceneView.LastJumpMeters.ToString("F2")+" m, "+cutsceneView.LastJumpDegrees.ToString("F0")+" degrees)")
+                +"; the view turned to the film camera's heading "+CutsceneView.YawDegrees(filmTurn).ToString("F0")+" degrees; its tilt "+FilmTilt(filmTurn)+" not followed; the head turns the view");
+        }
+    }
+    private static string FilmTilt(System.Numerics.Quaternion q)
+    {
+        var f=System.Numerics.Vector3.Transform(System.Numerics.Vector3.UnitZ,q);
+        return (MathF.Asin(Math.Clamp(f.Y,-1,1))*180/MathF.PI).ToString("F0")+" degrees";
+    }
+    private void ReadFilmPose()
     {
         if(storyBrain!=null&&storyBrain.isActiveAndEnabled&&StoryModePolicy.AuthoredCamera(storyBrain.ActiveVirtualCamera?.Name??""))
         {
@@ -288,9 +333,12 @@ internal sealed class CameraRig : IDisposable
         try{WeaponHands.Current?.OnSceneChanged();}catch(Exception ex){Bootstrap.Warn("STORY weapon cleanup: "+ex.Message);}
         Bootstrap.Write("STORY SCENE changed handle="+next+"; transient VR state cleared, native locks unchanged");
     }
-    internal PoseValue EyeLeft => tracking.EyeLeft;
-    internal PoseValue EyeRight => tracking.EyeRight;
+    // 0.1.233: the eyes as drawn, for the world scale (VR SETTINGS).
+    internal PoseValue EyeLeft => PoseMath.ScaledEye(tracking.EyeLeft, QualityOptions.WorldScaleValue);
+    internal PoseValue EyeRight => PoseMath.ScaledEye(tracking.EyeRight, QualityOptions.WorldScaleValue);
     internal bool HasEyeOffsets => tracking.HasEyeOffsets;
+    // 0.1.237: how far apart the eyes are drawn (STEREO CHECK).
+    internal float EyeDistanceDrawn => System.Numerics.Vector3.Distance(EyeLeft.Position, EyeRight.Position);
     internal EyeFrustum FrustumLeft => tracking.FrustumLeft;
     internal EyeFrustum FrustumRight => tracking.FrustumRight;
     internal HandControls LeftControls => tracking.LeftControls;
@@ -714,7 +762,7 @@ internal sealed class CameraRig : IDisposable
             {
                 nextReport = now + 5;
                 tracking.RefreshEyes();
-                Bootstrap.Write("TRACKING head=" + tracking.HeadValid + " left=" + tracking.LeftValid + " right=" + tracking.RightValid + " leftInput=" + tracking.LeftInput + " rightInput=" + tracking.RightInput + " cameras=" + cameras.Count + " eyeDistance=" + tracking.EyeDistance.ToString("F4", System.Globalization.CultureInfo.InvariantCulture));
+                Bootstrap.Write("TRACKING head=" + tracking.HeadValid + " left=" + tracking.LeftValid + " right=" + tracking.RightValid + " leftInput=" + tracking.LeftInput + " rightInput=" + tracking.RightInput + " cameras=" + cameras.Count + " eyeDistance=" + tracking.EyeDistance.ToString("F4", System.Globalization.CultureInfo.InvariantCulture) + " worldScale=" + QualityOptions.WorldScaleValue.ToString("F2", System.Globalization.CultureInfo.InvariantCulture) + " drawnEyeDistance=" + (tracking.EyeDistance / QualityOptions.WorldScaleValue).ToString("F4", System.Globalization.CultureInfo.InvariantCulture)+(tracking is OpenXrTracking?"; "+OpenXrLoader.ViewsReport():""));
                 if(referenceSet && anchorRoot!=null)
                 {
                     var relative=PoseMath.Relative(tracking.Head,reference);
@@ -1050,11 +1098,34 @@ public sealed class TrackedCamera : MonoBehaviour
         try { owner.GuardStereoEffects(Target); ApplyEyes(); }
         catch (Exception ex) { failed = true; Release(); Bootstrap.Warn("Stereo pre-render failed: " + ex); }
     }
+    // 0.1.238: the camera at the eye of the pass Unity is drawing (left or
+    // right), turned as that eye. Unity's XR display draws both eyes from the
+    // camera's own place and ignores the stereo view matrices set below: the
+    // STEREO CHECK of 0.1.237 found the two pictures moved only by their
+    // fields of view, the same at any eye distance - no depth, the world flat
+    // and huge, the world scale doing nothing. The stereo matrices stay set
+    // (any setup that does read them gets the same eyes).
+    [HideFromIl2Cpp]
+    private (UVector position, UQuat rotation) PassPose()
+    {
+        var o = owner!;
+        if (o.HasEyeOffsets && QualityOptions.EyesPerPassOn)
+        {
+            var eye = Target!.stereoActiveEye;
+            if (eye == Camera.MonoOrStereoscopicEye.Left || eye == Camera.MonoOrStereoscopicEye.Right)
+            {
+                var offset = eye == Camera.MonoOrStereoscopicEye.Left ? o.EyeLeft : o.EyeRight;
+                return (o.HeadPosition + o.HeadRotation * CameraRig.UnityPosition(offset), o.HeadRotation * CameraRig.UnityRotation(offset));
+            }
+        }
+        return (o.HeadPosition, o.HeadRotation);
+    }
     [HideFromIl2Cpp]
     private void ApplyEyes()
     {
             if (Target == null || owner == null) return;
-            Target.transform.SetPositionAndRotation(owner.HeadPosition, owner.HeadRotation);
+            var (eyePosition, eyeRotation) = PassPose();
+            Target.transform.SetPositionAndRotation(eyePosition, eyeRotation);
             Target.ResetWorldToCameraMatrix();
             // Desktop supersampling may have assigned a monoscopic RT. The XR
             // provider supplies the per-eye render targets for these cameras.

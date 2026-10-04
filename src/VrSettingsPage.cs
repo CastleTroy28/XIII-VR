@@ -15,7 +15,8 @@ namespace XiiiXR;
 internal sealed class VrSettingsPage:IDisposable
 {
     internal static VrSettingsPage? Current;
-    private const float Width=900,RowHeight=45,TitleHeight=80,FooterHeight=250,Arrow=130;
+    // 0.1.234: rows 42 high (23 rows: no taller than the 21 of 0.1.233).
+    private const float Width=900,RowHeight=42,TitleHeight=80,FooterHeight=250,Arrow=130;
     private static float Height=>TitleHeight+RowHeight*QualityMenu.RowCount+FooterHeight;
     private readonly CameraRig rig;
     private readonly Harmony patches=new("xiii.vr.xrbootstrap.settings");
@@ -32,10 +33,12 @@ internal sealed class VrSettingsPage:IDisposable
     private readonly MenuBeam beam=new();
     private readonly UiPointerState pointer=new();
     private string openedFrom="";
+    // 0.1.234: VR SETTINGS > Weapon places.
+    private readonly HolsterPlaceEditor places;
     private MenuPage? blockedPage;private bool blockedPrevious;private EventSystem? blockedSystem;private bool navigationPrevious;private bool blocking;
     internal VrSettingsPage(CameraRig owner)
     {
-        rig=owner;Current=this;
+        rig=owner;Current=this;places=new HolsterPlaceEditor(owner);
         try
         {
             foreach(string method in new[]{"ButtonPress","ButtonPressEnd","OnPointerDown","OnPointerUp"})
@@ -89,7 +92,7 @@ internal sealed class VrSettingsPage:IDisposable
             if(QualityMenu.Open)
             {
                 if(openedFrom=="pause"&&!PauseMenuControl.HackGameIsPaused||openedFrom=="main"&&!rig.Frontend){QualityMenu.Close();Bootstrap.Write("VR SETTINGS closed with its menu");}
-                else if(rig.MenuRightControls.Valid&&(rig.MenuRightControls.Down&HandControls.B)!=0)QualityMenu.Close();
+                else if(rig.MenuRightControls.Valid&&(rig.MenuRightControls.Down&HandControls.B)!=0){if(QualityMenu.EditingPlaces)places.Back();else QualityMenu.Close();}
             }
             if(!QualityMenu.Open)
             {
@@ -105,6 +108,8 @@ internal sealed class VrSettingsPage:IDisposable
                 return;
             }
             releaseAt=now+.2f;
+            // 0.1.234: the weapon places editor has the ray while it is open.
+            if(QualityMenu.EditingPlaces){QualityMenu.PointerOwnsTrigger=true;pointer.Sample(false,false,0);beam.Hide();places.Tick();return;}
             Point();
         }
         catch(Exception ex){if(Time.realtimeSinceStartup>=nextError){nextError=Time.realtimeSinceStartup+5;Bootstrap.Warn("VR SETTINGS page: "+ex.Message);}}
@@ -292,8 +297,10 @@ internal sealed class VrSettingsPage:IDisposable
     {
         try
         {
-            if(!QualityMenu.Open&&!ControlsSheet.Open){if(panel!=null&&panel.activeSelf)panel.SetActive(false);placed=false;return;}
+            if(!QualityMenu.Open&&!ControlsSheet.Open){if(panel!=null&&panel.activeSelf)panel.SetActive(false);placed=false;places.Hide();return;}
             if(panel==null&&!Build())return;
+            if(QualityMenu.Open&&QualityMenu.EditingPlaces){if(panel!.activeSelf)panel.SetActive(false);placed=false;places.Render(font);return;}
+            places.Hide();
             if(!placed)
             {
                 var yaw=Quaternion.Euler(0,rig.HeadRotation.eulerAngles.y,0);
@@ -416,7 +423,7 @@ internal sealed class VrSettingsPage:IDisposable
     }
     public void Dispose()
     {
-        try{Unblock();QualityMenu.PointerOwnsTrigger=false;beam.Dispose();}
+        try{Unblock();QualityMenu.PointerOwnsTrigger=false;beam.Dispose();places.Dispose();}
         finally
         {
             foreach(var e in entries.Values)if(e.Button!=null)UnityEngine.Object.Destroy(e.Button.gameObject);

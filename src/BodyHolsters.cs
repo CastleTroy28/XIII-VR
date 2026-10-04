@@ -58,15 +58,16 @@ internal sealed class BodyHolsters:IDisposable
     private readonly ContactWorld world=new();
     private ReloadGlow? glow,leftGlow;
     private float nextSync,nextBuild;
-    private Quaternion torsoYaw=Quaternion.identity;private bool torsoSet;private Vector3 head;
+    private Quaternion torsoYaw=Quaternion.identity;private Vector3 head;
     private bool leftHanded;
     internal int Count=>entries.Count;
     // Torso frame from the head: the head's heading (not while looking
     // straight down), yaw only.
+    // 0.1.234: the heading shared with the weapon places editor (HolsterPlaces.Torso).
     private void Torso(Vector3 headPosition,Quaternion headRotation)
     {
         var f=headRotation*Vector3.forward;
-        if(!torsoSet||f.x*f.x+f.z*f.z>.20f){f.y=0;if(f.sqrMagnitude>1e-6f){torsoYaw=Quaternion.LookRotation(f.normalized,Vector3.up);torsoSet=true;}}
+        torsoYaw=Quaternion.Euler(0,HolsterPlaces.Torso(new N(f.x,f.y,f.z)),0);
         head=headPosition;
     }
     private Vector3 World(N local)=>head+torsoYaw*new Vector3(local.X,local.Y,local.Z);

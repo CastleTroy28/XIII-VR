@@ -9,7 +9,7 @@ class Verify
   using var p=ModuleDefinition.ReadModule(args.Length>0?args[0]:"xiii-xr/XIII.XRBootstrap.dll");
   var plugin=p.Types.Single(t=>t.Name=="Plugin");
   var info=plugin.CustomAttributes.Single(a=>a.AttributeType.Name=="BepInPlugin");
-  Require((string)info.ConstructorArguments[2].Value=="0.1.232","compiled plugin reports version 0.1.232");
+  Require((string)info.ConstructorArguments[2].Value=="0.1.239","compiled plugin reports version 0.1.239");
   var sceneHands=p.Types.Single(x=>x.Name=="WeaponHands");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="OnSceneChanged")).Any(x=>x.Name=="Clear"),"scene change clears weapon state");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="RegisterHand")).Any(x=>x.Name=="Clear"),"new native skeleton invalidates cached grip anchors");
@@ -849,6 +849,48 @@ class Verify
    &&Calls(H5("BazookaHold")).Any(x=>x.Name=="get_TriggerPoint")&&Calls(H5("BazookaHold")).Any(x=>x.Name=="get_TriggerGripTop")
    &&Calls(visual228.Methods.Single(x=>x.Name=="FindGripBars")).Any(x=>x.Name=="TriggerBone")&&Calls(visual228.Methods.Single(x=>x.Name=="FindGripBars")).Any(x=>x.Name=="TopAlong"),
    "the bazooka's handle hand left low on the handle (its index below the trigger)");
+  // 0.1.233: the world scale (the eye distance drawn divided by it) and the weapons' inertia in VR SETTINGS.
+  var rig233=p.Types.Single(x=>x.Name=="CameraRig");var menu233=p.Types.Single(x=>x.Name=="QualityMenu");
+  Require(Calls(rig233.Methods.Single(x=>x.Name=="get_EyeLeft")).Any(x=>x.Name=="ScaledEye")&&Calls(rig233.Methods.Single(x=>x.Name=="get_EyeRight")).Any(x=>x.Name=="ScaledEye")
+   &&Calls(rig233.Methods.Single(x=>x.Name=="get_EyeLeft")).Any(x=>x.Name=="get_WorldScaleValue")&&Str(menu233,"World scale")&&Str(menu233,"Weapon inertia")
+   &&Calls(p.Types.Single(x=>x.Name=="WeaponOptions").Methods.Single(x=>x.Name=="Load")).Any(x=>x.Name=="set_WeaponInertia")
+   &&Calls(p.Types.Single(x=>x.Name=="QualityOptions").Methods.Single(x=>x.Name=="Load")).Any(x=>x.Name=="Bind"),"no world scale or weapon inertia in VR SETTINGS");
+  // 0.1.234: the steady cutscene view (the film camera no longer turns the view) and the weapon places editor (VR SETTINGS).
+  var rig234=p.Types.Single(x=>x.Name=="CameraRig");var page234=p.Types.Single(x=>x.Name=="VrSettingsPage");var editor234=p.Types.Single(x=>x.Name=="HolsterPlaceEditor");
+  Require(Calls(rig234.Methods.Single(x=>x.Name=="ReadCinematicPose")).Any(x=>x.Name=="View"&&x.DeclaringType.Name=="CutsceneView")&&Calls(rig234.Methods.Single(x=>x.Name=="ReadCinematicPose")).Any(x=>x.Name=="ReadFilmPose")
+   &&Calls(rig234.Methods.Single(x=>x.Name=="ReadCinematicPose")).Any(x=>x.Name=="get_CutsceneMode")&&Calls(rig234.Methods.Single(x=>x.Name=="ReadCinematicPose")).Any(x=>x.Name=="View"&&x.DeclaringType.Name=="CutsceneScreen")
+   &&Calls(p.Types.Single(x=>x.Name=="CinematicMask").Methods.Single(x=>x.Name=="Render")).Any(x=>x.Name=="get_CinemaRotation")&&Calls(p.Types.Single(x=>x.Name=="FrontendMenu").Methods.Single(x=>x.Name=="RenderCore")).Any(x=>x.Name=="get_CinemaRotation")&&Calls(rig234.Methods.Single(x=>x.Name=="SampleCameraMode")).Any(x=>x.Name=="Reset"&&x.DeclaringType.Name=="CutsceneView")
+   &&Str(menu233,"Cutscene camera"),"the film camera still turns the view in cutscenes, or no cutscene camera row");
+  Require(Calls(page234.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="Tick"&&x.DeclaringType.Name=="HolsterPlaceEditor")&&Calls(page234.Methods.Single(x=>x.Name=="Render")).Any(x=>x.Name=="Render"&&x.DeclaringType.Name=="HolsterPlaceEditor")
+   &&Calls(editor234.Methods.Single(x=>x.Name=="TickCore")).Any(x=>x.Name=="MoveTo"&&x.DeclaringType.Name=="HolsterPlaces")&&Calls(editor234.Methods.Single(x=>x.Name=="TickCore")).Any(x=>x.Name=="Pick")
+   &&Calls(editor234.Methods.Single(x=>x.Name=="EndDrag")).Any(x=>x.Name=="Save")&&Calls(p.Types.Single(x=>x.Name=="BodyHolsters").Methods.Single(x=>x.Name=="Torso")).Any(x=>x.Name=="Torso"&&x.DeclaringType.Name=="HolsterPlaces")
+   &&Calls(p.Types.Single(x=>x.Name=="HolsterLayout").Methods.Single(x=>x.Name=="Pose"&&x.Parameters.Count==3)).Any(x=>x.Name=="Invoke")
+   &&Calls(p.Types.Single(x=>x.Name=="QualityOptions").Methods.Single(x=>x.Name=="Load")).Any(x=>x.Name=="set_Offset"||x.Name=="Load"&&x.DeclaringType.Name=="HolsterPlaces")
+   &&Str(menu233,"Weapon places")&&Str(p.Types.Single(x=>x.Name=="UiLanguage"),"МЕСТА ОРУЖИЯ"),"the weapon places cannot be moved with the ray in VR SETTINGS");
+  // 0.1.235: the world scale also moves the eyes Unity's OpenXR plugin renders from (xiii_openxr.dll XO_SetViewScale).
+  var xrLoader235=p.Types.Single(x=>x.Name=="OpenXrLoader");
+  Require(Calls(p.Types.Single(x=>x.Name=="OpenXrTracking").Methods.Single(x=>x.Name=="RefreshPoses")).Any(x=>x.Name=="ApplyWorldScale")
+   &&Calls(xrLoader235.Methods.Single(x=>x.Name=="ApplyWorldScale")).Any(x=>x.Name=="ViewScale"&&x.DeclaringType.Name=="PoseMath")
+   &&Str(xrLoader235,"XO_SetViewScale")&&Str(xrLoader235,"XO_Views")&&Calls(xrLoader235.Methods.Single(x=>x.Name=="Initialize")).Any(x=>x.Name=="Optional"),
+   "the world scale reaches only the mod's own eye matrices, not the eyes Unity's OpenXR plugin renders from");
+  // 0.1.236: the start screen moved on as the game does on a button (no key, no window in front needed); the window really in front (not Unity's isFocused), brought there by joining the input of the window in front.
+  var keys236=p.Types.Single(x=>x.Name=="MenuKeyboard");var focus236=p.Types.Single(x=>x.Name=="StartupFocus");
+  Require(Calls(keys236.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="Advance")&&Calls(keys236.Methods.Single(x=>x.Name=="Advance")).Any(x=>x.Name=="set_m_state")
+   &&Calls(keys236.Methods.Single(x=>x.Name=="Advance")).Any(x=>x.Name=="TryPlayWithDelay")&&Calls(keys236.Methods.Single(x=>x.Name=="Advance")).Any(x=>x.Name=="get_outroSplashscreen")
+   &&Calls(focus236.Methods.Single(x=>x.Name=="BringForward")).Any(x=>x.Name=="AttachThreadInput")&&Calls(focus236.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="GameInFront")
+   &&Calls(p.Types.Single(x=>x.Name=="WindowFocus").Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="GameInFront"),
+   "the start screen waits for a key Windows will not take (the game started behind Steam), or the focus is judged by Unity's isFocused");
+  // 0.1.237: STEREO CHECK compares the eyes' pictures. 0.1.238: each eye drawn from its own place (the camera at the eye of the pass); the eye height no longer changed by the world scale.
+  var tracked238=p.Types.Single(x=>x.Name=="TrackedCamera");
+  Require(Calls(tracked238.Methods.Single(x=>x.Name=="ApplyEyes")).Any(x=>x.Name=="PassPose")&&Calls(tracked238.Methods.Single(x=>x.Name=="PassPose")).Any(x=>x.Name=="get_stereoActiveEye")
+   &&Calls(tracked238.Methods.Single(x=>x.Name=="PassPose")).Any(x=>x.Name=="get_EyeLeft")&&Calls(tracked238.Methods.Single(x=>x.Name=="PassPose")).Any(x=>x.Name=="get_EyesPerPassOn")
+   &&!Calls(p.Types.Single(x=>x.Name=="CameraRig").Methods.Single(x=>x.Name=="ReadBodyAnchor")).Any(x=>x.Name=="get_WorldScaleValue"),
+   "both eyes drawn from the middle of the head (no depth), or the eye height changed by the world scale");
+  Require(Calls(p.Types.Single(x=>x.Name=="StereoCheck").Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="get_WorldScaleValue")
+   &&p.Types.Single(x=>x.Name=="StereoCheck").NestedTypes.Any(t=>t.Methods.Any(m=>Calls(m).Any(x=>x.Name=="Measure"&&x.DeclaringType.Name=="StereoDisparity"))),
+   "the eyes' pictures are never compared");
+  // 0.1.239: the world scale 120% by default, moved there once for everyone.
+  Require(Str(p.Types.Single(x=>x.Name=="QualityOptions"),"WorldScaleDefaultsVersion")&&p.Types.Single(x=>x.Name=="QualityOptions").Fields.Any(f=>f.Name=="WorldScaleDefault"&&f.HasConstant&&Math.Abs((float)f.Constant-1.2f)<1e-6f),"the world scale is not 120% by default");
   // 0.1.220: a turned lockpick runs the game's lockpicking time on its HUD before the lock opens.
   var key220=p.Types.Single(x=>x.Name=="KeyUnlockGesture");MethodDefinition K0(string n)=>key220.Methods.Single(x=>x.Name==n);
   Require(Calls(K0("Tick")).Any(x=>x.Name=="BeginPicking")&&Calls(K0("Tick")).Any(x=>x.Name=="TickPicking")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="ToggleLockpickingHud")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="get_lockpickTime")
@@ -1094,7 +1136,7 @@ class Verify
   Require(Calls(esc.Methods.Single(x=>x.Name=="SendKey")).Any(x=>x.Name=="OwnForeground") && Calls(esc.Methods.Single(x=>x.Name=="OwnForeground")).Any(x=>x.Name=="GetForegroundWindow") && !ui.Methods.SelectMany(Calls).Any(x=>x.Name=="Sleep"),"Escape dispatch is foreground guarded and nonblocking");
   Require(Calls(rig.Methods.Single(x=>x.Name=="Fail")).Any(x=>x.Name=="CancelTransient"),"tracking failure releases owned menu/input state");
   Require(Calls(rig.Methods.Single(x=>x.Name=="SampleCameraMode")).Any(x=>x.Name=="get_isWatchingCutsceneOrInFlashBack") && Calls(rig.Methods.Single(x=>x.Name=="Prepare")).Any(x=>x.Name=="ReadCinematicPose")
-    && Calls(rig.Methods.Single(x=>x.Name=="ReadCinematicPose")).Any(x=>x.Name=="GetBasePose"),"cinematic mode reads the authored output transform including animation after Cinemachine");
+    && Calls(rig.Methods.Single(x=>x.Name=="ReadFilmPose")).Any(x=>x.Name=="GetBasePose"),"cinematic mode reads the authored output transform including animation after Cinemachine");
   var movie=p.Types.Single(x=>x.Name=="StoryVideo");
   Require(!movie.Methods.SelectMany(Calls).Any(x=>new[]{"Play","Stop","Pause","Prepare","set_time","set_frame"}.Contains(x.Name)),"story video adapter never advances/skips/seeks native playback");
   Require(Calls(movie.Methods.Single(x=>x.Name=="ReleasePlayer")).Any(x=>x.Name=="set_renderMode"),"story video restores borrowed render mode");

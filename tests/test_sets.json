@@ -586,6 +586,7 @@
    "src/HandControls.cs",
    "src/LocomotionState.cs",
    "src/HolsterLayout.cs",
+   "src/HolsterPlaces.cs",
    "src/ThrowMath.cs",
    "src/WeaponImpactMath.cs",
    "src/UiLanguage.cs",
@@ -703,6 +704,7 @@
    "src/LocomotionState.cs",
    "src/ObjectivesState.cs",
    "src/HolsterLayout.cs",
+   "src/HolsterPlaces.cs",
    "src/UiLanguage.cs",
    "src/EnemyOptions.cs"
   ]
@@ -1240,6 +1242,27 @@
   "files": [
    "src/WeaponGeometry.cs",
    "src/EquipmentProfile.cs"
+  ]
+ },
+ {
+  "name": "CutsceneViewTests",
+  "files": [
+   "src/CutsceneView.cs"
+  ]
+ },
+ {
+  "name": "HolsterPlacesTests",
+  "files": [
+   "src/HolsterPlaces.cs",
+   "src/HolsterLayout.cs",
+   "src/ThrowMath.cs",
+   "src/WeaponImpactMath.cs"
+  ]
+ },
+ {
+  "name": "StereoDisparityTests",
+  "files": [
+   "src/StereoDisparity.cs"
   ]
  },
  {

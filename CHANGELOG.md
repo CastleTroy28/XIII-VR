@@ -2,6 +2,40 @@
 
 The version is in `Install-XIII-VR.ps1`, `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
+## 0.1.239
+
+- **World scale 120%** by default, and moved to 120% once in every config: before 0.1.238 the eyes were not drawn apart at all, so no earlier value had any effect.
+
+## 0.1.238
+
+- **Real depth.** Both eyes were drawn from the middle of the head: Unity's XR display ignores the eye matrices the mod set. The world looked flat and huge, and the world scale could change nothing. The camera is now moved to each eye as Unity draws it. The `STEREO CHECK` of 0.1.237 showed it: the two pictures differed only by their fields of view, at any eye distance. Config `[VR] StereoEyePositions` (on).
+- **World scale** changes only the distance between the eyes again, so it makes the world itself smaller or bigger. The eye height change of 0.1.237 is gone.
+- **Cutscenes play on a screen that stands still** (VR SETTINGS "Cutscene camera", the default). The film turns its camera as it likes, and turning your head looks at another part of the screen without moving the picture. Round the frame everything is black. The other choices are "steady" (0.1.234) and "the film's" (the picture follows the head); config `[VR] CutsceneCamera` 0/1/2.
+
+## 0.1.237
+
+- **World scale** changes the eye height too: the world is scaled about the floor under you, so at 90% your eyes are 11% higher (at most 45 cm up or down). On Quest 3 the eye distance alone, 50% or 150%, made no visible difference.
+- `STEREO CHECK` in the log: when VR SETTINGS opens and after a world scale change, the two eyes' pictures are compared. The line says how far things move between the eyes and whether that follows the eye distance.
+
+## 0.1.236
+
+- The start screen ("press any button") moves on with any controller button even when the game's window is not in front. With Virtual Desktop and the game started from Steam, Steam stayed in front, so the key the mod typed never reached the game and the start screen waited for the mouse. The mod now does what the game itself does on a button.
+- The game's window is brought to the front at the start of VR also when Windows refuses it at first. The mod now checks the window really in front, not Unity's focus flag, which stays on for a game started behind another window.
+
+## 0.1.235
+
+- **World scale works.** In 0.1.233 the log showed the mod's own eye matrices changing, yet the picture stayed the same: Unity's OpenXR plugin evidently renders from its own eye positions. Now `xiii_openxr.dll` moves the plugin's eyes apart or together as well. The log's `TRACKING` line says how far apart they are drawn.
+
+## 0.1.234
+
+- **Steady cutscenes** (VR SETTINGS "Cutscene camera", on by default; config `[VR] SteadyCutscenes`). The film camera no longer turns or tilts your view, and you look around with your head. At each cut the view turns to where the film camera looks. "The film's" brings the old view back.
+- **Weapon places** in VR SETTINGS. Every weapon place except the two on the back shows as a ball around your body. Point at one with the controller ray, hold the trigger and move it; the stick moves it further or nearer. The weapons on your body follow it. It is saved in the config (`[WeaponPlaces]`, centimetres) and mirrored for left-handers. "Reset this place" and "Reset all places" put them back.
+
+## 0.1.233
+
+- **World scale** in VR SETTINGS (50–150%, default 100%; config `[VR] WorldScale`). It changes the eye distance the game is drawn with, so 90% makes the world look 10% smaller. Players on Quest 3 found the world too big. The log's `TRACKING` line gives the real and the drawn eye distance.
+- **Weapon inertia** in VR SETTINGS (off to 200%, default 100%; config `[Weapons] InertiaStrength`). Off removes the weapons' weighty, "rubbery" follow.
+
 ## 0.1.232
 
 - The installer checks the package before it does anything. If the plugin file is missing, it now says why. The usual cause is GitHub's "Source code" archive instead of `XIII-VR-<version>.zip`. Other causes are a run from inside the zip, a half-unpacked folder or an antivirus. The old message blamed an earlier install inside `BepInEx\plugins` even when that wasn't the cause.

@@ -150,6 +150,7 @@ static MS XrResult f_LocateSpace(XrSpace space, XrSpace base, XrTime t, XrSpaceL
 static MS XrResult f_LocateViews(XrSession s, const XrViewLocateInfo *vi, XrViewState *vs, uint32_t cap, uint32_t *n, XrView *views)
 {
     *n = 2; vs->viewStateFlags = XR_VIEW_STATE_ORIENTATION_VALID_BIT | XR_VIEW_STATE_POSITION_VALID_BIT;
+    if (!cap || !views) return XR_SUCCESS;
     for (int e = 0; e < 2; e++) {
         views[e].pose = (XrPosef){ { 0, 0, 0, 1 }, { e ? 0.032f : -0.032f, 0, 0 } };
         views[e].fov = (XrFovf){ e ? -0.8f : -0.9f, e ? 0.9f : 0.8f, 0.85f, -0.95f };
@@ -247,6 +248,8 @@ typedef MS int (*Locate)(float *, int *, int);
 typedef MS int (*Vibrate)(int, float, float);
 typedef MS int (*State)(void);
 typedef MS const char *(*Report)(void);
+typedef MS void (*SetViewScale)(float);
+typedef MS void (*Views)(float *);
 
 int main(int argc, char **argv)
 {
@@ -329,6 +332,25 @@ int main(int argc, char **argv)
     CHECK(vibrate(1, .5f, .055f) == 1 && haptic_duration == 55000000 && fabsf(haptic_amplitude - .5f) < 1e-6 && right(haptic_hand), "vibration right");
     CHECK(vibrate(0, 2, 0) == 1 && haptic_duration == XR_MIN_HAPTIC_DURATION && haptic_amplitude == 1 && !right(haptic_hand), "vibration left, clamped, shortest");
     CHECK(vibrate(0, 0, .1f) == 0 && vibrate(2, 1, .1f) == 0 && haptics == 2, "a silent or unknown vibration sent");
+    /* 0.1.235: the world scale - the plugin's views moved apart about their middle, the mod's own not */
+    {
+        SetViewScale set_scale = (SetViewScale)export("XO_SetViewScale"); Views views_of = (Views)export("XO_Views");
+        CHECK(set_scale && views_of, "world scale exports missing");
+        PFN_xrLocateViews plugin_views; gipa(inst, "xrLocateViews", (PFN_xrVoidFunction *)&plugin_views);
+        CHECK((void *)plugin_views != (void *)f_LocateViews, "xrLocateViews not wrapped");
+        XrViewLocateInfo vli = { XR_TYPE_VIEW_LOCATE_INFO }; XrViewState vst = { XR_TYPE_VIEW_STATE };
+        XrView v[2] = { { XR_TYPE_VIEW }, { XR_TYPE_VIEW } }; uint32_t vn = 0; float w[4];
+        CHECK(plugin_views(s, &vli, &vst, 2, &vn, v) == XR_SUCCESS && vn == 2 && fabsf(v[0].pose.position.x + .032f) < 1e-6 && fabsf(v[1].pose.position.x - .032f) < 1e-6, "views changed at scale 1");
+        set_scale(1.25f);
+        CHECK(plugin_views(s, &vli, &vst, 2, &vn, v) == XR_SUCCESS && fabsf(v[0].pose.position.x + .04f) < 1e-6 && fabsf(v[1].pose.position.x - .04f) < 1e-6, "views not moved apart: %f %f", v[0].pose.position.x, v[1].pose.position.x);
+        CHECK(v[0].fov.angleLeft == -.9f && v[1].fov.angleRight == .9f && v[0].pose.orientation.w == 1, "the views' field of view or turn changed");
+        views_of(w); CHECK(fabsf(w[0] - .064f * .064f) < 1e-7 && fabsf(w[1] - .08f * .08f) < 1e-7 && w[2] == 2 && w[3] == 1, "views report %f %f %f %f", w[0], w[1], w[2], w[3]);
+        CHECK(locate(f, i, 1) == 1 && fabsf(f[35] + .032f) < 1e-6 && fabsf(f[42] - .032f) < 1e-6, "the mod's own eyes scaled too");
+        CHECK(plugin_views(s, &vli, &vst, 0, &vn, 0) == XR_SUCCESS, "a count query broke");
+        set_scale(9); CHECK(plugin_views(s, &vli, &vst, 2, &vn, v) == XR_SUCCESS && fabsf(v[1].pose.position.x - .032f) < 1e-6, "an out-of-range scale used");
+        set_scale(.8f); CHECK(plugin_views(s, &vli, &vst, 2, &vn, v) == XR_SUCCESS && fabsf(v[1].pose.position.x - .0256f) < 1e-6, "views not moved together");
+        set_scale(1);
+    }
     printf("report: %s\n", report());
     CHECK(strstr(report(), "Fake Pimax OpenXR 1.2.3") && strstr(report(), "Pimax Crystal") && strstr(report(), "STAGE") && strstr(report(), "HP Reverb G2 -"), "report");
     /* the session ends: nothing more is read or sent */

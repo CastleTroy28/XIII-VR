@@ -43,7 +43,8 @@ internal static class WindowFocus
         }
         if(!vr||!OperatingSystem.IsWindows()||!StartupFocus.Settled)return;
         float now=Time.realtimeSinceStartup;
-        if(Application.isFocused){lostAt=-1;tries=0;return;}
+        // 0.1.236: the window really in front (Unity's isFocused stays true for a game started behind Steam).
+        if(StartupFocus.GameInFront()){lostAt=-1;tries=0;return;}
         if(lostAt<0){lostAt=now;nextTry=now+RegainAfter;}
         // Taken back only while the headset is worn (someone at the desktop keeps it).
         if(!headMoving||tries>=MaxTries||now<nextTry)return;

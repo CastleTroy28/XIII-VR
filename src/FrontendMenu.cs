@@ -68,8 +68,9 @@ internal sealed class FrontendMenu : IDisposable
         bool fixedPanel=!rig.Scripted&&(rig.Frontend||GameUiControls.Current?.PointerMenuOpen==true);
         if(!anchored||!fixedPanel||fixedPanel!=wasFixed||wasFrontend!=rig.Frontend||wasScripted!=rig.Scripted)
         {
-            rotation=fixedPanel?Quaternion.Euler(0,rig.HeadRotation.eulerAngles.y,0):rig.HeadRotation;
-            position=rig.HeadPosition+rotation*new Vector3(0,0,1.7f);
+            // 0.1.238: in a cutscene the subtitles stay on its screen (CameraRig.CinemaRotation).
+            rotation=fixedPanel?Quaternion.Euler(0,rig.HeadRotation.eulerAngles.y,0):rig.Scripted?rig.CinemaRotation:rig.HeadRotation;
+            position=(rig.Scripted&&!fixedPanel?rig.CinemaPosition:rig.HeadPosition)+rotation*new Vector3(0,0,1.7f);
         }
         anchored=true;wasFixed=fixedPanel;wasFrontend=rig.Frontend;wasScripted=rig.Scripted;
         foreach(var p in canvases)p.PoseAt(rig,position,rotation);

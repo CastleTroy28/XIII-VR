@@ -46,6 +46,8 @@ internal sealed unsafe class OpenXrTracking : VrTracking
         if(RightValid)Right=OpenXrMath.Pose(pose,14);
         HeadValid&=PoseMath.Valid(Head);LeftValid&=PoseMath.Valid(Left);RightValid&=PoseMath.Valid(Right);
         if((flags&32)!=0)ReadEyes();
+        // 0.1.235: the world scale on the eyes Unity's plugin renders from (the mod's own eyes: PoseMath.ScaledEye).
+        try{OpenXrLoader.ApplyWorldScale(QualityOptions.WorldScaleValue);}catch(Exception){}
         if(ok==1&&pose[57]>1&&pose[57]<1000){hz=pose[57];CompositorTiming.HeadsetHz=hz;}
     }
     private void ReadEyes()

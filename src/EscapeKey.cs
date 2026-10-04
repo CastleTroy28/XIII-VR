@@ -54,6 +54,7 @@ internal static class EscapeKey
         catch(Exception ex){LastRefusal=ex.Message;Bootstrap.Warn("VR MENU key unavailable: "+ex.Message);return false;}
     }
     private static InputEvent Key(ushort key,bool down)=>new InputEvent{type=1,key=key,flags=down?0u:2u};
+    internal static bool GameInFront(){try{return OperatingSystem.IsWindows()&&OwnForeground();}catch(Exception){return false;}}
     private static bool OwnForeground()
     {
         GetWindowThreadProcessId(GetForegroundWindow(),out uint id);

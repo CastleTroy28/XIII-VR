@@ -11,6 +11,7 @@
  *     vibration) with bindings for the usual controllers, attached to the
  *     session when it begins;
  *   - interaction profile changes (xrPollEvent);
+ *   - the world scale: the plugin's eyes moved apart or together (xrLocateViews, 0.1.235);
  *   - the plugin's own xrSyncActions keeps the mod's set in (else it would
  *     go inactive between the mod's reads).
  * The mod reads it once a frame: XO_Sync (buttons) and XO_Locate (head, eyes,
@@ -57,6 +58,7 @@ static struct {
     PFN_xrCreateSession CreateSession; PFN_xrDestroySession DestroySession;
     PFN_xrBeginSession BeginSession; PFN_xrWaitFrame WaitFrame; PFN_xrPollEvent PollEvent;
     PFN_xrAttachSessionActionSets Attach; PFN_xrSyncActions SyncActions;
+    PFN_xrLocateViews LocateViews;
 } next;
 static struct {
     PFN_xrStringToPath StringToPath; PFN_xrPathToString PathToString;
@@ -331,6 +333,36 @@ static XRAPI_ATTR XrResult XRAPI_CALL hook_poll_event(XrInstance inst, XrEventDa
     }
     return r;
 }
+/* 0.1.235: the world scale (VR SETTINGS). The plugin's views - the eyes Unity renders from and
+ * tells the runtime it rendered from - are moved apart (or together) about their middle by
+ * view_scale (the mod's 1 / world scale): 0.9 world scale, the eyes 11% further apart, the
+ * world seen 10% smaller. The mod's own views (XO_Locate) stay as the runtime gives them. */
+static volatile float view_scale = 1.0f;
+static volatile float view_raw2, view_drawn2;
+static volatile i64 views_located, views_scaled;
+static float dist2(XrVector3f a, XrVector3f b) { float x = a.x - b.x, y = a.y - b.y, z = a.z - b.z; return x * x + y * y + z * z; }
+static XRAPI_ATTR XrResult XRAPI_CALL hook_locate_views(XrSession s, const XrViewLocateInfo *info, XrViewState *state, uint32_t capacity, uint32_t *count, XrView *views)
+{
+    XrResult r = next.LocateViews(s, info, state, capacity, count, views);
+    if (r != XR_SUCCESS || !views || !count || !capacity) return r;
+    uint32_t n = *count < capacity ? *count : capacity;
+    if (n < 2 || n > 8) return r;
+    if (state && !(state->viewStateFlags & XR_VIEW_STATE_POSITION_VALID_BIT)) return r;
+    views_located++;
+    view_raw2 = dist2(views[0].pose.position, views[1].pose.position);
+    float k = view_scale;
+    if (!(k >= 0.25f && k <= 4.0f) || (k > 0.9999f && k < 1.0001f)) { view_drawn2 = view_raw2; return r; }
+    XrVector3f c = { 0, 0, 0 };
+    for (uint32_t e = 0; e < n; e++) { c.x += views[e].pose.position.x; c.y += views[e].pose.position.y; c.z += views[e].pose.position.z; }
+    c.x /= (float)n; c.y /= (float)n; c.z /= (float)n;
+    for (uint32_t e = 0; e < n; e++) {
+        XrVector3f *p = &views[e].pose.position;
+        p->x = c.x + (p->x - c.x) * k; p->y = c.y + (p->y - c.y) * k; p->z = c.z + (p->z - c.z) * k;
+    }
+    view_drawn2 = dist2(views[0].pose.position, views[1].pose.position);
+    views_scaled++;
+    return r;
+}
 static XRAPI_ATTR XrResult XRAPI_CALL hook_gipa(XrInstance inst, const char *name, PFN_xrVoidFunction *fn)
 {
     XrResult r = gipa_next(inst, name, fn);
@@ -340,6 +372,7 @@ static XRAPI_ATTR XrResult XRAPI_CALL hook_gipa(XrInstance inst, const char *nam
     H(CreateSession, hook_create_session) H(DestroySession, hook_destroy_session)
     H(BeginSession, hook_begin_session) H(WaitFrame, hook_wait_frame) H(PollEvent, hook_poll_event)
     if (same(name, "xrSyncActions")) { next.SyncActions = (PFN_xrSyncActions)*fn; *fn = (PFN_xrVoidFunction)hook_sync; return r; }
+    if (same(name, "xrLocateViews")) { next.LocateViews = (PFN_xrLocateViews)*fn; *fn = (PFN_xrVoidFunction)hook_locate_views; return r; }
 #undef H
     /* the plugin asking for the proc-address function itself keeps getting this one */
     if (same(name, "xrGetInstanceProcAddr")) { *fn = (PFN_xrVoidFunction)hook_gipa; return r; }
@@ -352,10 +385,14 @@ __declspec(dllexport) void *XO_Hook(void *loader_gipa)
 {
     if (!loader_gipa) return 0;
     if (loader_gipa != (void *)hook_gipa) gipa_next = (PFN_xrGetInstanceProcAddr)loader_gipa;
-    if (!report_n) note("XIII VR OpenXR 0.1.181:");
+    if (!report_n) note("XIII VR OpenXR 0.1.235:");
     return (void *)hook_gipa;
 }
 __declspec(dllexport) const char *XO_Report(void) { return report; }
+/* 0.1.235: how far apart the plugin's eyes are drawn (the mod's 1 / world scale; 0.25-4, 1 = as the runtime gives them). */
+__declspec(dllexport) void XO_SetViewScale(float k) { view_scale = k >= 0.25f && k <= 4.0f ? k : 1.0f; }
+/* f[0] the plugin's eye distance squared as the runtime gave it, f[1] as drawn; f[2] views located, f[3] of them moved apart/together. */
+__declspec(dllexport) void XO_Views(float *f) { f[0] = view_raw2; f[1] = view_drawn2; f[2] = (float)views_located; f[3] = (float)views_scaled; }
 /* 0 no session, else the session state (XrSessionState: 1 idle .. 5 focused ..); +16 when the mod's actions are attached */
 __declspec(dllexport) int XO_State(void) { return session ? session_state + (attached ? 16 : 0) : 0; }
 

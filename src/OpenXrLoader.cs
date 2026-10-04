@@ -41,6 +41,28 @@ internal sealed unsafe class OpenXrLoader
     internal static delegate* unmanaged[Cdecl]<float*,int*,int,int> Locate;
     internal static delegate* unmanaged[Cdecl]<int,float,float,int> Vibrate;
     internal static delegate* unmanaged[Cdecl]<int,int> StopVibration;
+    // 0.1.235: the world scale on the plugin's own eyes (what Unity renders from and hands the
+    // runtime): optional, an older xiii_openxr.dll has neither.
+    internal static delegate* unmanaged[Cdecl]<float,void> SetViewScale;
+    internal static delegate* unmanaged[Cdecl]<float*,void> Views;
+    private static float appliedViewScale=1;
+    // The plugin's eyes drawn 1/worldScale as far apart (PoseMath.ScaledEye on the mod's side). False: no helper for it.
+    internal static bool ApplyWorldScale(float worldScale)
+    {
+        if(SetViewScale==null)return false;
+        float k=PoseMath.ViewScale(worldScale);
+        if(Math.Abs(k-appliedViewScale)>1e-4f){SetViewScale(k);appliedViewScale=k;}
+        return true;
+    }
+    // "the plugin's eyes 0.0669 m apart, drawn 0.0744 m (n located, m moved)", or why not.
+    internal static string ViewsReport()
+    {
+        if(Views==null)return "the plugin's eyes not reached (an older xiii_openxr.dll: install again)";
+        var f=stackalloc float[4];Views(f);
+        var c=System.Globalization.CultureInfo.InvariantCulture;
+        if(f[2]<1)return "the plugin has located no eyes yet";
+        return "the plugin's eyes "+MathF.Sqrt(Math.Max(0,f[0])).ToString("F4",c)+" m apart, drawn "+MathF.Sqrt(Math.Max(0,f[1])).ToString("F4",c)+" m ("+f[2].ToString("F0",c)+" located, "+f[3].ToString("F0",c)+" moved)";
+    }
     internal static string HelperReport(){try{return Report==null?"":Marshal.PtrToStringAnsi(Report())??"";}catch(Exception){return "";}}
     // the plugin's events (OpenXRFeature.NativeEvent)
     internal enum NativeEvent { SetupConfigValues, SystemIdChanged, InstanceChanged, SessionChanged, BeginSession, SessionStateChanged, ChangedSpaceApp,
@@ -54,6 +76,7 @@ internal sealed unsafe class OpenXrLoader
 
     [DllImport("kernel32",CharSet=CharSet.Unicode)] private static extern IntPtr GetModuleHandleW(string name);
     private static string Plugins=>Path.Combine(BepInEx.Paths.GameRootPath,"XIII_Data","Plugins");
+    private static IntPtr Optional(IntPtr module,string name)=>NativeLibrary.TryGetExport(module,name,out var f)?f:IntPtr.Zero;
     private IntPtr Export(IntPtr module,string name)
     {
         if(!NativeLibrary.TryGetExport(module,name,out var f))throw new InvalidOperationException(name+" missing");
@@ -93,6 +116,8 @@ internal sealed unsafe class OpenXrLoader
             Locate=(delegate* unmanaged[Cdecl]<float*,int*,int,int>)Export(helper,"XO_Locate");
             Vibrate=(delegate* unmanaged[Cdecl]<int,float,float,int>)Export(helper,"XO_Vibrate");
             StopVibration=(delegate* unmanaged[Cdecl]<int,int>)Export(helper,"XO_StopVibration");
+            SetViewScale=(delegate* unmanaged[Cdecl]<float,void>)Optional(helper,"XO_SetViewScale");
+            Views=(delegate* unmanaged[Cdecl]<float*,void>)Optional(helper,"XO_Views");appliedViewScale=1;
             ready=stopping=exiting=noHeadset=false;lastEvent=-1;
             setSuccessfullyInitialized(0);
             // The loader beside the plugin, by its full path (without .dll, as the plugin wants it).

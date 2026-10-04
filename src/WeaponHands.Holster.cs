@@ -386,8 +386,10 @@ internal sealed partial class WeaponHands
     {
         TickPins();
         if(holsters==null)return;
-        if(GripMode==WeaponGripMode.Always||!CanControl(playerId)){holsters.HideAll();return;}
-        try{holsters.Render(rig.HeadPosition,rig.HeadRotation,LeftHanded,rig.PlayerRoot);RenderHandCopies();}
+        // 0.1.234: while the weapon places are moved (VR SETTINGS, the game paused) the weapons on the body follow them.
+        bool editing=QualityMenu.EditingPlaces&&PauseMenuControl.HackGameIsPaused&&!rig.Scripted;
+        if(GripMode==WeaponGripMode.Always||!editing&&!CanControl(playerId)){holsters.HideAll();return;}
+        try{holsters.Render(rig.HeadPosition,rig.HeadRotation,LeftHanded,rig.PlayerRoot);if(!editing)RenderHandCopies();}
         catch(Exception ex){if(Time.realtimeSinceStartup>=nextHolsterReport){nextHolsterReport=Time.realtimeSinceStartup+10;Bootstrap.Warn("HOLSTER draw: "+ex.Message);}holsters.HideAll();}
     }
     private void PutAway(int key,Vector3 hand,Vector3 velocity,int side)

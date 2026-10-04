@@ -10,6 +10,7 @@ namespace XiiiXR;
 // 0.1.213: the start screen gets Enter at the press again. The game's
 // any-button input (GetAnyButtonDown) did not answer it, and Enter came only
 // half a second after the last press, so pressing on kept it waiting.
+// 0.1.236: the start screen is moved on directly (Advance), no key needed.
 internal sealed class MenuKeyboard : IDisposable
 {
     private readonly CameraRig rig;
@@ -61,8 +62,14 @@ internal sealed class MenuKeyboard : IDisposable
             if(any&&startupArmed)
             {
                 startupArmed=false;rig.DisarmTrigger();
-                bool typed=Pulse(0x0d);
-                if(!typed&&Time.realtimeSinceStartup>=nextStartReport){nextStartReport=Time.realtimeSinceStartup+5;Bootstrap.Warn("START SCREEN Enter could not be typed: "+EscapeKey.LastRefusal);}
+                // 0.1.236: moved on as the game itself does on a button, with no key typed.
+                StartScreenControl? shown=null;foreach(var s in starts)if(s!=null&&s.isActiveAndEnabled&&s.m_state==StartScreenControl.SplashState.PlayerStartInputWait){shown=s;break;}
+                if(shown!=null&&Advance(shown,out string how))Bootstrap.Write("START SCREEN moved on by the controller (as the game does on a button: "+how+"); no key typed, the game's window "+(EscapeKey.GameInFront()?"in front":"not in front ("+(WindowFocus.Foreground()??"?")+")"));
+                else
+                {
+                    bool typed=Pulse(0x0d);
+                    if(!typed&&Time.realtimeSinceStartup>=nextStartReport){nextStartReport=Time.realtimeSinceStartup+5;Bootstrap.Warn("START SCREEN Enter could not be typed: "+EscapeKey.LastRefusal);}
+                }
             }
             menuAArmed=menuBArmed=false;navigation.Reset();StickMode=false;return;
         }
@@ -74,6 +81,29 @@ internal sealed class MenuKeyboard : IDisposable
         var stick=rig.LeftStick;ushort nav=navigation.Step(stick.Valid,stick.Value,Time.realtimeSinceStartup);
         if(nav!=0&&!a&&!b&&Pulse(nav))StickMode=true;
         if((r.Held&HandControls.Trigger)!=0||l.Valid&&(l.Held&HandControls.Trigger)!=0)StickMode=false;
+    }
+    // 0.1.236: what the game's own start screen does on any button
+    // (StartScreenControl.HandlePlayerStartInputWaitState): the looping splash
+    // off, the closing one on with its sound, the state to the closing splash,
+    // which ends in the main menu. The game asks Rewired for the button, which
+    // does not see the controllers; Enter was typed instead (0.1.213), but only
+    // into a window in front: started from Steam with Virtual Desktop, Steam
+    // stayed in front and the start screen waited for the mouse.
+    internal static bool Advance(StartScreenControl s,out string how)
+    {
+        how="";
+        try
+        {
+            // (The game's own code needs both splashes too.)
+            var loop=s.loopSplashscreen;var outro=s.outroSplashscreen;
+            if(loop==null||outro==null){how="no "+(loop==null?"looping":"closing")+" splash";return false;}
+            loop.gameObject.SetActive(false);outro.gameObject.SetActive(true);
+            var sound=s.outroSplashSound;bool sounded=false;if(sound!=null){sound.TryPlayWithDelay();sounded=true;}
+            s.m_state=StartScreenControl.SplashState.SplashOutro;
+            how="loop off, outro on"+(sounded?" with its sound":"")+", state SplashOutro";
+            return true;
+        }
+        catch(Exception ex){how=ex.Message;Bootstrap.Warn("START SCREEN could not be moved on directly ("+ex.Message+"); Enter is typed instead");return false;}
     }
     private void Release(){if(heldKey==0)return;ushort key=heldKey;heldKey=0;EscapeKey.SendKey(key,false);}
     public void Dispose(){Release();starts.Clear();}

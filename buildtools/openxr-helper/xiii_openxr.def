@@ -7,3 +7,5 @@ EXPORTS
     XO_Locate
     XO_Vibrate
     XO_StopVibration
+    XO_SetViewScale
+    XO_Views

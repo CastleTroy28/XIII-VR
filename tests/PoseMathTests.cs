@@ -35,6 +35,16 @@ internal static class PoseMathTests
         Check(Marshal.SizeOf<HmdMatrix34_t>()==48 && Marshal.SizeOf<TrackedDevicePose_t>()==80,"OpenVR pose ABI layout");
         Check(Marshal.SizeOf<VRControllerState_t>()==64 && Marshal.OffsetOf<VRControllerState_t>("ulButtonPressed").ToInt32()==8,"Windows x64 controller ABI layout");
         Check(OpenVR.IVRSystem_Version=="IVRSystem_023"&&OpenVR.IVRCompositor_Version=="IVRCompositor_029","function-table versions match confirmed runtime interfaces");
+        // 0.1.233: the world scale divides the eye distance (0.9: eyes 11% further apart, the world 10% smaller); the eye's turn kept.
+        var eye=new PoseValue(new System.Numerics.Vector3(-.0315f,.001f,-.002f),System.Numerics.Quaternion.CreateFromAxisAngle(System.Numerics.Vector3.UnitY,.05f));
+        var small=PoseMath.ScaledEye(eye,.9f);
+        Check(System.Numerics.Vector3.Distance(small.Position,eye.Position/.9f)<1e-6f&&small.Rotation==eye.Rotation,"world scale 0.9 does not widen the eye offset by 1/0.9");
+        Check(PoseMath.ScaledEye(eye,1f).Position==eye.Position&&PoseMath.ScaledEye(eye,float.NaN).Position==eye.Position&&PoseMath.ScaledEye(eye,0).Position==eye.Position,"a bad world scale changes the eyes");
+        // 0.1.235: the plugin's eyes (xiii_openxr.dll) are drawn as far apart as the mod's: 1 / world scale.
+        Check(MathF.Abs(PoseMath.ViewScale(.8f)-1.25f)<1e-6f&&PoseMath.ViewScale(1f)==1f&&PoseMath.ViewScale(float.NaN)==1f&&PoseMath.ViewScale(0)==1f&&PoseMath.ViewScale(9)==1f,"the plugin's eye scale is not 1 / world scale");
+        Check(MathF.Abs(PoseMath.ScaledEye(eye,.8f).Position.X-eye.Position.X*PoseMath.ViewScale(.8f))<1e-6f,"the mod's and the plugin's eyes drawn differently apart");
+        Console.WriteLine("PASS: 0.1.233 the world scale divides the eye distance the game is drawn with, the eyes' turn kept; a bad value changes nothing.");
+        Console.WriteLine("PASS: 0.1.235 the eyes of Unity's OpenXR plugin are drawn as far apart as the mod's (1 / world scale).");
         Console.WriteLine("PASS: pose basis conversion, translation, yaw recenter, pitch preservation, eye separation, invalid poses, OpenVR ABI and interface versions.");
     }
 }

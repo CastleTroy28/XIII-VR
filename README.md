@@ -17,7 +17,7 @@ It is a [BepInEx 6](https://github.com/BepInEx/BepInEx) plugin. A one-click inst
   - Working scopes on the crossbow and the sniper rifle.
   - Manual reloading for magazines, shells, revolvers, the double-barrel, bolts and the bazooka's rockets. You can switch to automatic reloading in the settings.
   - A red dot shows where a loaded bazooka's rocket will hit.
-  - Weapon holsters on your body.
+  - Weapon holsters on your body. You can move each one (except the two on your back) with the laser pointer in the VR settings.
   - A weapon wheel for everything else.
 - **Physical melee:**
   - Punch with your hands clenched into fists, or pick up a shovel or a broom, whatever you like.
@@ -38,6 +38,7 @@ It is a [BepInEx 6](https://github.com/BepInEx/BepInEx) plugin. A one-click inst
   - A VR settings page and a VR controls page (every action and its buttons) are added to the pause menu.
   - Hints show a controller with the button to press lit up.
   - Cutscenes are fast-forwarded with the trigger.
+  - Cutscenes play on a screen that stands still in front of you: turning your head does not move the picture (other modes in the settings).
 - **More:**
   - Left-handed mode (not tested yet, but it should work) and controller haptics.
   - The mod's own texts follow the game's language: English, Russian, German, French, Spanish, Italian, Polish and Portuguese.
@@ -61,7 +62,7 @@ The installer never overwrites a file that has changed since it was staged. It k
 
 - **Update:** run the new version's `Install-XIII-VR.cmd`.
 - **Uninstall:** run `Restore-XIII-VR.cmd` from the package. It restores the game folder as it was before the install.
-- **Settings:** use **VR settings** in the pause menu, or edit `BepInEx\config\xiii.vr.xrbootstrap.cfg`. For example, `[VR] Runtime` is `Auto`, `OpenXR`, `OpenVR`, `SteamVR` or `OpenComposite`, and `[Weapons] ScopeSteadiness` (0 to 2) sets how steady a scope is at your eye.
+- **Settings:** use **VR settings** in the pause menu, or edit `BepInEx\config\xiii.vr.xrbootstrap.cfg`. If the world looks too big or too small, change **World scale** (`[VR] WorldScale`). If the weapons feel rubbery, lower **Weapon inertia** (`[Weapons] InertiaStrength`). **Cutscene camera** is a screen that stands still, a steady view you look around in, or the film's own view (`[VR] CutsceneCamera`). **Weapon places** lets you drag each holster to where you want it with the laser pointer (`[WeaponPlaces]`, in centimetres). Other examples: `[VR] Runtime` is `Auto`, `OpenXR`, `OpenVR`, `SteamVR` or `OpenComposite`, and `[Weapons] ScopeSteadiness` (0 to 2) sets how steady a scope is at your eye.
 - **Install check:** the log `BepInEx\LogOutput.log` should contain `Loading [XIII XR Bootstrap <version>]`.
 
 ## Controls
@@ -181,7 +182,7 @@ python buildtools/package.py --plugin src/bin/Release/net6.0/XIII.XRBootstrap.dl
 
 This builds the native helpers, then writes `dist/XIII-VR-<version>.zip` with `SHA256.txt` inside. The version comes from `Install-XIII-VR.ps1` and must match `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
-**Tests:** 152 test programs check the mod's logic with stand-ins for Unity and the game, so they need no game files:
+**Tests:** 155 test programs check the mod's logic with stand-ins for Unity and the game, so they need no game files:
 
 ```
 python tests/run_tests.py

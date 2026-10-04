@@ -27,6 +27,10 @@ class QualityMenuTests
   QualityOptions.Load(oldDefault);Check(QualityOptions.RenderScale.Value==1f,"the old 75% default was not moved to 100%");
   QualityOptions.RenderScale.Value=.75f;QualityOptions.Load(oldDefault);Check(QualityOptions.RenderScale.Value==.75f,"a later own 75% was moved to 100% again");
   QualityOptions.Load(oldConfig);Check(QualityOptions.RenderScale.Value==.95f,"an own resolution (95%) was changed");
+  // 0.1.239: an old config's world scale (it never changed anything before 0.1.238) is moved to 120% once; a later own choice stays.
+  var oldScale=new BepInEx.Configuration.ConfigFile();oldScale.Bind("VR","WorldScale",.8f,"");
+  QualityOptions.Load(oldScale);Check(MathF.Abs(QualityOptions.WorldScaleValue-1.2f)<1e-4f,"an old world scale not moved to 120%");
+  QualityOptions.WorldScale!.Value=.9f;QualityOptions.Load(oldScale);Check(MathF.Abs(QualityOptions.WorldScaleValue-.9f)<1e-4f,"a later own world scale moved to 120% again");
   QualityOptions.Load(new BepInEx.Configuration.ConfigFile());
   var display=new UnityEngine.XR.XRDisplaySubsystem();QualityMenu.Attach(display);
   Check(display.Scale==1f&&display.Sets==1,"fresh scale not applied once (100% by default since 0.1.182)");
@@ -108,6 +112,53 @@ class QualityMenuTests
   QualityMenu.Click(QualityMenu.GunTurnRow,0);Check(QualityMenu.GunTurnDegrees==0,"ray click does not wrap the gun turn to straight");
   QualityOptions.GunTurn!.Value=15;
   UiLanguage.ReadCode=()=>"de";Check(QualityMenu.Text.Contains("Zweihandwaffe in einer Hand: 15° zur anderen Hand"),"gun turn row not translated");UiLanguage.ReadCode=()=>"ru";
+  Tick();Tick(y:-1);Tick();
+  // 0.1.233: the world scale (100% by default, 50-150% in steps of 5) and the weapons' inertia (100%, off to 200% in steps of 25).
+  // 0.1.239: 120% by default.
+  Check(MathF.Abs(QualityOptions.WorldScaleValue-1.2f)<1e-4f&&QualityMenu.Text.Contains("> Масштаб мира: 120%")&&QualityMenu.Adjustable(QualityMenu.WorldScaleRow),"world scale row missing, not 120% by default or without arrows");
+  Tick(-1);Check(MathF.Abs(QualityOptions.WorldScaleValue-1.15f)<1e-4f&&QualityMenu.Text.Contains("Масштаб мира: 115%"),"world scale cannot be lowered");
+  for(int n=0;n<15;n++){Tick();Tick(-1);}
+  Check(MathF.Abs(QualityOptions.WorldScaleValue-.5f)<1e-4f,"world scale not held at 50%");
+  QualityMenu.Click(QualityMenu.WorldScaleRow,1);Check(MathF.Abs(QualityOptions.WorldScaleValue-.55f)<1e-4f,"ray arrow does not raise the world scale");
+  QualityOptions.WorldScale!.Value=1.5f;QualityMenu.Click(QualityMenu.WorldScaleRow,0);Check(MathF.Abs(QualityOptions.WorldScaleValue-.5f)<1e-4f,"ray click does not wrap the world scale");
+  QualityOptions.WorldScale.Value=7f;Check(QualityOptions.WorldScaleValue==1.5f,"a world scale outside 50-150% used");
+  QualityOptions.WorldScale.Value=1f;
+  UiLanguage.ReadCode=()=>"de";Check(QualityMenu.Text.Contains("Weltgröße: 100%"),"world scale row not translated");UiLanguage.ReadCode=()=>"ru";
+  Tick();Tick(y:-1);Tick();
+  QualityOptions.WeaponInertia=new BepInEx.Configuration.ConfigEntry<float>(1f);
+  Check(QualityMenu.Text.Contains("> Инерция оружия: 100%")&&QualityMenu.Adjustable(QualityMenu.InertiaRow),"weapon inertia row missing, not 100% or without arrows");
+  for(int n=0;n<4;n++){Tick(-1);Tick();}
+  Check(QualityOptions.WeaponInertia.Value==0&&QualityMenu.Text.Contains("Инерция оружия: выкл"),"weapon inertia cannot be switched off");
+  for(int n=0;n<9;n++){Tick(1);Tick();}
+  Check(QualityOptions.WeaponInertia.Value==2f&&QualityMenu.Text.Contains("Инерция оружия: 200%"),"weapon inertia not held at 200%");
+  QualityMenu.Click(QualityMenu.InertiaRow,0);Check(QualityOptions.WeaponInertia.Value==0,"ray click does not wrap the weapon inertia to off");
+  QualityOptions.WeaponInertia.Value=1f;
+  UiLanguage.ReadCode=()=>"de";Check(QualityMenu.Text.Contains("Waffenträgheit: 100%"),"weapon inertia row not translated");UiLanguage.ReadCode=()=>"ru";
+  Console.WriteLine("PASS: 0.1.233 world scale (50-150%, 120% by default since 0.1.239, moved there once) and weapon inertia (off-200%, 100% by default) rows in VR SETTINGS, with arrows, translated.");
+  Tick();Tick(y:-1);Tick();
+  // 0.1.234: the cutscene camera (steady by default) and the weapon places editor.
+  Check(QualityOptions.CutsceneMode==0&&QualityMenu.Row==QualityMenu.CutsceneRow&&QualityMenu.Text.Contains("> Камера в роликах: экран (стоит на месте)")&&!QualityMenu.Adjustable(QualityMenu.CutsceneRow),"cutscene camera row missing or not the still screen by default");
+  Tick(trigger:true);Check(QualityOptions.CutsceneMode==1&&QualityMenu.Text.Contains("Камера в роликах: устойчивая (смотрите сами)"),"the steady cutscene camera cannot be chosen");
+  Tick();Tick(1);Check(QualityOptions.CutsceneMode==2&&QualityMenu.Text.Contains("Камера в роликах: как в фильме (поворачивает взгляд)"),"the film's cutscene camera cannot be chosen");
+  Tick();Tick(1);Check(QualityOptions.CutsceneMode==0,"the cutscene camera does not wrap back to the still screen");
+  Tick();Tick(-1);Check(QualityOptions.CutsceneMode==2,"the stick left does not step the cutscene camera back");QualityOptions.CutsceneCamera!.Value=1;
+  UiLanguage.ReadCode=()=>"de";Check(QualityMenu.Text.Contains("Kamera in Zwischensequenzen: ruhig"),"cutscene camera row not translated");QualityOptions.CutsceneCamera!.Value=0;UiLanguage.ReadCode=()=>"ru";
+  Tick();Tick(y:-1);Tick();
+  Check(QualityMenu.Row==QualityMenu.PlacesRow&&QualityMenu.Text.Contains("> Места оружия: двигать лучом")&&!QualityMenu.Adjustable(QualityMenu.PlacesRow),"weapon places row missing");
+  Tick(1);Tick();Check(!QualityMenu.EditingPlaces&&QualityMenu.Row==QualityMenu.PlacesRow,"the stick sideways opened the places editor or left the row");
+  Tick(trigger:true);Check(QualityMenu.EditingPlaces&&QualityMenu.Open,"the places editor does not open");
+  // While it is open the stick and the trigger belong to it.
+  Tick();Tick(y:-1);Tick();Tick(trigger:true);Tick();Check(QualityMenu.EditingPlaces&&QualityMenu.Row==QualityMenu.PlacesRow&&QualityMenu.TakeAction()=="","the rows moved or confirmed under the places editor");
+  HolsterPlaces.Set(HolsterSlot.Belly,new Vector3(0,.05f,0));Check(QualityMenu.Text.Contains("Места оружия: двигать лучом (1 сдвинуто)"),"moved places not counted on the row");HolsterPlaces.Set(HolsterSlot.Belly,Vector3.Zero);
+  QualityMenu.EndPlaces();Check(!QualityMenu.EditingPlaces&&QualityMenu.Open&&QualityMenu.Row==QualityMenu.PlacesRow,"back from the places editor not on its row");
+  Tick(trigger:true);Tick();Check(!QualityMenu.EditingPlaces,"the trigger held from the editor reopened it");
+  QualityMenu.Click(QualityMenu.PlacesRow,1);Check(QualityMenu.EditingPlaces,"a ray click on the places row does not open the editor");
+  QualityMenu.Close();Check(!QualityMenu.EditingPlaces,"closing the settings leaves the places editor open");
+  QualityMenu.Show();Check(!QualityMenu.EditingPlaces,"the settings reopen in the places editor");
+  for(int n=0;n<QualityMenu.PlacesRow;n++){Tick();Tick(y:-1);}Tick();
+  Check(QualityMenu.Row==QualityMenu.PlacesRow,"rows not reached again");
+  UiLanguage.ReadCode=()=>"pl";Check(QualityMenu.Text.Contains("Miejsca broni: przesuń promieniem"),"weapon places row not translated");UiLanguage.ReadCode=()=>"ru";
+  Console.WriteLine("PASS: 0.1.234 cutscene camera row (a still screen by default, steady, the film's) and weapon places row opening its editor, which has the controllers until back; translated.");
   Tick();Tick(y:-1);Tick();
   Check(!QualityMenu.Text.Contains("Кошка"),"grapple grip rows still in the menu");
   QualityMenu.Tick(true,new StickSample(true,Vector2.Zero,false),new HandControls(true,HandControls.A,0,0));Check(!QualityMenu.Open,"A cannot confirm close in settings");

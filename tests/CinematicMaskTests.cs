@@ -22,6 +22,31 @@ class CinematicMaskTests
   var wide=CinematicMask.Widen(bounds);float bw=bounds.Y-bounds.X,bh=bounds.W-bounds.Z;
   Check(Math.Abs(wide.X-(bounds.X-bw*.25f))<1e-5f&&Math.Abs(wide.Y-(bounds.Y+bw*.25f))<1e-5f&&Math.Abs(wide.Z-(bounds.Z-bh*.25f))<1e-5f&&Math.Abs(wide.W-(bounds.W+bh*.25f))<1e-5f,"cutscene bars not widened on every side");
   var gw=CinematicMask.Geometry(wide);Check(Covers(gw,0,wide.Z+.01f)&&Covers(gw,0,bounds.Z-bh*.2f)&&!Covers(gw,0,0),"widened bars leave the bottom open or cover the picture");
+  // 0.1.238: on the screen that stands still the surround is a closed box round the eyes: every way but through the frame's window is black.
+  {
+   var box=CinematicMask.Geometry(bounds,true);var eye=new N.Vector3(0,0,-CinematicMask.Depth);
+   bool Hit(N.Vector3 d)
+   {
+    for(int i=0;i<box.Triangles.Count;i+=3)
+    {
+     var a=box.Vertices[box.Triangles[i]];var b=box.Vertices[box.Triangles[i+1]];var c=box.Vertices[box.Triangles[i+2]];
+     var e1=b-a;var e2=c-a;var h=N.Vector3.Cross(d,e2);float det=N.Vector3.Dot(e1,h);if(Math.Abs(det)<1e-7f)continue;
+     float f=1/det;var sv=eye-a;float u=f*N.Vector3.Dot(sv,h);if(u<0||u>1)continue;var q=N.Vector3.Cross(sv,e1);float v=f*N.Vector3.Dot(d,q);if(v<0||u+v>1)continue;
+     if(f*N.Vector3.Dot(e2,q)>1e-4f)return true;
+    }
+    return false;
+   }
+   Check(!Hit(new(0,0,1))&&!Hit(N.Vector3.Normalize(new(.2f,.1f,1))),"the box blocks the frame's window");
+   int open=0;
+   for(int yaw=0;yaw<360;yaw+=15)for(int pitch=-75;pitch<=75;pitch+=15)
+   {
+    float ya=yaw*MathF.PI/180,pa=pitch*MathF.PI/180;var d=new N.Vector3(MathF.Sin(ya)*MathF.Cos(pa),MathF.Sin(pa),MathF.Cos(ya)*MathF.Cos(pa));
+    bool window=d.Z>0&&Math.Abs(d.X/d.Z)<.5f&&Math.Abs(d.Y/d.Z)<.23f;
+    if(!window&&!Hit(d))open++;
+   }
+   Check(open==0,"the box leaves "+open+" ways open round the eyes");
+   Check(CinematicMask.Geometry(bounds,false).Triangles.Count==48,"the head-held surround changed");
+  }
   using(var mask=new CinematicMask())
   {mask.Render(rig);Check(RigidMeshVisual.Last.Sets==1&&UnityEngine.GameObject.Last.active,"mask not shown");mask.Render(rig);Check(RigidMeshVisual.Last.Sets==1,"mask rebuilt every eye");
    var destroyed=UnityEngine.GameObject.Last;var oldMesh=RigidMeshVisual.Last;
@@ -30,13 +55,14 @@ class CinematicMaskTests
    rig.MovieActive=true;mask.Render(rig);Check(!UnityEngine.GameObject.Last.active,"cinematic surround crops the story video");rig.MovieActive=false;
    rig.Scripted=false;mask.Render(rig);Check(!UnityEngine.GameObject.Last.active,"surround remains in gameplay");rig.Scripted=true;mask.Render(rig);Check(UnityEngine.GameObject.Last.active,"surround not restored next cutscene");}
   Check(RigidMeshVisual.Last.Disposed&&UnityEngine.GameObject.Last.Destroyed,"mask leaked across XR restart");
+  Console.WriteLine("PASS: 0.1.238 on the screen that stands still the surround is a closed box round the eyes, open only through the frame's window.");
   Console.WriteLine("PASS: wide canted-eye surround covers outside picture, preserves centre, opaque double-sided geometry, cached construction and cinematic/gameplay lifecycle. Actual rendering untested.");
  }
 }
 namespace XiiiXR
 {
  class CameraRig
- {internal bool Scripted;internal bool MovieActive=false;internal UnityEngine.Vector3 HeadPosition=>new();internal UnityEngine.Quaternion HeadRotation=>new();internal EyeFrustum FrustumLeft=>new(-1.8f,1.4f,-1.2f,1.2f);internal EyeFrustum FrustumRight=>new(-1.4f,1.8f,-1.2f,1.2f);internal PoseValue EyeLeft=>new(new(-.035f,0,0),N.Quaternion.CreateFromAxisAngle(N.Vector3.UnitY,-.2f));internal PoseValue EyeRight=>new(new(.035f,0,0),N.Quaternion.CreateFromAxisAngle(N.Vector3.UnitY,.2f));}
+ {internal bool Scripted;internal bool MovieActive=false;internal UnityEngine.Vector3 HeadPosition=>new();internal UnityEngine.Quaternion HeadRotation=>new();internal UnityEngine.Vector3 CinemaPosition=>HeadPosition;internal UnityEngine.Quaternion CinemaRotation=>HeadRotation;internal bool CinemaScreen{get;set;}internal EyeFrustum FrustumLeft=>new(-1.8f,1.4f,-1.2f,1.2f);internal EyeFrustum FrustumRight=>new(-1.4f,1.8f,-1.2f,1.2f);internal PoseValue EyeLeft=>new(new(-.035f,0,0),N.Quaternion.CreateFromAxisAngle(N.Vector3.UnitY,-.2f));internal PoseValue EyeRight=>new(new(.035f,0,0),N.Quaternion.CreateFromAxisAngle(N.Vector3.UnitY,.2f));}
  class RigidMeshVisual:IDisposable{internal static RigidMeshVisual Last=null!;internal int Sets;internal bool Disposed;internal RigidMeshVisual(UnityEngine.Transform t,string s,bool display,bool overlay){if(!overlay)throw new Exception("surround must cover nearer world geometry");Last=this;}internal void Set(HandMeshGeometry g){Sets++;}public void Dispose(){Disposed=true;}}
  static class Bootstrap{internal static void Warn(string s)=>throw new Exception(s);}
 }

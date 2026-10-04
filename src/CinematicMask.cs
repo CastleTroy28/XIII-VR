@@ -9,9 +9,13 @@ internal sealed class CinematicMask : IDisposable
     private GameObject? root;
     private RigidMeshVisual? visual;
     private System.Numerics.Vector4 previous;
-    private bool failed,geometryReady;
+    private bool failed,geometryReady,previousBox;
     internal const float Depth=1.55f;
-    internal static HandMeshGeometry Geometry(System.Numerics.Vector4 bounds)
+    internal static HandMeshGeometry Geometry(System.Numerics.Vector4 bounds)=>Geometry(bounds,false);
+    // 0.1.238: box: on the screen that stands still the head turns away from
+    // the frame, so the surround is a closed box round the eyes (the frame's
+    // wall with its window, the other five walls whole), Depth from them.
+    internal static HandMeshGeometry Geometry(System.Numerics.Vector4 bounds,bool box)
     {
         var g=new HandMeshGeometry(true);var black=new System.Numerics.Vector4(0,0,0,1);
         // Same angular window as a 1480 x 680 rect on the 1920-wide, 2.2 m
@@ -19,8 +23,21 @@ internal sealed class CinematicMask : IDisposable
         float x=1480f/1920*2.2f*.5f*Depth/1.7f,y=680f/1920*2.2f*.5f*Depth/1.7f;
         void Bar(float l,float r,float b,float t)
         {var a=new N(l,b,0);var c=new N(r,t,0);g.Quad(a,new N(r,b,0),c,new N(l,t,0),black);g.Quad(a,new N(r,b,0),c,new N(l,t,0),black,true);}
+        if(box)bounds=new System.Numerics.Vector4(-Depth,Depth,-Depth,Depth);
         Bar(bounds.X,-x,bounds.Z,bounds.W);Bar(x,bounds.Y,bounds.Z,bounds.W);
-        Bar(-x,x,bounds.Z,-y);Bar(-x,x,y,bounds.W);return g;
+        Bar(-x,x,bounds.Z,-y);Bar(-x,x,y,bounds.W);
+        if(box)
+        {
+            // The frame's wall is at z = Depth (the root's origin); the box reaches back to z = -Depth.
+            float d=Depth,back=-2*Depth;
+            void Wall(N a,N b,N c,N e){g.Quad(a,b,c,e,black);g.Quad(a,b,c,e,black,true);}
+            Wall(new N(-d,-d,back),new N(d,-d,back),new N(d,d,back),new N(-d,d,back));
+            Wall(new N(-d,-d,back),new N(-d,-d,0),new N(-d,d,0),new N(-d,d,back));
+            Wall(new N(d,-d,back),new N(d,-d,0),new N(d,d,0),new N(d,d,back));
+            Wall(new N(-d,d,back),new N(d,d,back),new N(d,d,0),new N(-d,d,0));
+            Wall(new N(-d,-d,back),new N(d,-d,back),new N(d,-d,0),new N(-d,-d,0));
+        }
+        return g;
     }
     // 0.1.182: the bars reach a quarter of the view further on every side
     // (reprojection and the headset's own edges never show the world past them).
@@ -35,8 +52,10 @@ internal sealed class CinematicMask : IDisposable
         {
             if(root==null){visual?.Dispose();geometryReady=false;root=new GameObject("XIII cinematic opaque surround");root.layer=5;visual=new RigidMeshVisual(root.transform,"XIII cinematic bars",true,true);}
             var bounds=Widen(ViewCoverage.Bounds(rig.FrustumLeft,rig.EyeLeft,rig.FrustumRight,rig.EyeRight,Depth));
-            if(!geometryReady||System.Numerics.Vector4.DistanceSquared(bounds,previous)>1e-8f){visual!.Set(Geometry(bounds));previous=bounds;geometryReady=true;}
-            root.transform.SetPositionAndRotation(rig.HeadPosition+rig.HeadRotation*new Vector3(0,0,Depth),rig.HeadRotation);
+            bool box=rig.CinemaScreen;
+            if(!geometryReady||box!=previousBox||System.Numerics.Vector4.DistanceSquared(bounds,previous)>1e-8f){visual!.Set(Geometry(bounds,box));previous=bounds;previousBox=box;geometryReady=true;}
+            // 0.1.238: turned as the film camera on the screen that stands still (CameraRig.CinemaRotation).
+            root.transform.SetPositionAndRotation(rig.CinemaPosition+rig.CinemaRotation*new Vector3(0,0,Depth),rig.CinemaRotation);
             root.SetActive(true);
         }
         catch(Exception ex){failed=true;Dispose();Bootstrap.Warn("CINEMATIC surround unavailable: "+ex.Message);}

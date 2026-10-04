@@ -32,6 +32,16 @@ internal static class PoseMath
         Quaternion inverseYaw = Quaternion.Inverse(Yaw(reference.Rotation));
         return new PoseValue(Vector3.Transform(current.Position - reference.Position, inverseYaw), Quaternion.Normalize(inverseYaw * current.Rotation));
     }
+    // 0.1.233: an eye's offset from the head for a world scale: the eye
+    // distance divided by it (0.9: the eyes 11% further apart, the world seen
+    // 10% smaller). Players on Quest 3 found the world too big.
+    public static PoseValue ScaledEye(PoseValue eye, float worldScale)
+    {
+        float s = float.IsFinite(worldScale) && worldScale >= .25f && worldScale <= 4f ? worldScale : 1f;
+        return new PoseValue(eye.Position / s, eye.Rotation);
+    }
+    // 0.1.235: how far apart the eyes are drawn for a world scale (1 / it, 0.25-4; 1 for a bad one).
+    public static float ViewScale(float worldScale) => float.IsFinite(worldScale) && worldScale >= .25f && worldScale <= 4f ? 1f / worldScale : 1f;
     public static bool Valid(PoseValue value)
     {
         var p = value.Position; var q = value.Rotation;

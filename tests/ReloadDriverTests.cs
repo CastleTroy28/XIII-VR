@@ -22,8 +22,8 @@ class ReloadDriverTests
   int resets=w.Resets;
   w.Insert();Check(w.FireReleases==releases+1,"insert does not end the game's wait for its own reload (0.1.123 crossbow)");
   Check(w.Resets==resets+1,"insert does not cancel the game's own reload (0.1.124 crossbow shot sound without a bolt)");
-  Check(w.Redraws==0,"a pistol magazine insert draws the gun again (only the crossbow needs it)");Check(a.PrimaryMagazineAmmoCount==12&&a.PrimaryReserveAmmoCount==15&&w.Blocked,"insert refills reserve or fires without bolt");
-  w.Rack();Check(!w.Blocked,"bolt did not enable fire");
+  Check(w.Redraws==0,"a pistol magazine insert draws the gun again (only the crossbow needs it)");Check(a.PrimaryMagazineAmmoCount==12&&a.PrimaryReserveAmmoCount==15&&!w.Blocked,"insert refills reserve, or (0.1.242) a magazine changed with rounds left asks for the bolt");
+  w.Rack();Check(!w.Blocked,"working the bolt with a round chambered blocked the gun");
   int writes=a.Writes;for(int i=0;i<30;i++)w.Step();Check(a.Writes==writes,"idle commits ammunition repeatedly");
   w.Step(HandControls.B,HandControls.B);w.Step(HandControls.B,dt:.35f);
   w.Step(HandControls.B,lh:HandControls.Grip,ld:HandControls.Grip,hand:Vector3.zero);
@@ -39,8 +39,8 @@ class ReloadDriverTests
   // HUD callback failure cannot duplicate ammo, disable the module or undo an insertion.
   var b=new WeaponHands();b.Ammo.ThrowHud=true;b.Eject();b.Pick();b.Insert();
   Check(b.Ammo.PrimaryMagazineAmmoCount==12&&b.Ammo.PrimaryReserveAmmoCount==15,"HUD exception invalidates ammo transaction");
-  b.Cancel();Check(b.Ammo.PrimaryReserveAmmoCount==15&&b.Blocked,"focus after insertion refunded installed magazine/chambered round");
-  b.Change(2);Check(!b.Blocked,"new weapon inherits removed magazine");b.Change(1);Check(b.Blocked,"holstering bypasses bolt requirement");
+  b.Cancel();Check(b.Ammo.PrimaryReserveAmmoCount==15&&!b.Blocked,"focus after insertion refunded installed magazine/chambered round");
+  b.Change(2);Check(!b.Blocked,"new weapon inherits removed magazine");b.Change(1);Check(!b.Blocked,"the weapon's kept chamber lost on changing weapons");
   // Failed native write returns an uninserted fresh magazine without duplicating bullets.
   var fail=new WeaponHands();fail.Eject();fail.Pick();fail.Ammo.ThrowSet=true;fail.Insert();
   Check(fail.Ammo.PrimaryMagazineAmmoCount==0&&fail.Ammo.PrimaryReserveAmmoCount==27&&!fail.Holding,"failed insertion loses/duplicates reserved ammunition");

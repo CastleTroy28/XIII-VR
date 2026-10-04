@@ -2,6 +2,18 @@
 
 The version is in `Install-XIII-VR.ps1`, `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
+## 0.1.242
+
+- A magazine changed with rounds left keeps the round in the chamber, as in a real gun. The new magazine goes in ready to fire, with no bolt, slide or charging handle to work. Only an emptied gun, one never racked, or an empty magazine put in still needs it. Pistols, rifles, the Uzi, the M60 and the sniper rifle all work this way; the shotgun and the crossbow are unchanged.
+
+## 0.1.241
+
+- The revolver's cylinder and the double-barrel stay open until you shut them: B (Y in the left hand) again, or a flick. The revolver's flick was measured against the head, so looking down at the pouch for rounds shut the cylinder by itself. Both flicks are now measured in the room, and they never count while the other hand is at the pouch, holds a round, or has just taken or put one in.
+
+## 0.1.240
+
+- F9 does nothing while VR is running. VR starts by itself; F9 used to start it a second time over the running session, which could crash the game.
+
 ## 0.1.239
 
 - **World scale 120%** by default, and moved to 120% once in every config: before 0.1.238 the eyes were not drawn apart at all, so no earlier value had any effect.

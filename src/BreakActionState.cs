@@ -72,10 +72,15 @@ internal sealed class BreakActionState
     // upwards (m/s); raise: how fast its muzzle rises (degrees a second).
     internal const float FlickUp=.8f,FlickRaise=160f,FlickStop=.6f,FlickWindow=.35f;
     private float flickUp=-10,peakUp,peakRaise;
-    internal bool Flick(float now,float up,float raise)
+    // 0.1.241: quiet: the other hand at the belt, holding a shell, or just
+    // done with one - its arm's motion never shuts the gun (it stays open
+    // until the player shuts it). up: measured in the room by the caller (not
+    // moved by walking, crouching or the head).
+    internal bool Flick(float now,float up,float raise,bool quiet=false)
     {
         // Only once fully open (not the motion that opened it).
         if(!Open||Swing<1||!float.IsFinite(up)||!float.IsFinite(raise)||!float.IsFinite(now))return false;
+        if(quiet){flickUp=-10;return false;}
         if(up>=FlickUp||raise>=FlickRaise)
         {
             if(now-flickUp>FlickWindow){peakUp=up;peakRaise=raise;}

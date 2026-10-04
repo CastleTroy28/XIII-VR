@@ -15,6 +15,26 @@ class ManualReloadTests
  static void Main()
  {
   var s=new ManualReloadState();
+  {
+   // 0.1.242: a magazine taken out with rounds left keeps a round in the chamber: the next one fires at once.
+   var tactical=new ManualReloadState();tactical.Detach(7,false);
+   Check(tactical.ChamberKept&&tactical.BlocksFire,"a removed magazine with rounds left did not keep the chambered round, or the gun fires with no magazine");
+   tactical.Supply(12);tactical.Inserted(0);Check(tactical.Installed&&!tactical.NeedsRack&&!tactical.BlocksFire&&!tactical.SlideLocked,"a magazine changed with rounds left asks for the slide (the chambered round was lost)");
+   var emptied=new ManualReloadState();emptied.ObserveRounds(0);emptied.Detach(0,false);emptied.Supply(12);emptied.Inserted(0);
+   Check(emptied.NeedsRack&&emptied.BlocksFire,"an emptied pistol fires a new magazine without its slide");
+   var emptiedRifle=new ManualReloadState(assaultRifle:true);emptiedRifle.Detach(0,false);emptiedRifle.Supply(30);emptiedRifle.Inserted(0);
+   Check(emptiedRifle.NeedsRack,"an emptied rifle fires a new magazine without its bolt");
+   var rifleKept=new ManualReloadState(assaultRifle:true);rifleKept.Detach(11,false);rifleKept.Supply(30);rifleKept.Inserted(0);
+   Check(!rifleKept.NeedsRack,"a rifle's magazine changed with rounds left asks for the bolt");
+   var unchambered=new ManualReloadState();unchambered.Detach(7,false);unchambered.Supply(12);unchambered.Inserted(0);unchambered.Detach(12,false);unchambered.Supply(12);unchambered.Inserted(0);
+   Check(!unchambered.NeedsRack,"a chamber kept through two changes lost");
+   var never=new ManualReloadState();never.Detach(0,false);never.Supply(12);never.Inserted(0);never.Detach(12,false);never.Supply(12);never.Inserted(0);
+   Check(never.NeedsRack,"a gun never racked fires after a magazine change");
+   var pump=new ManualReloadState(shotgun:true);pump.Detach(5,false);Check(!pump.ChamberKept,"a shotgun keeps a chamber by magazine");
+   var bow=new ManualReloadState(crossbow:true);bow.Detach(1,false);Check(!bow.ChamberKept,"a crossbow keeps a chamber");
+   var quick=new ManualReloadState();quick.Detach(5,false);quick.QuickLoad();Check(!quick.ChamberKept&&!quick.NeedsRack,"a struck-in magazine leaves a kept chamber behind");
+   Console.WriteLine("PASS: 0.1.242 a magazine changed with rounds left keeps the chambered round (no bolt or slide to work); an emptied or never chambered gun still needs it; shotgun and crossbow unchanged.");
+  }
   var latch=new ManualReloadState();latch.ObserveRounds(0);latch.Detach(0,false);latch.Supply(12);latch.Inserted(0);latch.ObserveRounds(12);
   Check(latch.SlideLocked&&latch.VisualRackTravel==latch.FullTravel&&latch.NeedsRack,"inserting loaded magazine automatically closes empty pistol slide");
   latch.Suspend();Check(latch.SlideLocked,"focus loss releases slide lock");
@@ -25,7 +45,8 @@ class ManualReloadTests
   Check(Step(latch,th:true,hand:rear-Vector3.UnitZ*.010f,rounds:12)==ReloadAction.RackBack,"manual rear pull does not release slide stop");
   Check(Step(latch,hand:rear,rounds:12)==ReloadAction.Chamber&&!latch.SlideLocked&&latch.VisualRackTravel==0,"released manually pulled slide fails to chamber");
   Check(Step(s,bd:true,bh:true)==ReloadAction.None&&s.BlocksFire,"B down auto-reloads/ejects before tap/hold classification");
-  Check(Step(s,1.15f,bu:true)==ReloadAction.DropInstalled,"short B did not eject");s.Detach(7,false);
+  // 0.1.242: this magazine was emptied (its last round fired): the new one needs the slide.
+  Check(Step(s,1.15f,bu:true)==ReloadAction.DropInstalled,"short B did not eject");s.Detach(0,false);
   Check(!s.Installed&&s.NeedsRack&&s.BlocksFire,"removed magazine can fire");
   Check(Step(s,1.2f)==ReloadAction.None,"release repeatedly ejects");
   Check(Step(s,th:true,belt:true,hand:Belt)==ReloadAction.TakeSupply,"held trigger entering pouch ignored");
@@ -147,7 +168,8 @@ class ManualReloadTests
    Check(M(2,bd:true)==ReloadAction.OpenCover&&m.CoverOpen&&m.BlocksFire&&m.Active,"B does not open the cover or the gun fires with it open");
    Check(M(2.1f,bd:true)==ReloadAction.None&&m.CoverOpen,"B while open changes the cover");
    Check(M(3,td:true,th:true,hand:box+new Vector3(0,.01f,0))==ReloadAction.TakeInstalled,"box not taken with the cover open");
-   m.Detach(100,true);Check(m.Holding&&!m.Installed&&m.NeedsRack,"taken box not in hand");
+   // 0.1.242: an emptied belt (with rounds left the bolt stays cocked: no handle - below).
+   m.Detach(0,true);Check(m.Holding&&!m.Installed&&m.NeedsRack,"taken box not in hand");
    Check(M(3.1f,hand:new Vector3(0,-.4f,-.2f),rounds:0)==ReloadAction.DropHeld,"old box not dropped on release");m.ReturnHeld();
    Check(M(4,td:true,th:true,pouch:true,hand:belt,rounds:0)==ReloadAction.TakeSupply,"no new box at the belt");m.Supply(100);
    M(4.1f,th:true,hand:new Vector3(0,-.2f,0),tip:new Vector3(0,-.12f,0),rounds:0);
@@ -160,6 +182,7 @@ class ManualReloadTests
    Check(M(7.1f,th:true,hand:bolt-Vector3.UnitZ*m.FullTravel)==ReloadAction.RackBack,"charging handle not pulled");
    Check(M(7.2f,hand:bolt-Vector3.UnitZ*m.FullTravel)==ReloadAction.Chamber&&!m.NeedsRack&&!m.BlocksFire,"charging handle does not ready the gun");
    m.ObserveRounds(0);Check(!m.SlideLocked&&!m.NeedsRack,"empty belt locks like a pistol slide");
+   {var kept=new ManualReloadState(false,false,false,true);kept.Detach(40,false);kept.Supply(100);kept.Inserted(0);Check(!kept.NeedsRack,"an M60 box changed with rounds left asks for the charging handle");}
    Console.WriteLine("PASS: M60: B opens the cover; box off/on only while open; cover closed by hand; then the charging handle; no fire until done.");
    // 0.1.223: the box goes in where it is taken from, however turned; the one just taken out not at once; the open cover pressed shut.
    var n=new ManualReloadState(false,false,false,true);
@@ -182,7 +205,7 @@ class ManualReloadTests
    ReloadAction G(float t,bool td=false,bool th=false,bool gd=false,bool gh=false,bool belt=false,Vector3? hand=null,int rounds=12)
     =>g.Step(t,false,false,false,td,th,belt,hand??Port,Port,Port,Bolt,Vector3.UnitY,rounds,12,gh,null,true,null,0,gd,gh);
    Check(G(1,gd:true,gh:true,belt:true,hand:Belt)==ReloadAction.None,"the grip takes a magazine at the belt with one in the gun (the belt's holster place)");G(1.1f);
-   g.Detach(12,false);
+   g.Detach(0,false);   // 0.1.242: emptied (with rounds left the chambered round would spare the bolt)
    Check(G(2,td:true,th:true,belt:true,hand:Belt,rounds:0)==ReloadAction.None,"the trigger still takes a magazine from the belt");G(2.1f,rounds:0);
    Check(G(3,gd:true,gh:true,belt:true,hand:Belt,rounds:0)==ReloadAction.TakeSupply,"the grip at the belt takes no magazine");g.Supply(12);
    Check(G(3.1f,hand:new Vector3(0,-.2f,0),rounds:0)==ReloadAction.DropHeld,"the magazine stays in hand with the grip open");g.ReturnHeld();

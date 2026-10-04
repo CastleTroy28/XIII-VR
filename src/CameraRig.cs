@@ -447,6 +447,16 @@ internal sealed class CameraRig : IDisposable
         if(!tracking.HeadValid||!tracking.LeftValid||!ReadBodyAnchor(out _,out var q))return false;
         position=UnityPosition(PoseMath.Relative(tracking.Left,reference));toWorld=q;return true;
     }
+    // 0.1.241: a hand in the room (the tracking space, recentered): not moved by
+    // walking, turning, the body's crouch or the head (reload flicks).
+    internal bool SampleTrackedHand(bool right,out PoseValue hand)
+    {
+        hand=default;
+        if(failed||!referenceSet)return false;
+        tracking.RefreshPoses();
+        if(right?!tracking.RightValid:!tracking.LeftValid)return false;
+        hand=PoseMath.Relative(right?tracking.Right:tracking.Left,reference);return true;
+    }
     internal bool SamplePointerHand(out PoseValue hand)
     {
         hand=default;PollControls();

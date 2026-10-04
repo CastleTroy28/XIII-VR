@@ -11,6 +11,7 @@ internal sealed partial class WeaponHands
     // the right hand's: in the left it only vibrated): the left Y opens it,
     // the right hand takes rounds from the pouch and puts them in, a flick of
     // the left hand closes it.
+    // 0.1.241: it stays open until shut: B (Y) again, or the flick.
     private bool LeftRevolverManual=>PrimaryLeft&&RevolverReady&&copyKey[1]<0&&!foreEndOnly;
     private bool revolverMirrored;
     private void TickRevolver()
@@ -25,11 +26,17 @@ internal sealed partial class WeaponHands
         var loadControls=mirrored?rig.RightControls:rig.LeftControls;var gunControls=mirrored?rig.LeftControls:rig.RightControls;
         var lp=CameraRig.UnityPosition(loading);var lq=GloveVisual.Rotation(loading,mirrored);
         if(revolver.Holding&&ContactRig.Current?.ResolveHand(mirrored,false,ref lp,ref lq)==false)return;
-        var rp=CameraRig.UnityPosition(gun)-rig.HeadPosition;
+        // 0.1.241: the gun hand's motion in the room (the tracked controller).
+        // It was measured against the head: looking down at the pouch moved the
+        // head, and the cylinder shut by itself while the rounds were taken.
+        Vector3 rp;Quaternion gunTurn;
+        if(rig.SampleTrackedHand(!mirrored,out var tracked)){rp=CameraRig.UnityPosition(tracked);gunTurn=CameraRig.UnityRotation(tracked);}
+        else{rp=CameraRig.UnityPosition(gun);gunTurn=CameraRig.UnityRotation(gun);}
         float dt=Time.unscaledDeltaTime;
         var velocity=revolverPositionValid&&dt>.0001f&&dt<.1f?(rp-previousRevolverPosition)/dt:Vector3.zero;
         previousRevolverPosition=rp;revolverPositionValid=true;
-        var axis=rig.HeadRotation*Vector3.right;
+        // To the right of the hand holding it (level), in the same room space.
+        var axis=gunTurn*Vector3.right;axis.y=0;axis=axis.sqrMagnitude>1e-4f?axis.normalized:Vector3.right;
         var socket=visual.FittedToWorld.MultiplyPoint3x4(visual.CylinderSocket);
         var fit=ReloadGripGeometry.Get("revolver");
         var tipLocal=fit==null?new Vector3(0,-.035f,.108f):ContactWorld.U(fit.Tip);if(mirrored)tipLocal.x=-tipLocal.x;

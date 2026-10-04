@@ -45,6 +45,10 @@ internal static class RegressionHarness
         Console.WriteLine("PASS: Auto tries the mod's own OpenXR first; when it is not available the OpenVR way starts.");
 
         b = New(); Start(b); StillRunning(b);
+        // 0.1.240: F9 again while VR runs starts nothing (a second start over the running session crashed a player's game).
+        {int starts=Plugin.Output.Lines.FindAll(l=>l.Contains("START requested")).Count;Input.Keys.Add(KeyCode.F9);b.Update();StillRunning(b);
+         Check(Plugin.Output.Lines.FindAll(l=>l.Contains("START requested")).Count==starts&&Plugin.Output.Lines.Exists(l=>l.Contains("START ignored (F9)")),"F9 started VR again while it was running");
+         Console.WriteLine("PASS: 0.1.240 F9 while VR runs is ignored (no second start over the running session).");}
         Check(!(bool)Field(b,"diagnosticsDisabled"),"healthy diagnostics disabled");
         int count = Plugin.Output.Lines.Count; b.Update(); Check(Plugin.Output.Lines.Count == count,"diagnostic throttle");
         Time.Value = 12; b.Update(); Check(Plugin.Output.Lines.Count > count,"periodic diagnostics stopped");

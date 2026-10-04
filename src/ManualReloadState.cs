@@ -79,19 +79,29 @@ internal sealed class ManualReloadState
         return ReloadAction.None;
     }
     internal void Supply(int rounds){racking=false;Holding=true;DiscardOnly=false;HeldRounds=Math.Max(0,rounds);insertEntered=previousTipValid=false;OnRail=false;RailOffset=0;boxAway=true;}
+    // 0.1.242: a magazine taken out with rounds left leaves a round in the
+    // chamber (as in a real gun): the next magazine goes in ready to fire, no
+    // bolt or slide to work. Only an emptied gun (its slide or bolt back, or
+    // never chambered) needs racking after the new magazine (and an empty
+    // magazine put in: the game counts no round to fire).
+    internal bool ChamberKept{get;private set;}
     internal void Detach(int rounds,bool take)
-    {ObserveRounds(rounds);insertEntered=previousTipValid=false;Installed=false;NeedsRack=true;if(take){Holding=true;DiscardOnly=false;HeldRounds=Math.Max(0,rounds);}pressing=Hint=false;boxAway=false;}
+    {
+        ObserveRounds(rounds);
+        ChamberKept=!shell&&!arrow&&Installed&&!NeedsRack&&!pulled&&!SlideLocked&&rounds>0;
+        insertEntered=previousTipValid=false;Installed=false;NeedsRack=true;if(take){Holding=true;DiscardOnly=false;HeldRounds=Math.Max(0,rounds);}pressing=Hint=false;boxAway=false;
+    }
     // 0.1.223: the M60's open cover pressed shut by a hand (CoverPush).
     internal ReloadAction PushCoverShut(){if(!lidded||!CoverOpen||Holding)return ReloadAction.None;CoverOpen=false;return ReloadAction.CloseCover;}
     internal void ConsumeHeld(){Holding=false;DiscardOnly=false;HeldRounds=0;insertEntered=previousTipValid=false;OnRail=false;RailOffset=0;}
     internal int ReturnHeld(){int refund=Holding?HeldRounds:0;ConsumeHeld();return refund;}
     internal void Inserted(int previousRounds)
-    {supplyArmed=true;Installed=true;NeedsRack=!arrow&&(!shell||NeedsRack||previousRounds==0);ConsumeHeld();}
+    {supplyArmed=true;Installed=true;NeedsRack=!arrow&&(shell?NeedsRack||previousRounds==0:!(ChamberKept&&HeldRounds>0));if(!NeedsRack&&!shell){SlideLocked=false;RackTravel=0;}ChamberKept=false;ConsumeHeld();}
     // 0.1.183: a full magazine put in at once and the slide let go forward
     // (a pistol struck against the chest; a weapon reloaded by itself).
     internal void QuickLoad()
     {
-        ConsumeHeld();Installed=true;NeedsRack=false;SlideLocked=false;
+        ConsumeHeld();Installed=true;NeedsRack=false;SlideLocked=false;ChamberKept=false;
         pressing=Hint=racking=pulled=false;RackTravel=0;maxBack=0;spentCase=false;
     }
     internal int Suspend()

@@ -9,7 +9,7 @@ class Verify
   using var p=ModuleDefinition.ReadModule(args.Length>0?args[0]:"xiii-xr/XIII.XRBootstrap.dll");
   var plugin=p.Types.Single(t=>t.Name=="Plugin");
   var info=plugin.CustomAttributes.Single(a=>a.AttributeType.Name=="BepInPlugin");
-  Require((string)info.ConstructorArguments[2].Value=="0.1.239","compiled plugin reports version 0.1.239");
+  Require((string)info.ConstructorArguments[2].Value=="0.1.242","compiled plugin reports version 0.1.242");
   var sceneHands=p.Types.Single(x=>x.Name=="WeaponHands");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="OnSceneChanged")).Any(x=>x.Name=="Clear"),"scene change clears weapon state");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="RegisterHand")).Any(x=>x.Name=="Clear"),"new native skeleton invalidates cached grip anchors");
@@ -891,6 +891,15 @@ class Verify
    "the eyes' pictures are never compared");
   // 0.1.239: the world scale 120% by default, moved there once for everyone.
   Require(Str(p.Types.Single(x=>x.Name=="QualityOptions"),"WorldScaleDefaultsVersion")&&p.Types.Single(x=>x.Name=="QualityOptions").Fields.Any(f=>f.Name=="WorldScaleDefault"&&f.HasConstant&&Math.Abs((float)f.Constant-1.2f)<1e-6f),"the world scale is not 120% by default");
+  // 0.1.240: F9 while VR runs is ignored.
+  Require(Str(p.Types.Single(x=>x.Name=="Bootstrap"),"START ignored (F9): VR is already running (it starts by itself; F10 stops it)"),"F9 starts VR again over the running session");
+  // 0.1.241: the revolver's cylinder and the double-barrel stay open until shut: their flicks measured in the room (not against the head).
+  var hands241=p.Types.Single(x=>x.Name=="WeaponHands");
+  Require(Calls(hands241.Methods.Single(x=>x.Name=="TickRevolver")).Any(x=>x.Name=="SampleTrackedHand")&&Calls(hands241.Methods.Single(x=>x.Name=="TickBreak")).Any(x=>x.Name=="SampleTrackedHand")
+   &&!Calls(hands241.Methods.Single(x=>x.Name=="TickRevolver")).Any(x=>x.Name=="get_HeadPosition"),"the revolver or the double-barrel shuts by itself when the head moves");
+  // 0.1.242: a magazine changed with rounds left keeps the chambered round (no bolt or slide to work).
+  var manual242=p.Types.Single(x=>x.Name=="ManualReloadState");
+  Require(Calls(manual242.Methods.Single(x=>x.Name=="Inserted")).Any(x=>x.Name=="get_ChamberKept")&&Calls(manual242.Methods.Single(x=>x.Name=="Detach")).Any(x=>x.Name=="set_ChamberKept"),"a magazine changed with rounds left still asks for the bolt");
   // 0.1.220: a turned lockpick runs the game's lockpicking time on its HUD before the lock opens.
   var key220=p.Types.Single(x=>x.Name=="KeyUnlockGesture");MethodDefinition K0(string n)=>key220.Methods.Single(x=>x.Name==n);
   Require(Calls(K0("Tick")).Any(x=>x.Name=="BeginPicking")&&Calls(K0("Tick")).Any(x=>x.Name=="TickPicking")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="ToggleLockpickingHud")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="get_lockpickTime")

@@ -41,6 +41,14 @@ class BreakActionTests
   Check(!fresh.Flick(t,1.2f,0)&&!fresh.Flick(t+.02f,0,0)&&fresh.Open,"the motion that opened the gun shut it at once");
   t+=1;st.Flick(t,0,220);t+=1f/90;st.Flick(t,0,230);t+=1f/90;
   Check(st.Flick(t,0,10)&&!st.Open,"a wrist flick (the muzzle raised and stopped) did not shut the gun");
+  // 0.1.241: with the other hand at the belt, holding a shell or just done with one (quiet), no flick shuts it.
+  {
+   var q=new BreakActionState();q.Load(2);q.OpenGun();q.Tick(1);float tq=50;
+   for(int i=0;i<5;i++,tq+=1f/90)q.Flick(tq,1.2f,250,true);
+   for(int i=0;i<5;i++,tq+=1f/90)Check(!q.Flick(tq,-.3f,-40,true)&&q.Open,"a flick while quiet shut the gun");
+   for(int i=0;i<3;i++,tq+=1f/90)Check(!q.Flick(tq,0,0)&&q.Open,"a flick made while quiet shut the gun afterwards");
+   Console.WriteLine("PASS: 0.1.241 the barrels stay open while the other hand is at the belt or with a shell (B or a deliberate flick shut them).");
+  }
   Check(!st.CloseGun(),"shutting a shut gun");
   // Both fired: both cases out; the held shell let go of goes back.
   st.Observe(0);Check(st.Chambers[0]==BreakChamber.Spent&&st.Chambers[1]==BreakChamber.Spent,"both barrels fired not both spent");

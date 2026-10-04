@@ -67,6 +67,8 @@ internal sealed partial class WeaponHands
         return (probe-point).sqrMagnitude<.30f*.30f;
     }
     internal const float BreakInsertReach=.05f;
+    // 0.1.241: no flick shuts the gun for a moment after a shell is taken, let go or put in.
+    internal const float BreakQuietAfterStep=.6f;private float breakQuietUntil=float.NegativeInfinity;
     private void TickBreak(bool mirrored,Vector3 hand,Quaternion rotation,Vector3 world,HandControls gun,HandControls loader,PoseValue gunPose,float now)
     {
         var st=CurrentBreak;var v=visual;var a=ammo;if(st==null||v==null||a==null)return;
@@ -88,12 +90,15 @@ internal sealed partial class WeaponHands
             else if(st.CloseGun())BreakClosed("B",mirrored);
         }
         // The flick that shuts it.
-        var gunAt=CameraRig.UnityPosition(gunPose);var forward=m.MultiplyVector(Vector3.forward).normalized;
+        // 0.1.241: the gun hand's rise in the room (not moved by walking, a crouch or the head).
+        var gunAt=rig.SampleTrackedHand(!mirrored,out var trackedGun)?CameraRig.UnityPosition(trackedGun):CameraRig.UnityPosition(gunPose);var forward=m.MultiplyVector(Vector3.forward).normalized;
         float pitch=Mathf.Asin(Mathf.Clamp(forward.y,-1,1))*Mathf.Rad2Deg;float dt=now-breakPrevAt;
         if(breakPrevAt>0&&dt>.0001f&&dt<.1f)
         {
             float up=(gunAt.y-breakPrevGun.y)/dt,raise=(pitch-breakPrevPitch)/dt;
-            if(st.Flick(now,up,raise))BreakClosed("a flick up and down (the barrels swung shut by their weight)",mirrored);
+            // Not while the other hand is at the belt, holds a shell, or has just put one in.
+            bool quiet=st.Holding||now<breakQuietUntil||pouch!=null&&pouch.NearShell(world);
+            if(st.Flick(now,up,raise,quiet))BreakClosed("a flick up and down (the barrels swung shut by their weight)",mirrored);
         }
         breakPrevAt=now;breakPrevGun=gunAt;breakPrevPitch=pitch;
         // 0.1.221: the other hand's grip (was its trigger) takes and holds a shell.
@@ -106,6 +111,7 @@ internal sealed partial class WeaponHands
             try{if(infinite)got=1;else if(a.PrimaryReserveAmmoCount>0)got=a.ammoPool.TryRemoveAmmo(a.primaryAmmoType,1);}catch(Exception ex){Bootstrap.Warn("BREAK ACTION shell from the belt: "+ex.Message);}
             if(got>0&&st.Take())
             {
+                breakQuietUntil=now+BreakQuietAfterStep;
                 NotifyAmmo();heldAmmoFrame=-10;ContactRig.Current?.ResetHand(mirrored);
                 reloadAudio?.Play(ReloadAction.TakeSupply,profile,world,rig.HeadPosition,rig.HeadRotation);rig.ReloadHaptics(ReloadAction.TakeSupply,mirrored);
             }
@@ -115,7 +121,7 @@ internal sealed partial class WeaponHands
         {
             // Let go of: the shell back to the reserve, drawn falling.
             v.AmmunitionPose(hand,rotation,out var at,out var turn,mirrored);
-            Refund(st.LetGo());Drop(at,turn,throwVelocity);heldAmmoFrame=-10;ContactRig.Current?.ResetHand(mirrored);
+            Refund(st.LetGo());Drop(at,turn,throwVelocity);heldAmmoFrame=-10;ContactRig.Current?.ResetHand(mirrored);breakQuietUntil=now+BreakQuietAfterStep;
         }
         // Pushed into an open empty chamber (along its barrel).
         if(st.Holding&&st.Open&&st.Swing>.75f)
@@ -126,6 +132,7 @@ internal sealed partial class WeaponHands
             int c=BreakTarget(tip,out float distance);
             if(c>=0&&distance<BreakInsertReach&&Vector3.Dot(along,v.BreakAxis)>.35f&&st.Insert(c))
             {
+                breakQuietUntil=now+BreakQuietAfterStep;
                 try{SetMagazine(st.LiveRounds);}catch(Exception ex){Bootstrap.Warn("BREAK ACTION chamber: "+ex.Message);}
                 heldAmmoFrame=-10;ContactRig.Current?.ResetHand(mirrored);
                 reloadAudio?.Play(ReloadAction.Insert,profile,m.MultiplyPoint3x4(v.BreakMouth(c)),rig.HeadPosition,rig.HeadRotation);

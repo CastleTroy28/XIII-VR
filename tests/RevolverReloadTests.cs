@@ -14,10 +14,20 @@ class RevolverReloadTests
   Check(Step(down:true,held:true,pouch:true)==RevolverAction.Take,"pouch does not supply");s.Applied(RevolverAction.Take,3);
   Check(Step(held:true,socket:true)==RevolverAction.Load,"loader socket rejected");s.Applied(RevolverAction.Load);
   Check(!s.Holding&&s.HeldRounds==0,"loaded ammo still refundable");
+  // 0.1.241: right after a step of the reload the arm's motion shuts nothing; neither with the other hand at the pouch.
+  Check(Step(velocity:.8f)==RevolverAction.None&&Step(velocity:0)==RevolverAction.None,"a swing right after loading shut the cylinder");
+  t+=1;Check(Step(velocity:.8f,pouch:true)==RevolverAction.None&&Step(velocity:0,pouch:true)==RevolverAction.None,"a swing with the other hand at the pouch shut the cylinder");
   Check(Step(velocity:.8f)==RevolverAction.None,"swing closes too early");Check(Step(velocity:0)==RevolverAction.Close,"sharp stop not detected");s.Applied(RevolverAction.Close);
   Check(!s.Open,"cylinder remains open");
+  // 0.1.241: B again shuts it (not while rounds are held in the other hand).
+  Check(Step(b:true)==RevolverAction.Open,"B does not open again");s.Applied(RevolverAction.Open);
+  Check(Step(b:true)==RevolverAction.Close,"B again does not shut the cylinder");s.Applied(RevolverAction.Close);
+  s.Applied(RevolverAction.Open);s.Applied(RevolverAction.Empty);s.Applied(RevolverAction.Take,6);
+  Check(Step(b:true,held:true)==RevolverAction.None&&s.Open,"B shut the cylinder with rounds in the other hand");
+  s.Applied(RevolverAction.Drop);s.Applied(RevolverAction.Close);
   s.Applied(RevolverAction.Open);s.Applied(RevolverAction.Empty);s.Applied(RevolverAction.Take,0);
   Check(s.Holding&&s.HeldRounds==0,"empty reserve cannot create empty loader");Check(Step()==RevolverAction.Drop,"release does not drop");s.Applied(RevolverAction.Drop);Check(!s.Holding,"loader retained");
+  Console.WriteLine("PASS: 0.1.241 the cylinder stays open until shut: B again or a flick, never right after a reload step or with the other hand at the pouch.");
   Console.WriteLine("PASS revolver opening, gravity gesture, exact-once transitions, partial/empty loader, load, drop and snap-close gesture. No headset/native asset validation.");
  }
 }

@@ -4,7 +4,7 @@ The version is in `Install-XIII-VR.ps1`, `src/Plugin.cs` and `src/XIII.XRBootstr
 
 ## 0.1.232
 
-- The installer checks the package before it does anything. If the plugin file is missing, it now says why. The usual cause is GitHub's "Source code" archive instead of `XIII-VR-<version>.zip`. Other causes are a run from inside the zip, a half-unpacked folder or an antivirus. The old message blamed an earlier install inside `BepInEx\plugins` even when that wasn't the cause
+- The installer checks the package before it does anything. If the plugin file is missing, it now says why. The usual cause is GitHub's "Source code" archive instead of `XIII-VR-<version>.zip`. Other causes are a run from inside the zip, a half-unpacked folder or an antivirus. The old message blamed an earlier install inside `BepInEx\plugins` even when that wasn't the cause.
 
 ## 0.1.231
 

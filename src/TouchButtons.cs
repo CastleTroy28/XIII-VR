@@ -69,6 +69,31 @@ internal sealed class TouchButtons
             }
         }
     }
+    // 0.1.244: a blow (PunchDriver: a fist, or the hand with a weapon) on a
+    // thing the game breaks when used (TouchControlMath.Breaks) uses it, as
+    // Grip+A at it does: the game's own breaking, sound and what follows. The
+    // game's own checks decide (its condition, a block, the player, the hit);
+    // a thing used once is not used again for two seconds.
+    private readonly Dictionary<IntPtr,float> struck=new();
+    internal bool Strike(Collider collider,RaycastHit hit,IInteractionActor actor,out string note)
+    {
+        note="";
+        var a=collider.GetComponentInParent(Il2CppType.Of<RaycastAction>())?.TryCast<RaycastAction>();
+        if(a==null)return false;
+        TouchControlReader.Read(a,collider,false,out string events,out bool breaks);
+        if(!breaks)return false;
+        float now=Time.realtimeSinceStartup;
+        if(struck.TryGetValue(a.Pointer,out float until)&&now<until)return false;
+        string? refused=!a.isActiveAndEnabled?"inactive":a.conditional!=RaycastAction.InteractionConditionals.Nothing?"needs "+a.conditional
+            :a.IsInteractionBlocked(actor)?"blocked by the game now":!a.IsActorValid(actor)?"not for the player":!a.IsRaycastPingValid(actor,hit)?"the game refused the blow":null;
+        if(refused!=null){note=refused+" ("+a.name+"; on use: "+events+")";return false;}
+        bool valid;Injecting=true;
+        try{a.PingRaycastHittable(actor,hit,out valid);}
+        finally{Injecting=false;}
+        if(!valid){note="the game did not take it ("+a.name+"; on use: "+events+")";return false;}
+        if(struck.Count>=64)struck.Clear();
+        struck[a.Pointer]=now+2;note=a.name+" via="+collider.name+" (on use: "+events+")";return true;
+    }
     private static bool Hit(Collider c,Vector3 from,Vector3 p,float radius,out RaycastHit hit)
     {
         var move=p-from;var direction=move.normalized;

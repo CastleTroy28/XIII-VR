@@ -2,6 +2,23 @@
 
 The version is in `Install-XIII-VR.ps1`, `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
+## 0.1.245
+
+- **Forearms** in VR SETTINGS: shown up to the elbow (the default), or the hands only, cut just behind the watch. The forearm medkits sit on the cut either way. Config `[VR] Forearms`.
+- **The game's story movies stand still too** (the comic-panel films, such as the arrest after the bank). They were drawn in front of the head and tilted with it; now they are on a screen in front of where you faced when the movie began, as the cutscenes are, and their subtitles stay on it. "The film's" cutscene camera keeps the old way.
+- One grip press no longer takes a weapon from the ground and a thing behind it as well: a hand holding a weapon taken from the ground or the body, or one whose grip has just taken one, picks nothing else up (a revolver and a broom ended up in one hand).
+- A weapon just selected has the game's own first-person model hidden at once. A chair taken showed that model, drawn small at the game's size, for up to a second.
+
+## 0.1.244
+
+- **A blow breaks what the game breaks when used.** The vent behind the leaves at the sanctuary's entrance is broken by Grip+A in the game; a fist, or the hand with a weapon, only damaged it and it stayed whole. A real swing that lands on a thing whose use breaks it (`DestructableObjectHandle`) now uses it, as Grip+A at it would: the game's own breaking, sound and what follows. The game's own checks still decide (a block, a key or lockpick it needs, the player), and a thing that takes or carries, raises the alarm, moves a door or a cabinet's leaf is never used by a blow. A light touch still breaks nothing.
+- The Uzi is drawn 35 cm long (it was 46). The hand holding it was 1.29 of the free hand's size, big beside the pistol in the other hand; it is now the same as on the pistol.
+
+## 0.1.243
+
+- **Handguns at their real size, and the hand holding them too.** The pistol's silencer, hidden when it is not screwed on, is shrunk by the game to a point outside the gun, and that point was left in the pistol's fit. The plain pistol came out 17 cm long instead of 22, and the hand holding it at 0.76 of the free hand's size, so it shrank as you took the pistol. The hidden silencer is now left out of the fit, as the screwed-on one already was: the plain pistol is the same size as the silenced one and the hand stays its size (0.98, as on the rifles).
+- The revolver is drawn 37 cm long (it was 28), its size against the game's own hand. The hand holding it was 0.74 of the free hand's size and is now the same as the free hand. How far its cylinder swings out, where the rounds go in and where the cases drop from grow with it.
+
 ## 0.1.242
 
 - A magazine changed with rounds left keeps the round in the chamber, as in a real gun. The new magazine goes in ready to fire, with no bolt, slide or charging handle to work. Only an emptied gun, one never racked, or an empty magazine put in still needs it. Pistols, rifles, the Uzi, the M60 and the sniper rifle all work this way; the shotgun and the crossbow are unchanged.

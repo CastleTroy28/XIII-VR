@@ -262,11 +262,12 @@ internal sealed partial class WeaponVisual : IDisposable
         animatedFrame=-1;
     }
     private Vector3? attachmentFront;
-    // The bounds (mesh space) of a skinned gun without its shown silencer, and
-    // the silencer's front middle (barrel frame).
-    private static bool TrimAttachment(NativeSkinSnapshot snapshot,Mesh mesh,Matrix4x4 toFrame,out Bounds trimmed,out Vector3 front)
+    // The bounds (mesh space) of a skinned gun without its silencer, and the
+    // shown silencer's front middle (barrel frame; null for a hidden one).
+    // 0.1.243: a hidden silencer (shrunk to a point outside the gun) left out too.
+    private static bool TrimAttachment(NativeSkinSnapshot snapshot,Mesh mesh,Matrix4x4 toFrame,out Bounds trimmed,out Vector3? front)
     {
-        trimmed=default;front=default;
+        trimmed=default;front=null;
         var bones=snapshot.Bones;var mark=new bool[bones.Length];bool any=false;
         for(int i=0;i<bones.Length;i++)if(bones[i]!=null&&WeaponGeometry.Attachment(bones[i].name)){mark[i]=true;any=true;}
         if(!any)return false;
@@ -281,14 +282,20 @@ internal sealed partial class WeaponVisual : IDisposable
             attached[i]=(On(w.boneIndex0)?w.weight0:0)+(On(w.boneIndex1)?w.weight1:0)+(On(w.boneIndex2)?w.weight2:0)+(On(w.boneIndex3)?w.weight3:0)>.5f;
             if(attached[i])count++;
         }
-        if(!WeaponGeometry.WithoutAttachment(points,attached,.10f,out var min,out var max,out _,out _))return false;
+        if(!WeaponGeometry.Split(points,attached,out var min,out var max,out var attachMin,out var attachMax))return false;
         trimmed=new Bounds();trimmed.SetMinMax(new Vector3(min.X,min.Y,min.Z),new Vector3(max.X,max.Y,max.Z));
+        var whole=mesh.bounds;
+        if(!WeaponGeometry.Shown(min,max,attachMin,attachMax,.10f))
+        {
+            Bootstrap.Write("WEAPON VISUAL "+snapshot.Original.name+" fitted without its hidden silencer ("+count+" of "+vertices.Length+" vertices at one point): the gun's own size "+trimmed.size.ToString("F4")+" (with it "+whole.size.ToString("F4")+")");
+            return true;
+        }
         // Its front: the farthest silencer point along the barrel, in its middle across.
         bool has=false;Vector3 lo=default,hi=default;
         for(int i=0;i<vertices.Length;i++)if(attached[i])
         {var p=toFrame.MultiplyPoint3x4(vertices[i]);if(!has){lo=hi=p;has=true;}else{lo=Vector3.Min(lo,p);hi=Vector3.Max(hi,p);}}
         front=new Vector3((lo.x+hi.x)*.5f,(lo.y+hi.y)*.5f,hi.z);
-        Bootstrap.Write("WEAPON VISUAL "+snapshot.Original.name+" fitted without its silencer ("+count+" of "+vertices.Length+" vertices): the plain gun's size and handle, the silencer ahead of the muzzle");
+        Bootstrap.Write("WEAPON VISUAL "+snapshot.Original.name+" fitted without its silencer ("+count+" of "+vertices.Length+" vertices): the gun's own size "+trimmed.size.ToString("F4")+", the silencer ahead of the muzzle");
         return true;
     }
     // 0.1.228: the bazooka without its rocket (its bones and those under them):
@@ -387,10 +394,10 @@ internal sealed partial class WeaponVisual : IDisposable
                 try{if(TrimRocket(snapshot,mesh,out var tube)){box=tube;bazookaTrimmed=true;}}
                 catch(Exception ex){Bootstrap.Warn("WEAPON VISUAL bazooka fitted with its rocket: "+ex.Message);}
             }
-            // 0.1.194: a shown silencer is left out of the fit (the plain pistol's size and handle).
+            // 0.1.194: a shown silencer is left out of the fit (0.1.243: a hidden one too: the gun's own size).
             if(profile!="prop"&&snapshot!=null)
             {
-                try{if(TrimAttachment(snapshot,mesh,matrix,out var trimmed,out var front)){box=trimmed;attachmentFront=front;}}
+                try{if(TrimAttachment(snapshot,mesh,matrix,out var trimmed,out var front)){box=trimmed;attachmentFront=front??attachmentFront;}}
                 catch(Exception ex){Bootstrap.Warn("WEAPON VISUAL attachment left in the fit: "+ex.Message);}
             }
             var min = box.min; var max = box.max;

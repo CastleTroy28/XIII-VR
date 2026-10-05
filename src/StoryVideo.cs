@@ -98,7 +98,8 @@ internal sealed partial class StoryVideo : IDisposable
         const float depth=1.72f;float width=2.2f*depth/1.7f;
         canvas.worldCamera=rig.MainCamera!;rect.sizeDelta=new Vector2(1920,1920/aspect);
         rect.localScale=Vector3.one*(width/1920);
-        rect.SetPositionAndRotation(rig.HeadPosition+rig.HeadRotation*new Vector3(0,0,depth),rig.HeadRotation);
+        // 0.1.245: on the screen that stands still (CameraRig.PoseMovieScreen), not in front of the head.
+        rect.SetPositionAndRotation(rig.CinemaPosition+rig.CinemaRotation*new Vector3(0,0,depth),rig.CinemaRotation);
     }
     private void ReleasePlayer()
     {

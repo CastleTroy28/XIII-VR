@@ -293,7 +293,7 @@ internal sealed partial class WeaponHands
         KeepCopyClub(s,byForeEnd);bool asClub=copyClub[s];
         CancelReloadGesture();StopOwnedFire();ReleaseSupport();foreEndOnly=false;ClearClub();
         holsters.Store(key,copy);holsters.Hold(key);
-        copyKey[s]=key;copyProfile[s]=p;copyGrip[s].Took(byForeEnd||gripState.Owned);copySnap[s]=false;
+        copyKey[s]=key;copyProfile[s]=p;copyGrip[s].Took(byForeEnd||gripState.Owned);copySnap[s]=false;tookAt[s]=Time.realtimeSinceStartup;
         copyForeEnd[s]=byForeEnd;copyHoldOffset[s]=foreEndOffset;copyHoldRotation[s]=foreEndRotation;copyTriggerLocked[s]=true;
         if(byForeEnd)Bootstrap.Write("HANDS "+p+" stays in the "+Side(s)+" hand "+(asClub?"by its barrel (a club)":"by its fore-end")+", as a copy");
         if(s==0)leftGameKey=-1;
@@ -411,7 +411,7 @@ internal sealed partial class WeaponHands
     {
         var copy=holsters?.TakeHand(key);string p=holsters?.ProfileOf(key)??EquipmentProfile.ForSlot(key);
         if(copy==null){if(!quiet)Bootstrap.Write("HOLSTER "+Side(s)+" hand: no still copy of "+p+" yet");return false;}
-        copyKey[s]=key;copyProfile[s]=p;copyGrip[s].Took(true);copySnap[s]=false;copyForeEnd[s]=false;copyTriggerLocked[s]=true;autoPromoteAt=0;
+        copyKey[s]=key;copyProfile[s]=p;copyGrip[s].Took(true);copySnap[s]=false;copyForeEnd[s]=false;copyTriggerLocked[s]=true;autoPromoteAt=0;tookAt[s]=Time.realtimeSinceStartup;
         if(s==0){leftGrenadeGesture.Reset();if(reload.Holding)CancelReloadGesture();}
         rig.PunchHaptics(s==1);
         if(!quiet)Bootstrap.Write("HOLSTER "+Side(s)+" hand took "+p+(BodyHolsters.IsLoose(key)?" (another one)":"")+" from "+from+" (held while the game's weapon is elsewhere: it fires by itself); game weapon: "+(weapon!=null?profile+" in the "+Side(PrimaryLeft?0:1)+" hand":"none"));
@@ -438,7 +438,7 @@ internal sealed partial class WeaponHands
     {
         int key=copyKey[from];if(key<0)return;string p=copyProfile[from];
         copyKey[from]=-1;copyProfile[from]="";copyForeEnd[from]=false;copySupport[from].Release();copySupport[to].Release();if(from==0)leftGrenadeGesture.Reset();
-        copyKey[to]=key;copyProfile[to]=p;copyGrip[to].Took(true);copySnap[to]=false;copyForeEnd[to]=false;copyTriggerLocked[to]=true;rig.PunchHaptics(to==1);
+        copyKey[to]=key;copyProfile[to]=p;copyGrip[to].Took(true);copySnap[to]=false;copyForeEnd[to]=false;copyTriggerLocked[to]=true;rig.PunchHaptics(to==1);tookAt[to]=Time.realtimeSinceStartup;
         Bootstrap.Write("HOLSTER "+Side(to)+" hand takes "+p+" from the "+Side(from)+" hand (by the handle)");
         if(BodyHolsters.IsLoose(key))return;
         if(CurrentKey==key){if(to==0){leftGameKey=key;leftGameSince=Time.realtimeSinceStartup;}else RightHandHas(key);return;}

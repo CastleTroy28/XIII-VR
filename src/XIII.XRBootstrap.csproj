@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>XIII.XRBootstrap</AssemblyName>
-    <Version>0.1.242</Version>
+    <Version>0.1.245</Version>
     <Nullable>enable</Nullable>
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
     <Deterministic>true</Deterministic>

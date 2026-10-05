@@ -37,11 +37,14 @@ internal sealed class GloveVisual : IDisposable
     }
     internal void BindNative(Transform? player)
     {
-        if(root==null || player==null || native?.BelongsTo(player)==true)return;
+        // 0.1.245: built again when VR SETTINGS "Forearms" changes (the hand only, or with its forearm).
+        bool handsOnly=!QualityOptions.ForearmsOn;
+        if(root==null || player==null || native?.BelongsTo(player)==true&&native.HandsOnly==handsOnly)return;
+        if(native!=null&&native.HandsOnly!=handsOnly)Bootstrap.Write("HANDS "+(right?"right":"left")+" "+(handsOnly?"the hand only (cut behind the watch)":"with its forearm")+" (VR SETTINGS)");
         native?.Dispose();native=null;
         try
         {
-            native=NativeHandVisual.Create(root.transform,player,right);WeaponHands.Current?.RegisterHand(native,right);
+            native=NativeHandVisual.Create(root.transform,player,right,handsOnly);WeaponHands.Current?.RegisterHand(native,right);
             fit=native.Wrist;faceLift=fit.RadiusY+.0025f-.040f;
             watch?.Set(HandMeshGeometry.BuildWatch(right,fit.RadiusX,fit.RadiusY,false));
             band?.Set(HandMeshGeometry.BuildBand(right,fit.RadiusX,fit.RadiusY,false));RefreshDisplay();

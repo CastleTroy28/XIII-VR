@@ -11,15 +11,23 @@ internal sealed class FirstPersonVisibility
     private readonly Dictionary<int,(SkinnedMeshRenderer skin,bool offscreen)> skins=new();
     private float nextScan;
     private bool failed;
+    // 0.1.245: a weapon just selected: the game's own first-person model of it
+    // (a chair drawn small, at the game's arm size) stayed visible beside the
+    // VR one until the next scan, up to a second. For a moment after a
+    // selection the models are looked for ten times a second.
+    private static float soonUntil;
+    internal const float SoonFor=1.5f,SoonEvery=.1f;
+    internal static void ScanSoon()=>soonUntil=Time.realtimeSinceStartup+SoonFor;
+    internal static float NextScanDelay(float now,float until)=>now<until?SoonEvery:1f;
     internal void Tick(CustomCharacterController? player,bool hide)
     {
         if (failed) return;
         try
         {
             if (player == null || !hide) { Restore(); return; }
-            if (Time.realtimeSinceStartup >= nextScan)
+            if (Time.realtimeSinceStartup >= nextScan || soonUntil>0 && nextScan-Time.realtimeSinceStartup>SoonEvery && Time.realtimeSinceStartup<soonUntil)
             {
-                nextScan = Time.realtimeSinceStartup + 1;
+                nextScan = Time.realtimeSinceStartup + NextScanDelay(Time.realtimeSinceStartup,soonUntil);
                 var model = player.CurrentFpsRigReference;
                 if (model != null)
                 {

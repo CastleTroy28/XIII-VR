@@ -8,9 +8,11 @@ namespace XiiiXR;
 // once per touched collider for TouchControlMath. Nothing is run here.
 internal static class TouchControlReader
 {
-    internal static TouchControlMath.Verdict Read(RaycastAction action,Collider collider,bool named,out string events)
+    internal static TouchControlMath.Verdict Read(RaycastAction action,Collider collider,bool named,out string events)=>Read(action,collider,named,out events,out _);
+    // 0.1.244: and whether a blow breaks it (TouchControlMath.Breaks).
+    internal static TouchControlMath.Verdict Read(RaycastAction action,Collider collider,bool named,out string events,out bool breaks)
     {
-        events="";
+        events="";breaks=false;
         try
         {
             if(!named&&action.GetRaycastHittableType()!=RaycastHittableType.Interaction)return TouchControlMath.Verdict.NotInteraction;
@@ -33,10 +35,10 @@ internal static class TouchControlReader
                 }
             }
             var size=collider.bounds.size;
-            events=TouchControlMath.Summary(list);
+            events=TouchControlMath.Summary(list);breaks=TouchControlMath.Breaks(list);
             return TouchControlMath.Classify(list,named,Math.Max(size.x,Math.Max(size.y,size.z)));
         }
-        catch(Exception ex){events="unreadable: "+ex.Message;return named?TouchControlMath.Verdict.Control:TouchControlMath.Verdict.NoEvents;}
+        catch(Exception ex){events="unreadable: "+ex.Message;breaks=false;return named?TouchControlMath.Verdict.Control:TouchControlMath.Verdict.NoEvents;}
     }
     // The animation moves the touched collider's own leaf, the way a door or
     // a cabinet moves: the hand moves that (PhysicalDoors), a touch never uses it.

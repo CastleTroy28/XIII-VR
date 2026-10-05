@@ -159,6 +159,15 @@ class QualityMenuTests
   Check(QualityMenu.Row==QualityMenu.PlacesRow,"rows not reached again");
   UiLanguage.ReadCode=()=>"pl";Check(QualityMenu.Text.Contains("Miejsca broni: przesuń promieniem"),"weapon places row not translated");UiLanguage.ReadCode=()=>"ru";
   Console.WriteLine("PASS: 0.1.234 cutscene camera row (a still screen by default, steady, the film's) and weapon places row opening its editor, which has the controllers until back; translated.");
+  // 0.1.245: the forearms shown (the default) or the hands only, cut at the watch.
+  Tick();Tick(y:-1);Tick();
+  Check(QualityMenu.Row==QualityMenu.ForearmRow&&QualityOptions.ForearmsOn&&QualityMenu.Text.Contains("> Предплечья: видны"),"forearms row missing or not shown by default");
+  Tick(-1);Tick();Check(!QualityOptions.ForearmsOn&&QualityOptions.Forearms!.Value==false&&QualityMenu.Text.Contains("> Предплечья: только кисти (обрезаны у часов)"),"the hands only cannot be chosen with the stick");
+  QualityMenu.Click(QualityMenu.ForearmRow,0);Check(QualityOptions.ForearmsOn,"a ray click on the row does not switch the forearms back");
+  QualityMenu.Click(QualityMenu.ForearmRow,-1);Check(!QualityOptions.ForearmsOn,"the ray's left arrow does not choose the hands only");
+  UiLanguage.ReadCode=()=>"fr";Check(QualityMenu.Text.Contains("Avant-bras: mains seules (coupées à la montre)"),"forearms row not translated");UiLanguage.ReadCode=()=>"ru";
+  QualityMenu.Click(QualityMenu.ForearmRow,1);Check(QualityOptions.ForearmsOn&&QualityMenu.Row==QualityMenu.ForearmRow&&QualityMenu.ForearmRow==QualityMenu.RowCount-2,"the forearms not back, or the row not just above Close");
+  Console.WriteLine("PASS: 0.1.245 forearms row (shown by default, or the hands only cut at the watch): the stick, a ray click and the ray's arrows; translated.");
   Tick();Tick(y:-1);Tick();
   Check(!QualityMenu.Text.Contains("Кошка"),"grapple grip rows still in the menu");
   QualityMenu.Tick(true,new StickSample(true,Vector2.Zero,false),new HandControls(true,HandControls.A,0,0));Check(!QualityMenu.Open,"A cannot confirm close in settings");

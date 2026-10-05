@@ -56,9 +56,11 @@ internal sealed partial class NativeHandVisual : IDisposable
     internal bool Valid=>root!=null && RenderResourcesValid && source!=null && wrist!=null && source.sharedMesh==sourceMesh
         &&character!=null&&character.CurrentFpsRigReference!=null&&character.CurrentFpsRigReference.m_fpsMesh==source;
     internal bool BelongsTo(Transform player)=>Valid && source!.transform.IsChildOf(player);
-    internal static NativeHandVisual Create(Transform parent,Transform player,bool right)
+    // 0.1.245: the hand only, cut just behind the watch (VR SETTINGS "Forearms").
+    internal bool HandsOnly{get;private set;}
+    internal static NativeHandVisual Create(Transform parent,Transform player,bool right,bool handsOnly=false)
     {
-        var result=new NativeHandVisual();
+        var result=new NativeHandVisual{HandsOnly=handsOnly};
         try{result.Build(parent,player,right);return result;}catch{result.Dispose();throw;}
     }
     private void Build(Transform parent,Transform player,bool right)
@@ -185,7 +187,8 @@ internal sealed partial class NativeHandVisual : IDisposable
             Bootstrap.Write("WATCH removed static native accessory from owned "+side+" mesh vertices="+removed);
         }
         RemoveStaticWatch();
-        try{clipped=NativeHandMesh.Build(restPoints,coords,triangles,eligible,Math.Clamp(ForearmRest.Z-.025f,-.35f,-.16f),.14f);}
+        float cutZ=NativeHandMesh.ForearmCut(ForearmRest.Z,mountDistance,HandsOnly);
+        try{clipped=NativeHandMesh.Build(restPoints,coords,triangles,eligible,cutZ,.14f);}
         catch(InvalidOperationException) when(selection=="bone weights")
         {
             // Readable meshes can expose an empty/partial legacy weight array.
@@ -193,7 +196,8 @@ internal sealed partial class NativeHandVisual : IDisposable
             eligible=NativeHandMesh.ConnectedOwnership(restPoints,triangles,NVector.Zero,N(restFrame.MultiplyPoint3x4(Rest(oi))));
             RemoveStaticWatch();
             selection="neutral connected islands after legacy-weight crop failed";
-            clipped=NativeHandMesh.Build(restPoints,coords,triangles,eligible,Math.Clamp(ForearmRest.Z-.025f,-.35f,-.16f),.14f);
+            cutZ=NativeHandMesh.ForearmCut(ForearmRest.Z,mountDistance,HandsOnly);
+            clipped=NativeHandMesh.Build(restPoints,coords,triangles,eligible,cutZ,.14f);
         }
         try{Wrist=WristFitMath.Fit(restPoints,triangles,eligible,ForearmRest,mountDistance);if(NativeBand)Wrist=WristFitMath.AttachToNativeCase(Wrist,restPoints,triangles,eligible,accessoryPoints);Bootstrap.Write("WRIST FIT "+side+" nativeBand="+NativeBand+" mount="+mountDistance+" center="+Wrist.Center+" radii="+Wrist.RadiusX+","+Wrist.RadiusY+" nativeCasePoint="+Wrist.DisplayPoint+" nativeCaseNormal="+Wrist.DisplayNormal);}catch(Exception ex){Bootstrap.Warn("WRIST FIT default: "+ex.Message);}
         mesh=new Mesh(){hideFlags=HideFlags.DontUnloadUnusedAsset};mesh.name="XIII native "+side+" hand cropped";mesh.indexFormat=IndexFormat.UInt32;mesh.MarkDynamic();
@@ -214,9 +218,8 @@ internal sealed partial class NativeHandVisual : IDisposable
         weights=clipped.Points.Select(p=>ArmIkMath.ForearmWeight(p.Rest.Z)).ToArray();
         // 0.1.186: the middle of the forearm's cut (where a small medkit is carried).
         var cap=clipped.Points.Where(p=>p.Cap).Select(p=>p.Rest).ToArray();
-        float cutZ=Math.Clamp(ForearmRest.Z-.025f,-.35f,-.16f);
         CropRest=cap.Length>=3?cap.Aggregate(NVector.Zero,(sum,p)=>sum+p)/cap.Length:ArmMedkitMath.AlongForearm(ForearmRest,cutZ);
-        Bootstrap.Write("NATIVE HAND "+side+" forearm cut at "+CropRest.ToString()+" (rim points "+cap.Length+")");
+        Bootstrap.Write("NATIVE HAND "+side+" forearm cut at "+CropRest.ToString()+" (rim points "+cap.Length+(HandsOnly?"; the hand only: cut behind the watch, its band "+mountDistance.ToString("F3")+" m from the wrist":"")+")");
         Refresh(false,1,0,0,"",ForearmRest);
         Bootstrap.Write("NATIVE HAND "+side+" bound source="+source.name+" vertices="+clipped.Points.Count+" selection="+selection+" materials="+string.Join(",",source.sharedMaterials.Where(m=>m!=null).Select(m=>m.name)));
     }

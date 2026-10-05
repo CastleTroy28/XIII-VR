@@ -8,6 +8,19 @@ namespace XiiiXR;
 internal sealed class NativeHandMesh
 {
     internal const float WristZ=-.065f, Cut=-.055f;
+    // 0.1.245: where the forearm is cut (rest frame: the wrist joint at 0,
+    // the elbow toward -Z). With the forearms shown: 2.5 cm short of the elbow
+    // (as before). The hands only (VR SETTINGS "Forearms"): just behind the
+    // watch - its band's middle `mount` back from the wrist and some 3 cm wide
+    // with its case - at 8.5 cm at the least.
+    internal const float HandsOnlyCut=-.085f,BehindWatch=.032f;
+    internal static float ForearmCut(float elbowZ,float mount,bool handsOnly)
+    {
+        float longCut=Math.Clamp(float.IsFinite(elbowZ)?elbowZ-.025f:-.25f,-.35f,-.16f);
+        if(!handsOnly)return longCut;
+        float m=float.IsFinite(mount)&&mount>0?mount:.052f;
+        return Math.Max(longCut,Math.Min(HandsOnlyCut,-(m+BehindWatch)));
+    }
     internal readonly List<Point> Points=new();
     internal readonly List<int[]> Submeshes=new();
     internal readonly struct Point

@@ -18,6 +18,8 @@ internal sealed partial class PunchDriver : IDisposable
     private readonly Vector3[] previousOther=new Vector3[2];private readonly bool[] seenOther=new bool[2];
     private readonly bool[] seen=new bool[2],sounded=new bool[2];
     private readonly Il2CppSystem.Collections.Generic.List<IDamageReceiver> receivers=new();
+    // 0.1.244: why a blow did not break a thing the game breaks when used (each once).
+    private static readonly System.Collections.Generic.HashSet<string> strikeNotes=new();
     private readonly Il2CppStructArray<RaycastHit> hits=new(64);
     private readonly ContactFilter filter=new();
     private Transform? player;
@@ -277,6 +279,12 @@ internal sealed partial class PunchDriver : IDisposable
                             try{damage.ignoreNonLethalDamage=false;melee.ApplyDamageTo(receivers,target,hit,from);inventory.playerUsedMeleeForce=true;}
                             finally{if(damage!=null)damage.ignoreNonLethalDamage=ignore;receivers.Clear();}
                             Bootstrap.Write("VR IMPACT world target="+collider.name+" damage="+melee.MeleeDamage);
+                        }
+                        // 0.1.244: a thing the game breaks when used (the vent behind the leaves in the sanctuary's entrance) is broken by the blow.
+                        if(InteractionDriver.Current is InteractionDriver interaction)
+                        {
+                            if(interaction.Strike(collider,hit,out string broke))Bootstrap.Write("VR IMPACT breaks "+broke+" with the "+(isRight?"right":"left")+" hand"+(heldObject?" ("+selected.identifier+")":" (a fist)"));
+                            else if(broke.Length>0&&strikeNotes.Count<32&&strikeNotes.Add(broke))Bootstrap.Write("VR IMPACT does not break "+broke);
                         }
                     }
                     // 0.1.139: an NPC already down (dead, knocked out) is pushed where hit.

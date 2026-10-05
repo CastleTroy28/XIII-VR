@@ -9,7 +9,7 @@ class Verify
   using var p=ModuleDefinition.ReadModule(args.Length>0?args[0]:"xiii-xr/XIII.XRBootstrap.dll");
   var plugin=p.Types.Single(t=>t.Name=="Plugin");
   var info=plugin.CustomAttributes.Single(a=>a.AttributeType.Name=="BepInPlugin");
-  Require((string)info.ConstructorArguments[2].Value=="0.1.242","compiled plugin reports version 0.1.242");
+  Require((string)info.ConstructorArguments[2].Value=="0.1.245","compiled plugin reports version 0.1.245");
   var sceneHands=p.Types.Single(x=>x.Name=="WeaponHands");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="OnSceneChanged")).Any(x=>x.Name=="Clear"),"scene change clears weapon state");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="RegisterHand")).Any(x=>x.Name=="Clear"),"new native skeleton invalidates cached grip anchors");
@@ -585,7 +585,7 @@ class Verify
    &&Calls(H("SupportedSpread")).Any(x=>x.Name=="Multiplier"&&x.DeclaringType.Name=="SpreadPolicy"),"the crossbow bolt still falls below the sighted point (or spreads)");
   // The silenced pistol fitted as the plain one (its silencer left out of the fit).
   var visual194=p.Types.Single(x=>x.Name=="WeaponVisual");MethodDefinition W(string n)=>visual194.Methods.Single(x=>x.Name==n);
-  Require(Calls(W("Build")).Any(x=>x.Name=="TrimAttachment")&&Calls(W("TrimAttachment")).Any(x=>x.Name=="WithoutAttachment"&&x.DeclaringType.Name=="WeaponGeometry")&&Calls(W("TrimAttachment")).Any(x=>x.Name=="get_boneWeights"),"the silenced pistol still fitted smaller and shifted (its silencer in the fit)");
+  Require(Calls(W("Build")).Any(x=>x.Name=="TrimAttachment")&&Calls(W("TrimAttachment")).Any(x=>(x.Name=="WithoutAttachment"||x.Name=="Split")&&x.DeclaringType.Name=="WeaponGeometry")&&Calls(W("TrimAttachment")).Any(x=>x.Name=="get_boneWeights"),"the silenced pistol still fitted smaller and shifted (its silencer in the fit)");
   // The Uzi: magazine and top knob by hand; the Uzi and the game's two pistols reload against the chest.
   Require(Calls(H("GamePistolIn")).Any(x=>x.Name=="ChestMagazine")&&Calls(p.Types.Single(x=>x.Name=="HolsterCopy").Methods.Single(x=>x.Name=="From")).Any(x=>x.Name=="ChestMagazine")
    &&Calls(H("ChestReloads")).Any(x=>x.Name=="DualChest")&&Calls(H("ChestAmmo")).Any(x=>x.Name=="DualLeftAmmo")&&Calls(H("ChestButt")).Any(x=>x.Name=="DualLeftButt")
@@ -687,7 +687,7 @@ class Verify
   Require(p.Types.Single(x=>x.Name=="WeaponHands").Methods.Where(m=>m.HasBody).SelectMany(Calls).Any(x=>x.Name=="Step"&&x.DeclaringType.Name=="ScopeSteadyMath")
    &&Str(p.Types.Single(x=>x.Name=="WeaponOptions"),"ScopeSteadiness")&&Str(p.Types.Single(x=>x.Name=="WeaponHands")," at the eye: the aim steadied as if holding the breath (strength "),"the scope sways with every tremor of the hand at the eye");
   // 0.1.208: a touch presses a control by what it runs, not only by a button name (the alarm power boxes, unnamed lift buttons).
-  var touch208=p.Types.Single(x=>x.Name=="TouchButtons");var reader208=p.Types.Single(x=>x.Name=="TouchControlReader").Methods.Single(x=>x.Name=="Read");
+  var touch208=p.Types.Single(x=>x.Name=="TouchButtons");var reader208=p.Types.Single(x=>x.Name=="TouchControlReader").Methods.Single(x=>x.Name=="Read"&&x.Parameters.Count==5);
   Require(Calls(touch208.Methods.Single(x=>x.Name=="Resolve")).Any(x=>x.Name=="Read"&&x.DeclaringType.Name=="TouchControlReader")&&Calls(touch208.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="Note")
    &&Calls(reader208).Any(x=>x.Name=="GetRaycastHittableType")&&Calls(reader208).Any(x=>x.Name=="get_manualInteractions")&&Calls(reader208).Any(x=>x.Name=="get_events")&&Calls(reader208).Any(x=>x.Name=="get_eventTrigger")
    &&Calls(reader208).Any(x=>x.Name=="Classify"&&x.DeclaringType.Name=="TouchControlMath")&&Calls(reader208).Any(x=>x.Name=="get_doorRaycastTargets")
@@ -900,6 +900,26 @@ class Verify
   // 0.1.242: a magazine changed with rounds left keeps the chambered round (no bolt or slide to work).
   var manual242=p.Types.Single(x=>x.Name=="ManualReloadState");
   Require(Calls(manual242.Methods.Single(x=>x.Name=="Inserted")).Any(x=>x.Name=="get_ChamberKept")&&Calls(manual242.Methods.Single(x=>x.Name=="Detach")).Any(x=>x.Name=="set_ChamberKept"),"a magazine changed with rounds left still asks for the bolt");
+  // 0.1.243: the plain pistol fitted without its hidden silencer (drawn 22 cm, not 17); the revolver drawn 37 cm, its hand-made offsets grown with it.
+  var visual243=p.Types.Single(x=>x.Name=="WeaponVisual");MethodDefinition V3(string n)=>visual243.Methods.Single(x=>x.Name==n);
+  Require(Calls(V3("TrimAttachment")).Any(x=>x.Name=="Split"&&x.DeclaringType.Name=="WeaponGeometry")&&Calls(V3("TrimAttachment")).Any(x=>x.Name=="Shown"&&x.DeclaringType.Name=="WeaponGeometry")
+   &&Calls(V3("Grown")).Any(x=>x.Name=="get_RevolverGrowth")&&Calls(V3("get_CylinderSocket")).Any(x=>x.Name=="Grown")&&Calls(V3("EjectCasings")).Any(x=>x.Name=="Grown")&&Calls(V3("PoseCylinder")).Any(x=>x.Name=="Grown")
+   &&p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length").Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-.37f)<1e-6f),"the plain pistol still drawn small (its hidden silencer in the fit), or the revolver still 28 cm");
+  // 0.1.244: a blow breaks what the game breaks when used (the sanctuary's vent); the Uzi drawn 35 cm.
+  var punch244=p.Types.Single(x=>x.Name=="PunchDriver");var touch244=p.Types.Single(x=>x.Name=="TouchButtons");
+  Require(punch244.Methods.Concat(punch244.NestedTypes.SelectMany(t=>t.Methods)).Any(m=>Calls(m).Any(x=>x.Name=="Strike"&&x.DeclaringType.Name=="InteractionDriver"))
+   &&Calls(p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Single(x=>x.Name=="Strike")).Any(x=>x.Name=="Strike"&&x.DeclaringType.Name=="TouchButtons")
+   &&Calls(touch244.Methods.Single(x=>x.Name=="Strike")).Any(x=>x.Name=="PingRaycastHittable")&&Calls(touch244.Methods.Single(x=>x.Name=="Strike")).Any(x=>x.Name=="set_Injecting")
+   &&Calls(p.Types.Single(x=>x.Name=="TouchControlReader").Methods.Single(x=>x.Name=="Read"&&x.Parameters.Count==5)).Any(x=>x.Name=="Breaks")
+   &&p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length").Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-.35f)<1e-6f),"a fist or a weapon still does not break the sanctuary's vent (or the Uzi still 46 cm)");
+  // 0.1.245: story movies on a still screen; the forearms optional; a hand that took a weapon picks nothing else up; a selected weapon's own model hidden at once.
+  var rig245=p.Types.Single(x=>x.Name=="CameraRig");
+  Require(Calls(rig245.Methods.Single(x=>x.Name=="PrepareUiPose")).Any(x=>x.Name=="PoseMovieScreen")&&Calls(rig245.Methods.Single(x=>x.Name=="PoseMovieScreen")).Any(x=>x.Name=="set_CinemaRotation")
+   &&Calls(p.Types.Single(x=>x.Name=="StoryVideo").Methods.Single(x=>x.Name=="Render")).Any(x=>x.Name=="get_CinemaRotation")&&!Calls(p.Types.Single(x=>x.Name=="StoryVideo").Methods.Single(x=>x.Name=="Render")).Any(x=>x.Name=="get_HeadRotation")
+   &&Calls(p.Types.Single(x=>x.Name=="GloveVisual").Methods.Single(x=>x.Name=="BindNative")).Any(x=>x.Name=="get_ForearmsOn")&&Calls(p.Types.Single(x=>x.Name=="NativeHandVisual").Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="ForearmCut")
+   &&Calls(p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Single(x=>x.Name=="PickupTarget")).Any(x=>x.Name=="HandTaken")&&Calls(p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Single(x=>x.Name=="OffPickupTarget")).Any(x=>x.Name=="HandTaken")
+   &&p.Types.Single(x=>x.Name=="WeaponHands").Methods.Any(m=>Calls(m).Any(x=>x.Name=="ScanSoon"&&x.DeclaringType.Name=="FirstPersonVisibility"))
+   &&Str(p.Types.Single(x=>x.Name=="UiLanguage"),"Предплечья"),"movies still follow the head, the forearms not optional, one grip takes a weapon and a thing, or a selected weapon's own model shown");
   // 0.1.220: a turned lockpick runs the game's lockpicking time on its HUD before the lock opens.
   var key220=p.Types.Single(x=>x.Name=="KeyUnlockGesture");MethodDefinition K0(string n)=>key220.Methods.Single(x=>x.Name==n);
   Require(Calls(K0("Tick")).Any(x=>x.Name=="BeginPicking")&&Calls(K0("Tick")).Any(x=>x.Name=="TickPicking")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="ToggleLockpickingHud")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="get_lockpickTime")

@@ -754,6 +754,7 @@ internal sealed class CameraRig : IDisposable
             // 0.1.149: what stops, when something stops (FreezeWatch).
             try{FreezeWatch.Tick(this);}catch(Exception ex){if(!freezeWatchFailed){freezeWatchFailed=true;Bootstrap.Warn("FREEZE WATCH off: "+ex.Message);}}
             movie.Tick();
+            if(!MovieActive)movieScreenSet=false;
             if(Frontend||MovieActive)EnsureMenuCamera();
             if(menuCamera!=null)menuCamera.enabled=Frontend||MovieActive;
             float now = Time.realtimeSinceStartup;
@@ -821,7 +822,7 @@ internal sealed class CameraRig : IDisposable
         if(recenter||!referenceSet)
         {
             reference=tracking.Head;referenceSet=true;recenter=false;bodyAnchor.Reset();recenterCount++;
-            frontend.Recenter();
+            frontend.Recenter();movieScreenSet=false;
             Bootstrap.Write("RECENTER applied (position and yaw). Head tracking active.");
         }
         if(Scripted&&!MovieActive&&main!=null){ReadCinematicPose();return;}
@@ -829,6 +830,29 @@ internal sealed class CameraRig : IDisposable
         if(Frontend||MovieActive){anchorPosition=new UVector(0,1.6f,0);anchorRotation=UQuat.identity;}
         else if(!ReadBodyAnchor(out anchorPosition,out anchorRotation))return;
         HeadPosition=anchorPosition+anchorRotation*UnityPosition(relative);HeadRotation=anchorRotation*UnityRotation(relative);
+        if(MovieActive)PoseMovieScreen();
+    }
+    // 0.1.245: the game's story movies (the comic panels after the bank) on a
+    // screen that stands still in the room, as the cutscenes since 0.1.238
+    // (VR SETTINGS "Cutscene camera": screen or steady): in front of where the
+    // head faced when the movie began, upright; turning or tilting the head
+    // looks about it. The movie's subtitles and skip prompt (FrontendMenu) are
+    // drawn on it. "The film's" keeps it in front of the head, as before. The
+    // movie screen followed the head and tilted with it; the subtitles were put
+    // where the last cutscene's screen had been.
+    private bool movieScreenSet;private UVector movieScreenAt;private UQuat movieScreenTurn=UQuat.identity;
+    private void PoseMovieScreen()
+    {
+        CinemaScreen=false;
+        if(QualityOptions.CutsceneMode==2){movieScreenSet=false;CinemaPosition=HeadPosition;CinemaRotation=HeadRotation;return;}
+        if(!movieScreenSet)
+        {
+            movieScreenSet=true;movieScreenAt=HeadPosition;
+            float yaw=CutsceneView.YawDegrees(new System.Numerics.Quaternion(HeadRotation.x,HeadRotation.y,HeadRotation.z,HeadRotation.w));
+            movieScreenTurn=UQuat.Euler(0,yaw,0);
+            Bootstrap.Write("STORY VIDEO on a screen that stands still: in front of the head's heading "+yaw.ToString("F0")+" degrees, upright");
+        }
+        CinemaPosition=movieScreenAt;CinemaRotation=movieScreenTurn;
     }
     internal void PollControls()
     {

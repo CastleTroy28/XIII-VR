@@ -24,6 +24,15 @@ class PunchDriverTests
         f=new Fixture();f.Warm();Physics.Hits=new[]{new RaycastHit{collider=f.NpcCollider,distance=0}};f.Swing();Check(f.Melee.Hits==1,"initial NPC contact lost");
         f=new Fixture();f.Warm();var glass=new DamageAction();Physics.Hits=new[]{new RaycastHit{collider=new Collider{Damage=glass},distance=.01f}};
         f.Swing();Check(f.Melee.Hits==1&&glass.ignoreNonLethalDamage,"glass did not receive native damage or leaked nonlethal setting");
+        // 0.1.244: a blow on the world is offered to the interaction it may break (the sanctuary's vent); a blow on an enemy is not.
+        var strikes=new InteractionDriver();InteractionDriver.Current=strikes;
+        f=new Fixture();f.Warm();var vent=new Collider{Damage=new DamageAction()};Physics.Hits=new[]{new RaycastHit{collider=vent,distance=.01f}};f.Swing();
+        Check(strikes.Strikes==1&&strikes.Struck==vent&&Bootstrap.Lines.Exists(l=>l.StartsWith("VR IMPACT breaks State_Action via=test with the right hand")),"a blow on the vent does not break it");
+        f=new Fixture();f.Warm();f.Swing();Check(strikes.Strikes==1,"a blow on an enemy offered to an interaction");
+        strikes.Breaks=false;f=new Fixture();f.Warm();Physics.Hits=new[]{new RaycastHit{collider=new Collider(),distance=.01f}};f.Swing();
+        Check(strikes.Strikes==2&&Bootstrap.Lines.Exists(l=>l=="VR IMPACT does not break blocked by the game now (State_Action)"),"a refused break not said");
+        InteractionDriver.Current=null;
+        Console.WriteLine("PASS: 0.1.244 a blow on the world is offered to what the game breaks when used (the sanctuary's vent) and said when it breaks or why not; a blow on an enemy is not.");
         NpcHitReactions.Current.Hits=0;f=new Fixture();f.Warm();Physics.Hits=Array.Empty<RaycastHit>();f.Swing();Check(f.Melee.Hits==0&&PropImpactAudio.PropNpc==0&&PropImpactAudio.World==0&&NpcHitReactions.Current.Hits==0,"empty-air swing damaged NPC/played impact/made an NPC react");
         // 0.1.139: an NPC already down is pushed (a reaction), not damaged.
         NpcHitReactions.Current.Hits=0;f=new Fixture();f.Warm();f.Npc.IsAlive=false;f.Npc.CanDamage=false;f.Swing();Check(f.Melee.Hits==0&&NpcHitReactions.Current.Hits==1,"a body on the floor not pushed once / damaged");
@@ -167,7 +176,8 @@ namespace XiiiXR
         {if(held&&npc&&selected.slot==PlayerEquipableInventory.ActiveEquipmentSlot.Enviromental)PropNpc++;if(!npc)World++;m.SurfaceHitFX(hit,origin);}
         public void Dispose(){}
     }
-    class InteractionDriver{internal static InteractionDriver? Current=>null;internal bool HandOccupied(bool right)=>false;}
+    class InteractionDriver{internal static InteractionDriver? Current;internal bool HandOccupied(bool right)=>false;internal int Strikes;internal object? Struck;internal bool Breaks=true;
+        internal bool Strike(Collider c,RaycastHit hit,out string note){Strikes++;Struck=c;note=Breaks?"State_Action via=test":"blocked by the game now (State_Action)";return Breaks;}}
     // 0.1.139: the NPC's skeleton reaction (counted).
     sealed class NpcHitReactions{internal static NpcHitReactions? Current=new();internal int Hits;internal bool Grabbing(bool right)=>false;internal void Hit(PlayMagic.AI.NPC npc,UnityEngine.Collider? c,UnityEngine.Vector3 point,UnityEngine.Vector3 d,float speed,bool held,UnityEngine.Vector3 from){Hits++;}internal static int Guards;internal static float GuardShare;internal static void PunchBegins(PlayMagic.AI.NPC npc,float share){Guards++;GuardShare=share;}internal static string PunchEnds(PlayMagic.AI.NPC npc)=>"";}
     readonly record struct ContactSphere(N.Vector3 Offset,float Radius);
@@ -186,7 +196,7 @@ namespace XiiiXR
     readonly record struct PoseValue(N.Vector3 Position,N.Quaternion Rotation);
     struct HandControls{internal const ulong Grip=4;internal bool Valid;internal ulong Held;}
     static class WeaponOptions{internal static Flag PhysicalPunches=new();internal sealed class Flag{internal bool Value=true;}}
-    static class Bootstrap{internal static int Warnings;internal static void Warn(string s){Warnings++;}internal static void Write(string s){}}
+    static class Bootstrap{internal static int Warnings;internal static void Warn(string s){Warnings++;}internal static System.Collections.Generic.List<string> Lines=new();internal static void Write(string s){if(Lines.Count<4000)Lines.Add(s);}}
     static class FriendlyHit{internal static int Checks;internal static bool Check(PlayMagic.AI.NPC? npc,UnityEngine.Transform? root,string how){Checks++;return false;}}
     static class GloveVisual{internal static Quaternion Rotation(PoseValue p,bool right)=>new(p.Rotation);}
     sealed class ContactRig{internal static ContactRig? Current;internal bool ResolveHand(bool r,bool a,ref Vector3 p,ref Quaternion q,bool closedFist=false){p=new Vector3(N.Vector3.Zero);return true;}}

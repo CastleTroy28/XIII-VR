@@ -27,6 +27,7 @@ class TouchButtonsTests
  static void Main()
  {
   Controls();
+  Strikes();
   var (touch,rig,a)=Setup(true);var who=new IInteractionActor();var w=WeaponHands.Current!;w.Armed=true;
   w.Palm=new Vector3(0,0,-.4f);w.Tip=new Vector3(.04f,0,-.09f);touch.Tick(rig,true,who);
   w.Tip=new Vector3(.04f,0,-.035f);touch.Tick(rig,true,who);
@@ -108,6 +109,41 @@ class TouchButtonsTests
   Check(Bootstrap.Lines.Count==lines,"the refusal is logged every frame");
   Console.WriteLine("PASS: controls by what they run: the alarm power box switch and an unnamed lift button are pressed by a touch; nothing on use, entering-only, sound-only, pick-ups, ladders, ziplines, a cabinet's own leaf, a door's interaction, pickables and room-sized triggers are not (the log says why); a named alarm box never raises the alarm by a touch; refusals logged once.");
  }
+ // 0.1.244: a blow breaks a thing the game breaks when used (the vent behind
+ // the leaves in the sanctuary's entrance: 2.2 m, its use shatters it); a
+ // touch does not, and a blow uses nothing else.
+ static void Strikes()
+ {
+  var who=new IInteractionActor();var hit=new RaycastHit();
+  var (touch,rig,a,c)=Build("foliage_vent_01","State_Action","cp_foliage_vent_01_mesh",("DestructableObjectHandle",Input,false),("DestructableObjectHandle",Input,false),("ObjectEnableStateSet",Input,false),("SoundSender",Input,false));c.Size=2.23f;
+  Check(Press(touch,rig,who)&&a.Pings==0&&Last.Contains("a large volume"),"a touch breaks the vent (or says nothing): "+Last);
+  Check(touch.Strike(c,hit,who,out string note)&&a.Pings==1&&a.SawInjected&&note.StartsWith("State_Action via=cp_foliage_vent_01_mesh (on use: DestructableObjectHandle x2, ObjectEnableStateSet, SoundSender)"),"a blow does not break the vent: "+note);
+  Check(!touch.Strike(c,hit,who,out note)&&a.Pings==1&&note.Length==0,"the vent used again by the next blow at once");
+  Time.realtimeSinceStartup+=2.1f;
+  Check(touch.Strike(c,hit,who,out note)&&a.Pings==2,"the vent never used again after its two seconds");
+  // The game's own refusals keep it whole and say why.
+  (touch,rig,a,c)=Build("foliage_vent_01","State_Action","pc_collider",("DestructableObjectHandle",Input,false));a.Blocked=true;
+  Check(!touch.Strike(c,hit,who,out note)&&a.Pings==0&&note.StartsWith("blocked by the game now (State_Action"),"a blocked vent broken (or not said): "+note);
+  (touch,rig,a,c)=Build("crate_01","State_Action","pc_collider",("DestructableObjectHandle",Input,false));a.conditional=RaycastAction.InteractionConditionals.Key;
+  Check(!touch.Strike(c,hit,who,out note)&&a.Pings==0&&note.StartsWith("needs Key"),"a thing that needs a key broken by a blow: "+note);
+  // What a blow never uses.
+  foreach(var (what,events,hittable,door) in new (string,(string,int,bool)[],int,bool)[]
+  {
+   ("a lift button",new[]{("UnityEventHandler",Input,false)},10,false),
+   ("an alarm box that breaks",new[]{("DestructableObjectHandle",Input,false),("AlarmActivator",Input,false)},10,false),
+   ("a pick-up",new[]{("DestructableObjectHandle",Input,false),("PickUpItem",Input,false)},10,false),
+   ("a cabinet's leaf",new[]{("DestructableObjectHandle",Input,false),("CustomAnimationToolHandle",Input,true)},10,false),
+   ("broken only on entering",new[]{("DestructableObjectHandle",4,false)},10,false),
+   ("a door's interaction",new[]{("DestructableObjectHandle",Input,false)},10,true),
+   ("a pickable thing",new[]{("DestructableObjectHandle",Input,false)},12,false),
+  })
+  {
+   (touch,rig,a,c)=Build("machine_01","raycast_target","trigger",events);a.HittableType=hittable;a.DoorOwned=door;
+   Check(!touch.Strike(c,hit,who,out note)&&a.Pings==0&&note.Length==0,"a blow uses "+what);
+  }
+  Check(TouchControlMath.Breaks(new[]{("SoundSender",Input,false),("DestructableObjectHandle",Input|4,false)})&&!TouchControlMath.Breaks(new (string,int,bool)[0]),"what breaks");
+  Console.WriteLine("PASS: 0.1.244 a blow breaks what the game breaks when used (the 2.2 m vent in the sanctuary's entrance), a touch does not; once in two seconds; the game's block and conditions kept; never a button, an alarm, a pick-up, a leaf, a door, a pickable or an entering trigger.");
+ }
 }
 namespace Il2CppInterop.Runtime{static class Il2CppType{internal static Type Of<T>()=>typeof(T);}}
 namespace Il2CppInterop.Runtime.InteropTypes.Arrays{class Il2CppReferenceArray<T>{readonly T[] data;internal Il2CppReferenceArray(int n){data=new T[n];}internal int Length=>data.Length;internal T this[int i]{get=>data[i];set=>data[i]=value;}}}
@@ -164,6 +200,7 @@ class RaycastAction:UnityEngine.Obj
  internal enum InteractionConditionals{Nothing,Key}internal InteractionConditionals conditional;
  internal UnityEngine.Transform transform=new();internal string name=>transform.name;
  internal bool isActiveAndEnabled=true,Blocked,ActorValid=true,PingValid=true,Throws,SawInjected,DoorOwned;internal int Pings,HittableType=10;internal XiiiXR.TouchButtons? Driver;
+ private static long nextPointer=1000;internal readonly IntPtr Pointer=new(++nextPointer);
  internal List<(string type,int trigger,bool leaf)> Events=new();
  internal bool IsInteractionBlocked(IInteractionActor a)=>Blocked;internal bool IsActorValid(IInteractionActor a)=>ActorValid;internal bool IsRaycastPingValid(IInteractionActor a,UnityEngine.RaycastHit h)=>PingValid;
  internal void PingRaycastHittable(IInteractionActor a,UnityEngine.RaycastHit h,out bool valid){SawInjected=Driver?.Injecting==true;if(Throws)throw new InvalidOperationException();Pings++;valid=true;}
@@ -179,12 +216,13 @@ namespace XiiiXR
  // The game-side reader, over the stand-in's fields (the real one reads the receivers' events).
  static class TouchControlReader
  {
-  internal static TouchControlMath.Verdict Read(RaycastAction a,UnityEngine.Collider c,bool named,out string events)
+  internal static TouchControlMath.Verdict Read(RaycastAction a,UnityEngine.Collider c,bool named,out string events)=>Read(a,c,named,out events,out _);
+  internal static TouchControlMath.Verdict Read(RaycastAction a,UnityEngine.Collider c,bool named,out string events,out bool breaks)
   {
-   events="";
+   events="";breaks=false;
    if(!named&&a.HittableType!=10)return TouchControlMath.Verdict.NotInteraction;
    if(a.DoorOwned)return TouchControlMath.Verdict.DoorAction;
-   events=TouchControlMath.Summary(a.Events);
+   events=TouchControlMath.Summary(a.Events);breaks=TouchControlMath.Breaks(a.Events);
    return TouchControlMath.Classify(a.Events,named,c.Size);
   }
  }

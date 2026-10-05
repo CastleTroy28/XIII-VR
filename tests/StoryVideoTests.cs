@@ -46,7 +46,7 @@ class StoryVideoTests
 }
 namespace XiiiXR
 {
- class CameraRig{internal Camera MainCamera=new();internal Vector3 HeadPosition;internal Quaternion HeadRotation=Quaternion.identity;}
+ class CameraRig{internal Camera MainCamera=new();internal Vector3 HeadPosition;internal Quaternion HeadRotation=Quaternion.identity;internal Vector3 CinemaPosition;internal Quaternion CinemaRotation=Quaternion.identity;}
  static class Bootstrap{internal static void Write(string s){}internal static void Warn(string s)=>throw new Exception(s);}
 }
 class CutscenePlayer:UnityEngine.Component{internal VideoPlayer? m_videoPlayer;internal bool m_videoIsComplete,m_anyPlayerCanSkip;internal int Stops;internal void TryStopCurrentVideo(){Stops++;}}

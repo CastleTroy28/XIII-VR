@@ -47,6 +47,9 @@ internal static class QualityOptions
     // camera turns the view, as before), and the weapon places' offsets
     // (HolsterPlaces, [WeaponPlaces]).
     internal static ConfigEntry<int>? CutsceneCamera;
+    // 0.1.245: the forearms drawn (the default), or the hands only.
+    internal static ConfigEntry<bool>? Forearms;
+    internal static bool ForearmsOn=>Forearms?.Value!=false;
     private static readonly System.Collections.Generic.Dictionary<HolsterSlot,ConfigEntry<string>> places=new();
     // 0.1.238: 0 a screen that stands still (default), 1 steady (the head looks around: 0.1.234), 2 the film's (follows the head, as before 0.1.234).
     internal static int CutsceneMode=>Math.Clamp(CutsceneCamera?.Value??0,0,2);
@@ -72,7 +75,8 @@ internal static class QualityOptions
         WorldScale=c.Bind("VR","WorldScale",WorldScaleDefault,"0.1.233: how big the world looks. The distance between your eyes that the game is drawn with is divided by this: 0.90 = the world looks 10% smaller, 1.10 = 10% bigger; 0.50-1.50, 1 = your real eye distance; 1.20 by default (0.1.239). Game menu > VR SETTINGS.");
         var scaleDefaults239=c.Bind("VR","WorldScaleDefaultsVersion",0,"Internal one-time move of the world scale to the 1.20 default (0.1.239).");
         if(scaleDefaults239.Value<WorldScaleDefaults){WorldScale.Value=WorldScaleDefault;scaleDefaults239.Value=WorldScaleDefaults;}
-        CutsceneCamera=c.Bind("VR","CutsceneCamera",0,"0.1.238: cutscenes. 0 = on a screen that stands still in front of you: the film turns its camera as it likes, your head looks at another part of the screen and does not move the picture. 1 = steady: the film camera does not turn your view, you look around with your head (at each cut the view turns to where the film camera looks). 2 = the film's: the picture follows your head (as before 0.1.234). Game menu > VR SETTINGS.");
+        CutsceneCamera=c.Bind("VR","CutsceneCamera",0,"0.1.238: cutscenes. 0 = on a screen that stands still in front of you: the film turns its camera as it likes, your head looks at another part of the screen and does not move the picture. 1 = steady: the film camera does not turn your view, you look around with your head (at each cut the view turns to where the film camera looks). 2 = the film's: the picture follows your head (as before 0.1.234). The game's story movies (0.1.245) stand still too with 0 and 1. Game menu > VR SETTINGS.");
+        Forearms=c.Bind("VR","Forearms",true,"0.1.245: the forearms drawn up to the elbow (true), or the hands only, cut just behind the watch (false); the forearm medkits sit on the cut either way. Game menu > VR SETTINGS.");
         EyesPerPass=c.Bind("VR","StereoEyePositions",true,"0.1.238: each eye is drawn from its own place (the camera is moved to the left eye, then the right one, as Unity draws them). Without it Unity drew both eyes from the middle of the head: no depth, the world flat and huge. false = the old way. Config file only.");
         places.Clear();
         foreach(var slot in HolsterPlaces.Movable)
@@ -124,7 +128,7 @@ internal static class QualityMenu
     // 0.1.224: no "Smarter enemies" row (its setting stays as it is: on, config file only).
     // 0.1.233: World scale and Weapon inertia rows before Close.
     // 0.1.234: Cutscene camera and Weapon places (opens the places editor) rows before Close.
-    private const int Rows=23;
+    private const int Rows=24;
     private static readonly bool[] adjusted=new bool[Rows];
     private static float pending=1f;
     private static bool applyRequested;
@@ -188,7 +192,7 @@ internal static class QualityMenu
         Confirm(true);
     }
     internal static bool Adjustable(int r)=>r==0||r==4||r==GunTurnRow||r==WorldScaleRow||r==InertiaRow;
-    internal const int GunTurnRow=17,WorldScaleRow=18,InertiaRow=19,CutsceneRow=20,PlacesRow=21;
+    internal const int GunTurnRow=17,WorldScaleRow=18,InertiaRow=19,CutsceneRow=20,PlacesRow=21,ForearmRow=22;
     internal const int GunTurnMax=45,GunTurnStep=5;
     internal static int GunTurnDegrees=>Math.Clamp(QualityOptions.GunTurn?.Value??15,0,GunTurnMax);
     private static void Confirm(bool pointer)
@@ -223,6 +227,7 @@ internal static class QualityMenu
             Bootstrap.Write("VR SETTINGS weapon inertia "+MathF.Round(QualityOptions.InertiaValue*100)+"%");
         }
         if(row==CutsceneRow&&QualityOptions.CutsceneCamera!=null){int v=QualityOptions.CutsceneMode;QualityOptions.CutsceneCamera.Value=toggle?(v+1)%3:(v+direction+3)%3;Bootstrap.Write("VR SETTINGS cutscene camera="+(QualityOptions.CutsceneMode switch{0=>"a screen that stands still",1=>"steady (the head looks around)",_=>"the film's (follows the head)"}));}
+        if(row==ForearmRow&&QualityOptions.Forearms!=null){QualityOptions.Forearms.Value=toggle?!QualityOptions.Forearms.Value:direction>0;Bootstrap.Write("VR SETTINGS forearms="+(QualityOptions.ForearmsOn?"shown":"hands only (cut at the watch)"));}
         if(row==11){QualityOptions.ThrowArc.Value=toggle?!QualityOptions.ThrowArc.Value:direction>0;Bootstrap.Write("VR SETTINGS throw="+(QualityOptions.ThrowArc.Value?"arc":"gesture"));}
         if(row==1)QualityOptions.Collisions.Value=toggle?!QualityOptions.Collisions.Value:direction>0;
         if(row==2)LocomotionOptions.Teleport.Value=toggle?!LocomotionOptions.Teleport.Value:direction>0;
@@ -299,6 +304,7 @@ internal static class QualityMenu
         +Line(InertiaRow,L("Weapon inertia")+": "+(QualityOptions.InertiaValue<=0?L("off"):MathF.Round(QualityOptions.InertiaValue*100)+"%"))
         +Line(CutsceneRow,L("Cutscene camera")+": "+L(QualityOptions.CutsceneMode switch{0=>"screen (stands still)",1=>"steady (you look around)",_=>"the film's (turns the view)"}))
         +Line(PlacesRow,L("Weapon places")+": "+L("move them with the ray")+(MovedPlaces>0?" ("+MovedPlaces+" "+L("moved")+")":""))
+        +Line(ForearmRow,L("Forearms")+": "+L(QualityOptions.ForearmsOn?"shown":"hands only (cut at the watch)"))
         +Line(Rows-1,L("Close"))
         +"\n"+Resolution+"\n"+L("Right controller: point and pull the trigger (‹ › adjust).")+"\n"+L("Left stick: select / adjust. A: confirm. B: close.")+"\n"
         +(LocomotionOptions.Teleport.Value?L("Teleport: left stick forward, aim with the left hand, release. Back to cancel.")+"\n":"")

@@ -42,6 +42,13 @@ internal sealed partial class WeaponHands : IDisposable
     internal bool BothHandsOn=>weapon!=null&&SupportHeld;
     private bool SupportHeld => (ManualReady&&profile=="shotgun"&&reload.Racking)|| ((profile=="pistol"||profile=="revolver") ? pistolSupport.Held : grip.Held);
     // 0.1.128: either hand may hold the game's weapon, its fore-end or a copy.
+    // 0.1.245: this hand holds a weapon taken from the ground or the body (a
+    // still copy), or its grip took one a moment ago: that grip press does not
+    // pick a thing up as well (InteractionDriver; a revolver and the broom
+    // behind it ended up in one hand).
+    private readonly float[] tookAt={-10,-10};
+    internal const float TakeQuiet=.6f;
+    internal bool HandTaken(bool right){int s=right?1:0;return copyKey[s]>=0||Time.realtimeSinceStartup-tookAt[s]<TakeQuiet;}
     internal bool HandFree(bool right)
     {
         int s=right?1:0,key=CurrentKey;
@@ -500,7 +507,7 @@ internal sealed partial class WeaponHands : IDisposable
         if (weapon != null || fire != null) Unbind();
         if (selected == null || !selected.gameObject.activeInHierarchy || inventory!.isInTransit) return;
         if (selected.GetInstanceID() != seenWeaponId)
-        { seenWeaponId = selected.GetInstanceID(); Bootstrap.Write("WEAPON SELECTED id=" + selected.identifier + " slot=" + selected.slot + " name=" + selected.name); }
+        { seenWeaponId = selected.GetInstanceID(); FirstPersonVisibility.ScanSoon(); Bootstrap.Write("WEAPON SELECTED id=" + selected.identifier + " slot=" + selected.slot + " name=" + selected.name); }
         profile = EquipmentProfile.ForSlot((int)selected.slot);
         if (profile.Length == 0) return;
         if (!selected.isEquipableSetUp || playerRoot == null || !selected.transform.IsChildOf(playerRoot))

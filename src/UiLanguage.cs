@@ -131,6 +131,10 @@ internal static class UiLanguage
         ["steady (you look around)"]=new[]{"устойчивая (смотрите сами)","ruhig (Sie schauen sich um)","stable (vous regardez autour)","estable (miras a tu alrededor)","stabile (ti guardi intorno)","stabilna (rozglądasz się)","estável (você olha em volta)"},
         ["the film's (turns the view)"]=new[]{"как в фильме (поворачивает взгляд)","die des Films (dreht die Sicht)","celle du film (tourne la vue)","la de la película (gira la vista)","quella del film (gira la vista)","filmowa (obraca widok)","a do filme (gira a visão)"},
         ["Weapon places"]=new[]{"Места оружия","Waffenplätze","Emplacements des armes","Lugares de las armas","Posti delle armi","Miejsca broni","Lugares das armas"},
+        // 0.1.245: the forearms drawn, or the hands only (cut behind the watch).
+        ["Forearms"]=new[]{"Предплечья","Unterarme","Avant-bras","Antebrazos","Avambracci","Przedramiona","Antebraços"},
+        ["shown"]=new[]{"видны","sichtbar","visibles","visibles","visibili","widoczne","visíveis"},
+        ["hands only (cut at the watch)"]=new[]{"только кисти (обрезаны у часов)","nur Hände (an der Uhr abgeschnitten)","mains seules (coupées à la montre)","solo manos (cortadas en el reloj)","solo mani (tagliate all'orologio)","tylko dłonie (ucięte przy zegarku)","só as mãos (cortadas no relógio)"},
         ["move them with the ray"]=new[]{"двигать лучом","mit dem Strahl verschieben","les déplacer avec le rayon","moverlos con el rayo","spostali con il raggio","przesuń promieniem","mova-os com o raio"},
         ["moved"]=new[]{"сдвинуто","verschoben","déplacés","movidos","spostati","przesunięte","movidos"},
         ["WEAPON PLACES"]=new[]{"МЕСТА ОРУЖИЯ","WAFFENPLÄTZE","EMPLACEMENTS DES ARMES","LUGARES DE LAS ARMAS","POSTI DELLE ARMI","MIEJSCA BRONI","LUGARES DAS ARMAS"},

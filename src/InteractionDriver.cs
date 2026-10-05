@@ -41,6 +41,8 @@ internal sealed partial class InteractionDriver : IDisposable
             // 0.1.125: a pointed weapon is taken by the pointing grab.
             // 0.1.171: the weapon this hand points at (or did a moment ago).
             if(WeaponHands.Current?.PointedWeaponBy(MainRight)==true)return false;
+            // 0.1.245: a hand holding a weapon taken from the ground or the body (or whose grip has just taken one) picks nothing else up: one press took a revolver and the broom behind it.
+            if(WeaponHands.Current?.HandTaken(MainRight)==true)return false;
             var ray=rays[0];
             if(ray==null||!ray.hasRayHit||ray.RaycastHittable==null||ray.rayHit.distance>3||!ray.IsRaycastHittablePingValid())return false;
             if(carry.IsBodyTarget(ray))return false;
@@ -115,6 +117,18 @@ internal sealed partial class InteractionDriver : IDisposable
     // 0.1.125: the player as the game's interaction actor (weapon pickups).
     internal IInteractionActor? Actor{get{try{return rays.Count>0?rays[0].InteractionActor:null;}catch(Exception){return null;}}}
     internal RaycastAction? TargetAction=>rays.Count>0?rays[0].RaycastHittable?.TryCast<RaycastAction>():null;
+    // 0.1.244: a blow on a thing the game breaks when used (TouchButtons.Strike).
+    internal bool Strike(Collider collider,RaycastHit hit,out string note)
+    {
+        note="";
+        try
+        {
+            if(!Allowed()||climbing.Active||keys.Active)return false;
+            var actor=Actor;if(actor==null)return false;
+            return touch.Strike(collider,hit,actor,out note);
+        }
+        catch(Exception ex){note="unreadable: "+ex.Message;return false;}
+    }
     // 0.1.84: the grappling hook is held and aimed with the left hand.
     // 0.1.195: or the right one (rayFromRight); the zipline hook too.
     private bool rayFromLeft,rayFromRight;private float nextToolReport;
@@ -485,7 +499,7 @@ internal sealed partial class InteractionDriver : IDisposable
             var hands=WeaponHands.Current;if(hands!=null&&!hands.HandFree(right))return false;
             // 0.1.171 (the log: the left grip at a pistol on the floor took a key lying near it):
             // the grip of a hand pointing at a weapon is for that weapon.
-            if(hands?.PointedWeaponBy(right)==true)return false;
+            if(hands?.PointedWeaponBy(right)==true||hands?.HandTaken(right)==true)return false;
             if(!right&&(GameUiControls.Current?.LeftItemHeld==true||carry.HidesLeft))return false;
             if(right&&GameUiControls.Current?.PendingConsumable==true)return false;
             forceOff=true;refreshedFrame=-1;

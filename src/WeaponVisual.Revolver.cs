@@ -13,7 +13,9 @@ internal sealed partial class WeaponVisual
     internal bool CylinderReady=>cylinder!=null;
     private ContactSphere[]? cylinderContacts;
     internal ContactSphere[]? ActiveContactShape=>cylinderOpen&&cylinderContacts!=null?cylinderContacts:ContactShape;
-    internal Vector3 CylinderSocket=>cylinder==null?Vector3.zero:cylinder.Center+new Vector3(-.025f,0,-.025f);
+    // 0.1.243: the hand-made offsets grow with the revolver drawn bigger (WeaponGeometry.RevolverGrowth).
+    private static float Grown(float metres)=>metres*WeaponGeometry.RevolverGrowth;
+    internal Vector3 CylinderSocket=>cylinder==null?Vector3.zero:cylinder.Center+new Vector3(Grown(-.025f),0,Grown(-.025f));
     internal bool PrepareCylinder()
     {
         if(cylinder!=null)return true;
@@ -47,7 +49,7 @@ internal sealed partial class WeaponVisual
                 for(int i=0;i<cylinderContacts.Length;i++)
                 {var sphere=cylinderContacts[i];var p=sphere.Offset;
                     if(p.X>=low.X&&p.X<=high.X&&p.Y>=low.Y&&p.Y<=high.Y&&p.Z>=low.Z&&p.Z<=high.Z)
-                        cylinderContacts[i]=new ContactSphere(p+new System.Numerics.Vector3(-.025f,0,0),sphere.Radius);}
+                        cylinderContacts[i]=new ContactSphere(p+new System.Numerics.Vector3(Grown(-.025f),0,0),sphere.Radius);}
             }
             cylinderEmpty=new ReloadMesh(part.Mesh,part.Source.sharedMaterials,fitMatrix*part.Matrix,empty);
             ReloadGripGeometry.Set("revolver",ReloadGripMath.Fit("revolver",new System.Numerics.Vector3(-.023f,-.023f,0),new System.Numerics.Vector3(.023f,.023f,.043f)));
@@ -71,7 +73,7 @@ internal sealed partial class WeaponVisual
         if(cylinderOpen!=open||magazineHidden!=(open||empty)){cylinderOpen=open;magazineHidden=open||empty;animatedFrame=-1;}
         cylinder.Hide();cylinderEmpty?.Hide();
         var visible=empty?cylinderEmpty:cylinder;
-        if((open||empty)&&visible!=null)visible.Pose(FittedToWorld.MultiplyPoint3x4(visible.Center+(open?new Vector3(-.025f,0,0):Vector3.zero)),FittedToWorld.rotation);
+        if((open||empty)&&visible!=null)visible.Pose(FittedToWorld.MultiplyPoint3x4(visible.Center+(open?new Vector3(Grown(-.025f),0,0):Vector3.zero)),FittedToWorld.rotation);
         if(loaderRoot!=null){loaderRoot.SetActive(held);if(held)loaderRoot.transform.SetPositionAndRotation(hand+rotation*new Vector3(0,-.035f,.065f),rotation);}
     }
     internal void EjectCasings(int count,ReloadAudio? audio=null)
@@ -80,7 +82,7 @@ internal sealed partial class WeaponVisual
         for(int i=0;i<Math.Clamp(count,0,6);i++)
         {
             var go=new GameObject("XIII falling casing");var mesh=new RigidMeshVisual(go.transform,"Brass");mesh.Set(CartridgeGeometry.Case());
-            float a=i*Mathf.PI/3;var p=FittedToWorld.MultiplyPoint3x4(CylinderSocket+new Vector3(Mathf.Cos(a)*.015f,Mathf.Sin(a)*.015f,0));
+            float a=i*Mathf.PI/3;var p=FittedToWorld.MultiplyPoint3x4(CylinderSocket+new Vector3(Mathf.Cos(a)*Grown(.015f),Mathf.Sin(a)*Grown(.015f),0));
             go.transform.SetPositionAndRotation(p,FittedToWorld.rotation);casings.Add((go,mesh,p,FittedToWorld.MultiplyVector(Vector3.back)*.12f,Time.realtimeSinceStartup,"revolver",i==0?audio:null));
         }
     }

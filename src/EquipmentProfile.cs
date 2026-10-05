@@ -30,5 +30,10 @@ internal static class EquipmentProfile
  // original manual guns and the revolver keep their hand-made shapes).
  internal static bool TightContact(string p)=>RequiresMuzzle(p)&&p is not ("pistol" or "ak47" or "shotgun" or "sniper" or "revolver");
  internal static bool RequiresMuzzle(string p)=>p is "pistol" or "revolver" or "uzi" or "shotgun" or "m16" or "ak47" or "sniper" or "crossbow" or "m60" or "bazooka" or "rifle" or "heavy";
- internal static float Length(string p)=>p switch {"pistol"=>.22f,"revolver"=>.28f,"uzi"=>.46f,"shotgun"=>.95f,"m16"=>.99f,"ak47"=>.85f,"sniper"=>1.1f,"crossbow"=>.72f,"m60"=>1.1f,"bazooka"=>1.1f,"knife"=>.16f,"grenade"=>.12f,"key"=>.12f,"gadget"=>.22f,_=>.65f};
+ // 0.1.243: the revolver 37 cm (was 28): the game's own revolver against its
+ // hand, so the hand holding it is drawn at the free hand's size (it was 0.74
+ // of it; the pistol's 0.98, the rifles' about 1).
+ // 0.1.244: the Uzi 35 cm (was 46): the hand holding it was 1.29 of the free
+ // hand's size, big beside the pistol in the other hand.
+ internal static float Length(string p)=>p switch {"pistol"=>.22f,"revolver"=>.37f,"uzi"=>.35f,"shotgun"=>.95f,"m16"=>.99f,"ak47"=>.85f,"sniper"=>1.1f,"crossbow"=>.72f,"m60"=>1.1f,"bazooka"=>1.1f,"knife"=>.16f,"grenade"=>.12f,"key"=>.12f,"gadget"=>.22f,_=>.65f};
 }

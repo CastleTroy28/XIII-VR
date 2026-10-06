@@ -11,6 +11,30 @@ internal static class DoorStoryEvents
     // the door's own leaves or near this leaf (a cabinet's other wing); a
     // far one (another room's door, a lift) is part of the story.
     private const float NearMotion=2.5f;
+    // 0.1.246: the interaction moves this leaf when used (Grip+A or a strike):
+    // one of its receivers' events animates exactly this tool.
+    internal static bool Animates(RaycastAction action,CustomAnimationTool tool)
+    {
+        try
+        {
+            foreach(var receivers in new[]{action.manualInteractions,action.automaticInteractionList})
+            {
+                if(receivers==null)continue;
+                for(int r=0;r<receivers.Count;r++)
+                {
+                    var list=receivers[r]?.events;if(list==null)continue;
+                    for(int e=0;e<list.Count;e++)
+                    {
+                        var ev=list[e];if(ev==null||((int)ev.eventTrigger&DoorStoryMath.Input)==0)continue;
+                        var target=ev.TryCast<EventReceiver.CustomAnimationToolHandle>()?.customAnimTool;
+                        if(target!=null&&target.Pointer==tool.Pointer)return true;
+                    }
+                }
+            }
+        }
+        catch(Exception){}
+        return false;
+    }
     internal static string Find(RaycastAction[] actions,CustomAnimationTool tool,Door? door,Vector3 pivot,out string story)
     {
         story="";var events=new List<(string,DoorStoryMath.Kind)>();

@@ -248,7 +248,7 @@ internal sealed partial class InteractionDriver : IDisposable
             LinkCarryInteraction();
             Patch(typeof(PlayerHUDControl),"Update",nameof(FilterHints));
             Patch(typeof(CustomAnimationTool),"StartCustomAnimationTool",nameof(ResumeCabinet));
-            Current=this;LockStick.Query=right=>Current?.StickForLock(right)==true;
+            Current=this;LockStick.Query=right=>Current?.StickForLock(right)==true;PhysicalDoors.GameTarget=()=>Current?.TargetAction;
             Bootstrap.Write("INTERACTION 0.1.39 ready; right grip + A; native ray from calibrated controller; screen crosshair hidden; rewired="+actionId);
         }
         catch { carry.Dispose();climbing.Dispose();grapple.Dispose();zipline.Dispose();patches.UnpatchSelf(); throw; }
@@ -633,7 +633,7 @@ internal sealed partial class InteractionDriver : IDisposable
     }
     public void Dispose()
     {
-        if(disposed) return; disposed=true; if(Current==this){Current=null;LockStick.Query=null;}
+        if(disposed) return; disposed=true; if(Current==this){Current=null;LockStick.Query=null;PhysicalDoors.GameTarget=null;}
         input.Reset();offInput.Reset();keys.Dispose();NativeItemCue.Release();InteractionHints.Restore();touch.Reset();props.Dispose();doors.Dispose();bodies.Dispose();carry.Dispose();climbing.Dispose();zipline.Dispose();
         try { RestoreCrosshairs(); }
         finally

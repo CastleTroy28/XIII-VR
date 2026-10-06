@@ -15,8 +15,12 @@ internal sealed class PhysicalDoors:IDisposable
         // 0.1.203: the authored events its own interaction runs besides the
         // leaf's motion (DoorStoryMath); the hand's travel on it while closed.
         internal string Story="";internal float Pull,StoryTried=-100;internal bool StoryRefused;
+        // 0.1.246: when its interactions are looked for again; the game's door info is not kept (it threw).
+        internal float NextActions;internal int Looks;internal bool NoInfo;
     }
     private readonly List<Wing> wings=new();
+    // 0.1.247: the interaction the game targets for the player now (InteractionDriver.TargetAction).
+    internal static Func<RaycastAction?>? GameTarget;
     private readonly HashSet<int> scanned=new(),reportedTools=new();
     private readonly Wing?[] held=new Wing?[2];
     private readonly Vector3[] previous=new Vector3[2],previousTip=new Vector3[2];
@@ -57,7 +61,7 @@ internal sealed class PhysicalDoors:IDisposable
             var collider=nearby[i];if(collider==null)continue;
             var door=collider.GetComponentInParent(Il2CppType.Of<Door>())?.TryCast<Door>();
             if(door!=null&&door.doorReferences!=null)foreach(var tool in door.doorReferences)
-                if(tool!=null&&!wings.Exists(w=>w.Tool==tool))Bind(tool,door,door.doorRaycastTargets==null?Array.Empty<RaycastAction>():System.Linq.Enumerable.ToArray(door.doorRaycastTargets));
+                if(tool!=null&&!wings.Exists(w=>w.Tool==tool))Bind(tool,door,DoorActions(door,tool,collider));
             // Cabinets put their animation component above the glass/handle,
             // sometimes on an unnamed sibling. Search a bounded local tree;
             // no scene-wide scan and no English object-name requirement.
@@ -68,6 +72,30 @@ internal sealed class PhysicalDoors:IDisposable
                 if(budget>0&&parent.childCount<=24)
                     for(int child=0;child<parent.childCount&&budget>0;child++)InspectTree(parent.GetChild(child),door,collider,2);
             }
+        }
+        // 0.1.247: the interaction the game targets for the player now (what
+        // Grip+A would use) is one of a nearby leaf's (it belongs to its door
+        // or moves it) but not among the ones found: it is taken too.
+        RaycastAction? target=null;try{target=GameTarget?.Invoke();}catch(Exception){}
+        if(target!=null)foreach(var w in wings)
+        {
+            if(w.Tool==null||System.Array.IndexOf(w.Actions,target)>=0||(w.Pivot.position-hand).sqrMagnitude>4)continue;
+            var owner=target.GetComponentInParent(Il2CppType.Of<Door>())?.TryCast<Door>();
+            if(!(w.Door!=null&&owner!=null&&owner==w.Door)&&!DoorStoryEvents.Animates(target,w.Tool))continue;
+            var more=new RaycastAction[w.Actions.Length+1];System.Array.Copy(w.Actions,more,w.Actions.Length);more[^1]=target;
+            foreach(var other in wings)if(other.Tool==w.Tool)other.Actions=more;
+            Bootstrap.Write("PHYSICAL DOOR "+w.Tool.name+": the interaction the game targets ("+target.name+") is this door's too; the hand uses it as Grip+A would");
+        }
+        // 0.1.246: a leaf bound without its interaction is looked at again
+        // every two seconds while near (the game may set its door up later).
+        foreach(var w in wings)
+        {
+            if(w.Actions.Length>0||w.Tool==null||Time.realtimeSinceStartup<w.NextActions||(w.Pivot.position-hand).sqrMagnitude>4)continue;
+            w.NextActions=Time.realtimeSinceStartup+(w.Looks++<3?2:15);
+            var found=w.Door!=null?DoorActions(w.Door,w.Tool,null):AnimatingActions(w.Tool,null,null);
+            if(found.Length==0)continue;
+            foreach(var other in wings)if(other.Tool==w.Tool)other.Actions=found;
+            Bootstrap.Write("PHYSICAL DOOR "+w.Tool.name+": its interaction found now ("+string.Join("/",System.Linq.Enumerable.Select(found,a=>a.name))+"); the hand moves it");
         }
         void InspectTree(Transform node,Door? door,Collider touched,int depth)
         {
@@ -108,10 +136,52 @@ internal sealed class PhysicalDoors:IDisposable
                 if(permission!=null&&!actions.Contains(permission))actions.Add(permission);
                 permission=touched.GetComponentInParent(Il2CppType.Of<RaycastAction>())?.TryCast<RaycastAction>();
                 if(permission!=null&&!actions.Contains(permission))actions.Add(permission);
+                // 0.1.246: none there: the interaction beside it that moves this leaf when used.
+                if(actions.Count==0)actions.AddRange(AnimatingActions(tool,door,touched));
                 Bind(tool,door,actions.ToArray());
             }
         }
     }
+    // 0.1.246: a door's interactions. The game's list on the door
+    // (doorRaycastTargets) was empty on some doors (the emerald base's toilet
+    // doors: the game had not set that door up, its door info empty too), so
+    // the hand could not move them and only Grip+A opened them. Then the
+    // door's own interaction is the one that moves this leaf when used: the
+    // door's set one, or one found under the door, around the leaf or above
+    // the touched collider that animates it (DoorStoryEvents.Animates). A door
+    // with no such interaction (a story gate) stays as it was: not moved.
+    // 0.1.247: and always the others that move this leaf when used: a door
+    // can list only one of its interactions (door_13_b in the emerald base
+    // lists "- all"; the player's own, "- player only", the one Grip+A uses,
+    // was not on the list, and the hand could not open that door).
+    private static RaycastAction[] DoorActions(Door door,CustomAnimationTool tool,Collider? touched)
+    {
+        var listed=new List<RaycastAction>();
+        if(door.doorRaycastTargets!=null)foreach(var a in door.doorRaycastTargets)if(a!=null&&!listed.Contains(a))listed.Add(a);
+        foreach(var a in AnimatingActions(tool,door,touched,listed.Count>0))if(!listed.Contains(a))listed.Add(a);
+        return listed.ToArray();
+    }
+    private static RaycastAction[] AnimatingActions(CustomAnimationTool tool,Door? door,Collider? touched,bool listed=false)
+    {
+        var found=new List<RaycastAction>();
+        void Consider(RaycastAction? a){if(a!=null&&!found.Contains(a)&&DoorStoryEvents.Animates(a,tool))found.Add(a);}
+        void Under(Transform? t){if(t!=null)foreach(var c in t.GetComponentsInChildren(Il2CppType.Of<RaycastAction>(),true))Consider(c.TryCast<RaycastAction>());}
+        try
+        {
+            if(door!=null){Consider(door.m_raycastAction);Under(door.transform);}
+            Under(tool.transform);
+            Consider(tool.GetComponentInParent(Il2CppType.Of<RaycastAction>())?.TryCast<RaycastAction>());
+            if(touched!=null)Consider(touched.GetComponentInParent(Il2CppType.Of<RaycastAction>())?.TryCast<RaycastAction>());
+            // The prefab's root (the leaf, its frame and its interaction side by side), bounded.
+            var root=(door!=null?door.transform:tool.transform).parent;
+            for(int up=0;found.Count==0&&root!=null&&up<2;up++,root=root.parent)if(root.childCount<=24)Under(root);
+        }
+        catch(Exception ex){Bootstrap.Warn("PHYSICAL DOOR "+tool.name+" interaction search: "+ex.Message);}
+        if(!listed&&found.Count>0&&reportedFallback.Count<64&&reportedFallback.Add(tool.GetInstanceID()))
+            Bootstrap.Write("PHYSICAL DOOR "+tool.name+": the door's own list of interactions is empty; the one that moves this leaf is used ("+string.Join("/",System.Linq.Enumerable.Select(found,a=>a.name))+")");
+        return found.ToArray();
+    }
+    private static readonly HashSet<int> reportedFallback=new();
     private void Bind(CustomAnimationTool tool,Door? door,RaycastAction[] actions)
     {
         string events="",story="";bool read=false;
@@ -130,19 +200,24 @@ internal sealed class PhysicalDoors:IDisposable
         }
     }
 
+    // The hand may move a leaf when Grip+A could open it now: one of its
+    // interactions the player may use (active, for the player, not blocked).
+    // 0.1.247: an interaction not for the player (an AI's), or one switched
+    // off or blocked beside the player's own, no longer keeps a door shut that
+    // Grip+A opens; a lock not yet opened (a key, a card, a lockpick) still
+    // keeps it shut, whichever of its interactions has it.
     private static bool Unlocked(Wing w,IInteractionActor actor)
     {
         if(w.Tool==null||w.Pivot==null||!w.Tool.gameObject.activeInHierarchy||(w.Door!=null&&w.Door.WaitForSpecialDoorSetup))return false;
-        bool checkedAction=false;
+        bool usable=false;
         foreach(var action in w.Actions)
         {
-            if(action==null||!action.isActiveAndEnabled)continue;
-            checkedAction=true;
-            if(!action.IsActorValid(actor)||action.IsInteractionBlocked(actor))return false;
+            if(action==null||!action.isActiveAndEnabled||!action.IsActorValid(actor))continue;
             if(action.conditional!=RaycastAction.InteractionConditionals.Nothing&&!action.GetConditionState())return false;
+            if(!action.IsInteractionBlocked(actor))usable=true;
         }
         // Missing permissions are not permission to move a story door.
-        return checkedAction||(w.Door==null&&w.Actions.Length==0);
+        return usable||(w.Door==null&&w.Actions.Length==0);
     }
     private static float Near(Wing w,Vector3 p)
     {
@@ -303,18 +378,33 @@ internal sealed class PhysicalDoors:IDisposable
         bool grip=w==held[0]||w==held[1];
         float needed=m.Sliding?(grip?.012f:.04f):(grip?3f:8f);
         if(!w.Sounded&&w.Moved>=needed&&now>=nextSound){w.Sounded=true;sounding=w;w.LastStrong=now;nextSound=now+1.2f;creak.Play(w.Pivot.position+(to-w.Pivot.position)*.5f);}
-        if(w.Door!=null&&Time.realtimeSinceStartup>=w.NextInfo){w.Door.UpdateDoorInfo(w.Tool,false);w.NextInfo=Time.realtimeSinceStartup+.15f;}w.Changed=true;
+        if(w.Door!=null&&Time.realtimeSinceStartup>=w.NextInfo){DoorInfo(w,false);w.NextInfo=Time.realtimeSinceStartup+.15f;}w.Changed=true;
     }
 
     private static void Commit(Wing w)
     {
         if(w.Changed&&w.Tool!=null)
         {
-            if(w.Door!=null)w.Door.UpdateDoorInfo(w.Tool,true);
+            if(w.Door!=null)DoorInfo(w,true);
             if(Math.Abs(w.Motion.Value)<.03f||Math.Abs(w.Motion.Value)>.97f)
             {w.Motion.Finish(w.Tool);w.Started=false;}
             w.Changed=false;
         }
+    }
+    // 0.1.246: the game's door info (what its AI and saves read) when the hand
+    // moved the leaf. A door the game had not set up has none (the toilet
+    // doors: IndexOutOfRange, and every door the hands held let go); its leaf
+    // still moves, without that info.
+    private static void DoorInfo(Wing w,bool end)
+    {
+        if(w.Door==null||w.NoInfo||w.Tool==null)return;
+        try
+        {
+            var info=w.Door.m_doorsInfo;
+            if(info==null||info.Length==0){w.NoInfo=true;Bootstrap.Write("PHYSICAL DOOR "+w.Tool.name+": the game has no door info for it (not set up); the leaf moves without it");return;}
+            w.Door.UpdateDoorInfo(w.Tool,end);
+        }
+        catch(Exception ex){w.NoInfo=true;Bootstrap.Write("PHYSICAL DOOR "+w.Tool.name+": the game's door info not kept ("+ex.GetBaseException().Message.Split('\n')[0]+"); the leaf moves without it");}
     }
     private void Release(int side){if(held[side]!=null)Commit(held[side]!);held[side]=null;}
     internal void ResumeNative(CustomAnimationTool tool){foreach(var w in wings)if(w.Tool==tool)w.Motion.ResumeNative();}

@@ -2,6 +2,15 @@
 
 The version is in `Install-XIII-VR.ps1`, `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
+## 0.1.247
+
+- **Doors with more than one interaction open by hand.** A door can list only one of its interactions, such as `door_13_b` in the Emerald base, which lists one marked "- all". The player's own interaction, "- player only", was the one Grip+A used but was not on that list. That listed one did not let the player through, so the hand could neither push nor pull the door. A door now also takes every interaction that moves its leaf, and the one the game targets for you as you reach it. The hand may move a door when Grip+A could open it: one of its interactions is for the player, switched on and not blocked. An interaction meant for the AI, or one switched off or blocked beside the player's own, no longer keeps it shut. A lock not yet opened (key, card, lockpick) still does.
+
+## 0.1.246
+
+- **Doors the game had not set up open by hand too.** Some doors (the toilet doors in the Emerald base) have an empty list of interactions on the game's own door, so the hand could neither push nor pull them and only Grip+A opened them. Such a door now takes the interaction that moves its leaf when used, found under the door, around the leaf or above the collider touched; it opens by a push or the grip like every other door, and the game's locks still decide. A door with no such interaction (a gate the story opens) stays shut as before; one found later (the game setting the door up) is picked up while you are near it.
+- Moving such a door no longer stops the hands on every door: the game has no door info for it, and updating that info threw an error that let go of all doors. Its leaf now moves without that info.
+
 ## 0.1.245
 
 - **Forearms** in VR SETTINGS: shown up to the elbow (the default), or the hands only, cut just behind the watch. The forearm medkits sit on the cut either way. Config `[VR] Forearms`.

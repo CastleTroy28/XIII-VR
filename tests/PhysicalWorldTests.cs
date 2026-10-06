@@ -58,6 +58,12 @@ class PhysicalWorldTests
   foreach(float state in new[]{0f,.5f,1f,-1f})foreach(bool right in new[]{false,true})TestStrike(state,right,false,false,false,false);
   TestStrike(1,true,true,false,false,false);TestStrike(1,true,false,true,false,false);TestStrike(1,true,false,false,true,false);
   TestStrike(1,true,false,false,false,true);
+  // 0.1.246: a door whose own list of interactions is empty (the game had not set it up): its interaction found by what it animates.
+  foreach(bool animates in new[]{true,false})TestUnlisted(animates);
+  // 0.1.247: a door listing only one interaction ("- all": an AI's, switched off or blocked), the player's own beside it.
+  foreach(var (listedKind,playerKind,found,locked) in new[]{("ai","animates",true,false),("off","animates",true,false),("blocked","animates",true,false),("ai","targeted",true,false),("ai","none",false,false),("blocked","animates",true,true)})TestPlayerOnly(listedKind,playerKind,found,locked);
+  Console.WriteLine("PASS: 0.1.247 a door listing only another interaction (an AI's, switched off, or blocked): the player's own (it moves the leaf, or the game targets it) is used, the hand opens it as Grip+A does; a lock not yet opened keeps it shut; with no interaction for the player it stays shut.");
+  Console.WriteLine("PASS: 0.1.246 a door the game had not set up (its list of interactions and its door info empty): the interaction that moves its leaf is found, a strike opens it, its missing door info neither stops nor breaks it; with no such interaction it stays shut.");
   // 0.1.156: the weapon in the left hand strikes a door too.
   TestStrike(1,false,true,false,false,false);
   // 0.1.203: story doors (their own interaction runs authored events) open from closed by that interaction.
@@ -171,6 +177,57 @@ class PhysicalWorldTests
    Check(action.Pings==1&&state.objTransform.localEulerAngles.y!=start,"a story door its interaction did not open stays shut (or is toggled again)"+label);
   }
   doors.Dispose();loose.Dispose();DoorStoryEvents.Story="";
+ }
+ static void TestPlayerOnly(string listedKind,string playerKind,bool found,bool locked)
+ {
+  var rig=new CameraRig();var loose=new LooseProps();var doors=new PhysicalDoors();var actor=new Actor();
+  var state=new CustomAnimationState{objTransform=new Transform(),currentStateValue=0,
+   positiveState=new TransformValuesCurve{effect=TransformValuesCurve.Effect.RotationY,minValue=0,maxValue=90},
+   negativeState=new TransformValuesCurve{effect=TransformValuesCurve.Effect.RotationY,minValue=0,maxValue=-90}};
+  var tool=new CustomAnimationTool{customAnimationState=state,customAnimationToolState=true};
+  var all=new RaycastAction{Moves=tool,Active=listedKind!="off",ForPlayer=listedKind!="ai",Blocked=listedKind=="blocked"};
+  var player=new RaycastAction{Moves=playerKind=="animates"?tool:null,Locked=locked};
+  player.OnPing=()=>{state.currentStateValue=1;};all.OnPing=()=>{state.currentStateValue=1;};
+  var door=new PlayMagic.AI.Door{doorReferences=new[]{tool},doorRaycastTargets=new[]{all}};
+  var col=new Collider{Center=new Vector3(1,0,0)};col.gameObject.Extra=door;tool.meshColliders.Add(col);
+  if(playerKind=="targeted")player.gameObject.Extra=door;
+  Physics.Overlap=new[]{col};Resources.Items=new ObjectBase[]{door,all,player};
+  PhysicalDoors.GameTarget=playerKind=="none"?null:()=>player;
+  rig.LeftControls=rig.RightControls=new(true,0,0,0);rig.L=new PoseValue(new Vector3(-1,0,0));
+  string label=" listed="+listedKind+" player="+playerKind+" locked="+locked;
+  Time.realtimeSinceStartup+=1;rig.R=new PoseValue(new Vector3(1,0,.09f));doors.Tick(rig,true,actor,loose);
+  Time.realtimeSinceStartup+=.02f;rig.R=new PoseValue(new Vector3(1,0,.04f));doors.Tick(rig,true,actor,loose);
+  bool opens=found&&!locked;
+  Check(player.Pings+all.Pings==(opens?1:0)&&state.currentStateValue==(opens?1:0),"a door with the player's own interaction beside the listed one: wrong toggle (player "+player.Pings+", listed "+all.Pings+")"+label);
+  if(opens)Check(player.Pings==1,"the listed interaction used instead of the player's own"+label);
+  doors.Dispose();loose.Dispose();PhysicalDoors.GameTarget=null;
+ }
+ static void TestUnlisted(bool animates)
+ {
+  var rig=new CameraRig();var loose=new LooseProps();var doors=new PhysicalDoors();var actor=new Actor();
+  var state=new CustomAnimationState{objTransform=new Transform(),currentStateValue=0,
+   positiveState=new TransformValuesCurve{effect=TransformValuesCurve.Effect.RotationY,minValue=0,maxValue=90},
+   negativeState=new TransformValuesCurve{effect=TransformValuesCurve.Effect.RotationY,minValue=0,maxValue=-90}};
+  var tool=new CustomAnimationTool{customAnimationState=state,customAnimationToolState=true};
+  var action=new RaycastAction{Moves=animates?tool:null};
+  action.OnPing=()=>{state.currentStateValue=1;};
+  var door=new PlayMagic.AI.Door{doorReferences=new[]{tool},m_doorsInfo=null};
+  var col=new Collider{Center=new Vector3(1,0,0)};col.gameObject.Extra=door;tool.meshColliders.Add(col);
+  Physics.Overlap=new[]{col};Resources.Items=new ObjectBase[]{door,action};
+  rig.LeftControls=rig.RightControls=new(true,0,0,0);rig.L=new PoseValue(new Vector3(-1,0,0));
+  Time.realtimeSinceStartup+=1;rig.R=new PoseValue(new Vector3(1,0,.09f));doors.Tick(rig,true,actor,loose);
+  Time.realtimeSinceStartup+=.02f;rig.R=new PoseValue(new Vector3(1,0,.04f));doors.Tick(rig,true,actor,loose);
+  Check(action.Pings==(animates?1:0),"a door with an empty list of interactions: wrong native toggles ("+action.Pings+", animates="+animates+")");
+  Check(state.currentStateValue==(animates?1:0)&&door.Updates==0,"opened wrongly, or the missing door info read");
+  // Grabbed and moved by the grip: the leaf follows without the door info.
+  doors.Dispose();doors=new PhysicalDoors();
+  rig.RightControls=new(true,HandControls.Grip,HandControls.Grip,0);state.currentStateValue=0;state.objTransform.localEulerAngles=Vector3.zero;
+  Time.realtimeSinceStartup+=1;rig.R=new PoseValue(new Vector3(1,0,0));doors.Tick(rig,true,actor,loose);
+  Check(doors.Holding(true)==animates,"grip on a door with an empty list: held="+doors.Holding(true)+" animates="+animates);
+  rig.RightControls=new(true,HandControls.Grip,0,0);
+  for(int i=0;i<10;i++){Time.realtimeSinceStartup+=.02f;rig.R=new PoseValue(new Vector3(1,0,-.003f*(i+1)));doors.Tick(rig,true,actor,loose);}
+  Check((state.objTransform.localEulerAngles.y!=0)==animates&&door.Updates==0&&doors.Holding(true)==animates,"the hand does not move it, or the missing door info broke it");
+  doors.Dispose();loose.Dispose();
  }
  static void TestStrike(float value,bool right,bool armed,bool blocked,bool playing,bool both)
  {
@@ -298,11 +355,12 @@ namespace PlayMagic.AI
  class Door:Component
  {
   internal CustomAnimationTool[] doorReferences=Array.Empty<CustomAnimationTool>();internal RaycastAction[] doorRaycastTargets=Array.Empty<RaycastAction>();internal bool WaitForSpecialDoorSetup=>false;internal int Updates,Commits;
-  internal void UpdateDoorInfo(CustomAnimationTool t,bool end){Updates++;if(end)Commits++;}
+  internal RaycastAction? m_raycastAction=null;internal object[]? m_doorsInfo=new object[1];
+  internal void UpdateDoorInfo(CustomAnimationTool t,bool end){if(m_doorsInfo==null||m_doorsInfo.Length==0)throw new IndexOutOfRangeException();Updates++;if(end)Commits++;}
  }
 }
 interface IInteractionActor{}class Actor:IInteractionActor{}
-class RaycastAction:Component{internal enum InteractionConditionals{Nothing,Key}internal InteractionConditionals conditional=>InteractionConditionals.Nothing;internal bool isActiveAndEnabled=>true;internal bool Blocked;internal int Pings;internal Action? OnPing;internal bool IsActorValid(IInteractionActor a)=>true;internal bool IsRaycastPingValid(IInteractionActor a,RaycastHit h)=>!Blocked;internal void PingRaycastHittable(IInteractionActor a,RaycastHit h,out bool valid){Pings++;valid=!Blocked;if(valid)OnPing?.Invoke();}internal bool IsInteractionBlocked(IInteractionActor a)=>Blocked;internal bool GetConditionState()=>!Blocked;}
+class RaycastAction:Component{internal CustomAnimationTool? Moves;internal bool Active=true,ForPlayer=true,Locked;internal enum InteractionConditionals{Nothing,Key}internal InteractionConditionals conditional=>Locked?InteractionConditionals.Key:InteractionConditionals.Nothing;internal bool isActiveAndEnabled=>Active;internal bool Blocked;internal int Pings;internal Action? OnPing;internal bool IsActorValid(IInteractionActor a)=>ForPlayer;internal bool IsRaycastPingValid(IInteractionActor a,RaycastHit h)=>!Blocked;internal void PingRaycastHittable(IInteractionActor a,RaycastHit h,out bool valid){Pings++;valid=!Blocked;if(valid)OnPing?.Invoke();}internal bool IsInteractionBlocked(IInteractionActor a)=>Blocked;internal bool GetConditionState()=>!Blocked&&!Locked;}
 class TransformValuesCurve{internal enum Effect{PositionX=0,PositionY=1,PositionZ=2,RotationX=3,RotationY=4,RotationZ=5}internal Effect effect;internal Transform? trans;internal int restingPosition=0;internal AnimationCurve? curve=null;internal float minValue,maxValue,currentValue;}
 class OcclusionPortal{internal bool open;}
 class CustomAnimationState{internal OcclusionPortal? occlusionPortal=>null;internal Transform? objTransform;internal TransformValuesCurve? positiveState,negativeState;internal bool animationPlaying;internal float currentStateValue,previewValue,previousPreviewValue,currentValueOnStart;internal int stateTarget;internal void UpdateOcclusionPortal()=>throw new Exception("missing optional portal");}
@@ -321,7 +379,7 @@ namespace XiiiXR
  class ContactFilter{internal bool Excluded(Collider c)=>false;}
  class WeaponHands{internal static WeaponHands? Current;internal bool RightFree=true,UseTip;internal Vector3 Tip;internal bool HandFree(bool r)=>r?RightFree:!LeftArmed;internal bool TryMeleeTip(out Vector3 v){v=Tip;return UseTip;}internal bool LeftArmed;internal bool MeleeHand(bool r)=>r?!RightFree:LeftArmed;internal bool TryMeleeTip(bool r,out Vector3 v){v=Tip;return UseTip&&(r||LeftArmed);}}
  class GripCarry{internal static GripCarry? Current=null;internal bool HidesLeft=true;internal Transform? BodyRoot=>new Transform();}
- static class DoorStoryEvents{internal static string Story="";internal static string Find(RaycastAction[] a,CustomAnimationTool t,PlayMagic.AI.Door? d,Vector3 p,out string story){story=Story;return Story.Length>0?"door motion, "+Story:"door motion";}}
+ static class DoorStoryEvents{internal static bool Animates(RaycastAction a,CustomAnimationTool t)=>a.Moves==t;internal static string Story="";internal static string Find(RaycastAction[] a,CustomAnimationTool t,PlayMagic.AI.Door? d,Vector3 p,out string story){story=Story;return Story.Length>0?"door motion, "+Story:"door motion";}}
  class ChairImpactClip:System.IDisposable{internal static int Played;internal ChairImpactClip(System.Func<byte[]> w,string n,float g,float d){}internal bool Play(Vector3 p){Played++;return true;}internal void Stop(){}public void Dispose(){}}
  static class DoorMoveSound{internal static byte[] Wav()=>new byte[0];}
  class PunchingBags:System.IDisposable{internal bool TryHit(Collider c,Vector3 p,Vector3 v,Transform? player)=>false;internal void Report(Collider c){}internal void Tick(){}public void Dispose(){}}

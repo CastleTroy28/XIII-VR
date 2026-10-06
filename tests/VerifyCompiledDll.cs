@@ -9,7 +9,7 @@ class Verify
   using var p=ModuleDefinition.ReadModule(args.Length>0?args[0]:"xiii-xr/XIII.XRBootstrap.dll");
   var plugin=p.Types.Single(t=>t.Name=="Plugin");
   var info=plugin.CustomAttributes.Single(a=>a.AttributeType.Name=="BepInPlugin");
-  Require((string)info.ConstructorArguments[2].Value=="0.1.245","compiled plugin reports version 0.1.245");
+  Require((string)info.ConstructorArguments[2].Value=="0.1.247","compiled plugin reports version 0.1.247");
   var sceneHands=p.Types.Single(x=>x.Name=="WeaponHands");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="OnSceneChanged")).Any(x=>x.Name=="Clear"),"scene change clears weapon state");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="RegisterHand")).Any(x=>x.Name=="Clear"),"new native skeleton invalidates cached grip anchors");
@@ -920,6 +920,16 @@ class Verify
    &&Calls(p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Single(x=>x.Name=="PickupTarget")).Any(x=>x.Name=="HandTaken")&&Calls(p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Single(x=>x.Name=="OffPickupTarget")).Any(x=>x.Name=="HandTaken")
    &&p.Types.Single(x=>x.Name=="WeaponHands").Methods.Any(m=>Calls(m).Any(x=>x.Name=="ScanSoon"&&x.DeclaringType.Name=="FirstPersonVisibility"))
    &&Str(p.Types.Single(x=>x.Name=="UiLanguage"),"Предплечья"),"movies still follow the head, the forearms not optional, one grip takes a weapon and a thing, or a selected weapon's own model shown");
+  // 0.1.246: a door the game had not set up: its interaction found by what it animates; its missing door info does not stop the hands.
+  var doors246=p.Types.Single(x=>x.Name=="PhysicalDoors");MethodDefinition D6(string n)=>doors246.Methods.Single(x=>x.Name==n);
+  Require(Calls(D6("DoorActions")).Any(x=>x.Name=="AnimatingActions")&&doors246.Methods.Concat(doors246.NestedTypes.SelectMany(t=>t.Methods)).Any(m=>Calls(m).Any(x=>x.Name=="Animates"&&x.DeclaringType.Name=="DoorStoryEvents"))
+   &&Calls(D6("Discover")).Any(x=>x.Name=="DoorActions")&&Calls(D6("DoorInfo")).Any(x=>x.Name=="UpdateDoorInfo")&&Calls(D6("DoorInfo")).Any(x=>x.Name=="get_m_doorsInfo")
+   &&!Calls(D6("Move")).Any(x=>x.Name=="UpdateDoorInfo")&&!Calls(D6("Commit")).Any(x=>x.Name=="UpdateDoorInfo"),"a door with an empty list of interactions still not opened by the hand (or its missing door info stops the hands)");
+  // 0.1.247: a door listing only another interaction: the player's own is used (it moves the leaf, or the game targets it).
+  var doors247=p.Types.Single(x=>x.Name=="PhysicalDoors");
+  Require(Calls(doors247.Methods.Single(x=>x.Name=="DoorActions")).Any(x=>x.Name=="AnimatingActions")&&Calls(doors247.Methods.Single(x=>x.Name=="Unlocked")).Any(x=>x.Name=="IsActorValid")
+   &&p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Stsfld&&i.Operand is FieldReference f&&f.Name=="GameTarget"&&f.DeclaringType.Name=="PhysicalDoors")
+   &&doors247.Methods.Single(x=>x.Name=="Discover").Body.Instructions.Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Ldsfld&&i.Operand is FieldReference f&&f.Name=="GameTarget"),"a door listing only another interaction still not opened by the hand");
   // 0.1.220: a turned lockpick runs the game's lockpicking time on its HUD before the lock opens.
   var key220=p.Types.Single(x=>x.Name=="KeyUnlockGesture");MethodDefinition K0(string n)=>key220.Methods.Single(x=>x.Name==n);
   Require(Calls(K0("Tick")).Any(x=>x.Name=="BeginPicking")&&Calls(K0("Tick")).Any(x=>x.Name=="TickPicking")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="ToggleLockpickingHud")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="get_lockpickTime")
@@ -933,7 +943,7 @@ class Verify
   Require(Calls(heldMotion.Methods.Single(x=>x.Name=="Follow")).Any(x=>x.Name=="SweepTest")&&Calls(heldMotion.Methods.Single(x=>x.Name=="Follow")).Any(x=>x.Name=="ComputePenetration"),"held prop translation and rotation check native collisions");
   var doors=p.Types.Single(x=>x.Name=="PhysicalDoors");
   Require(Calls(doors.Methods.Single(x=>x.Name=="Unlocked")).Any(x=>x.Name=="IsInteractionBlocked"),"physical doors respect native locks");
-  Require(Calls(doors.Methods.Single(x=>x.Name=="Commit")).Any(x=>x.Name=="UpdateDoorInfo"),"door release updates native navigation state");
+  Require(Calls(doors.Methods.Single(x=>x.Name=="Commit")).Any(x=>x.Name=="DoorInfo")&&Calls(doors.Methods.Single(x=>x.Name=="DoorInfo")).Any(x=>x.Name=="UpdateDoorInfo"),"door release updates native navigation state");
   Require(!doors.Methods.SelectMany(Calls).Any(x=>x.Name=="UpdateOcclusionPortal"),"doors never call native optional-portal dereference that cancelled grips");
   var throwing=p.Types.Single(x=>x.Name=="WeaponHands").Methods.Single(x=>x.Name=="LaunchProp");
   Require(Calls(throwing).Any(x=>x.Name=="Begin"&&(x.DeclaringType.Name=="ThrowingComponent"||x.DeclaringType.Name=="FireComponent"||x.DeclaringType.Name=="EquipableComponent"))&&!Calls(throwing).Any(x=>x.Name=="HandleProjectile"),"prop throw initializes native use instead of bypassing Begin");

@@ -2,6 +2,31 @@
 
 The version is in `Install-XIII-VR.ps1`, `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
+## 0.1.252
+
+- **The tactical crossbow's scope picture fills its eyepiece and lies on its glass.** The eyecup of that scope is wider than the scope's tube, and the picture's size was measured only within the tube. It was 2.8 cm across in a 3.6 cm cup, 8 mm in front of the model's green glass, which showed around it. The scope's own flat glass across the eyepiece is now found, and the picture is placed just in front of it, centred on it and as wide as the cup's opening. A scope without such a glass, or with only a narrow lens deep inside, keeps the picture at the rim as before.
+- **The tactical crossbow's crosshair is level.** A 6-degree turn measured for the crossbow's scope was also applied to the tactical crossbow and the harpoon gun, so the cross stood turned clockwise. They now follow their own level, measured from their bones. The crossbow keeps its turn.
+
+## 0.1.251
+
+- **The tactical crossbow's scope shows its picture again.** The search that finds a crossbow's scope in its mesh was measured on the crossbows drawn 72 cm long. With the tactical crossbow drawn 92 cm (0.1.250), its slanted eyecup no longer closed within that search. A narrower ring further inside was taken, so the picture was half as wide and hidden inside the scope. The scope is now searched on the crossbow brought back to 72 cm, and the result is grown back with it. The picture sits at the eyecup again and fills it, on all three crossbows.
+- **The harpoon gun's bands stretch when a harpoon is loaded.** Its two bands stayed as the game left them, slack after a harpoon was put in by hand. They are now drawn like a crossbow's string: stretched to the harpoon as it is slid in, stretched while it is loaded, and let go to about a third of their length when it is shot. Their stretched shape is taken from a harpoon gun picked up loaded.
+- Each crossbow keeps its own bolt placement and string shape in the config folder. One crossbow picked up loaded no longer overwrites another's, which, picked up empty, had its bolt drawn in the rig's bind pose. The crossbow's files keep their names.
+- The mod writes each crossbow's mesh once a game to the config folder (`XIII-XR-mesh-crossbow*.txt`, `XIII-XR-mesh-harpoon_gun.txt`), and the log collector includes them.
+
+## 0.1.250
+
+- **The harpoon gun and the crossbows at their real size, and the hand holding them too.** The game's three crossbows (the crossbow, the tactical crossbow and the harpoon gun) share one weapon slot and were all drawn 72 cm long. The hand holding the harpoon gun was 0.69 of the free hand's size, on the crossbow 0.79 and on the tactical one 0.77. Each is now drawn at its own length: the harpoon gun 1.03 m, the tactical crossbow 92 cm and the crossbow 89 cm. The hand on each stays its size, as on the pistols and rifles.
+- **A clean cut where the forearm ends.** The end of the arm was closed by a fan of the points around the cut, each with its own spot of the texture. Through a sleeve made of layers (an outer cloth with its lining or a glove's cuff, as on the military outfit in the last base missions), inner and outer points alternated. The cap became a jagged star with gaps, and the texture was smeared across it in streaks. The cut is now closed by one flat cap over the whole outline, in one colour taken from the sleeve at its edge. This applies with the forearms shown and with the hands only.
+
+## 0.1.249
+
+- **Shotguns at their real size, and the hand holding them too.** The pump gun and the double-barrel were drawn 0.95 m long, smaller than the game draws them against its own hand. The hand on them was 0.87 and 0.85 of the free hand's size. They are now drawn 1.08 m long, and the hand stays its size, as on the pistols and rifles.
+
+## 0.1.248
+
+- **Aim dot** in VR SETTINGS: off (the default), a dot, or a dot and a laser. A small red dot shows where the gun's shot goes, on the same line the shot takes: from the muzzle along the gun, stopped by what stops a shot. It covers the same small angle at any distance. With the laser, a thin red line runs from the muzzle to it. It shows for the guns in your hands, including the second pistol, but not for knives, grenades or held things; the bazooka keeps its own. The game's crosshair is made for a flat screen and stays hidden, and the game's own aim assist does nothing in VR. Config `[VR] AimDot` (0/1/2).
+
 ## 0.1.247
 
 - **Doors with more than one interaction open by hand.** A door can list only one of its interactions, such as `door_13_b` in the Emerald base, which lists one marked "- all". The player's own interaction, "- player only", was the one Grip+A used but was not on that list. That listed one did not let the player through, so the hand could neither push nor pull the door. A door now also takes every interaction that moves its leaf, and the one the game targets for you as you reach it. The hand may move a door when Grip+A could open it: one of its interactions is for the player, switched on and not blocked. An interaction meant for the AI, or one switched off or blocked beside the player's own, no longer keeps it shut. A lock not yet opened (key, card, lockpick) still does.

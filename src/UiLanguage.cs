@@ -132,6 +132,10 @@ internal static class UiLanguage
         ["the film's (turns the view)"]=new[]{"как в фильме (поворачивает взгляд)","die des Films (dreht die Sicht)","celle du film (tourne la vue)","la de la película (gira la vista)","quella del film (gira la vista)","filmowa (obraca widok)","a do filme (gira a visão)"},
         ["Weapon places"]=new[]{"Места оружия","Waffenplätze","Emplacements des armes","Lugares de las armas","Posti delle armi","Miejsca broni","Lugares das armas"},
         // 0.1.245: the forearms drawn, or the hands only (cut behind the watch).
+        // 0.1.248: the aim dot for the guns.
+        ["Aim dot"]=new[]{"Точка прицела","Zielpunkt","Point de visée","Punto de mira","Punto di mira","Punkt celowania","Ponto de mira"},
+        ["dot"]=new[]{"точка","Punkt","point","punto","punto","punkt","ponto"},
+        ["dot and laser"]=new[]{"точка и лазер","Punkt und Laser","point et laser","punto y láser","punto e laser","punkt i laser","ponto e laser"},
         ["Forearms"]=new[]{"Предплечья","Unterarme","Avant-bras","Antebrazos","Avambracci","Przedramiona","Antebraços"},
         ["shown"]=new[]{"видны","sichtbar","visibles","visibles","visibili","widoczne","visíveis"},
         ["hands only (cut at the watch)"]=new[]{"только кисти (обрезаны у часов)","nur Hände (an der Uhr abgeschnitten)","mains seules (coupées à la montre)","solo manos (cortadas en el reloj)","solo mani (tagliate all'orologio)","tylko dłonie (ucięte przy zegarku)","só as mãos (cortadas no relógio)"},

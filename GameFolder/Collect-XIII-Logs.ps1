@@ -24,9 +24,10 @@ try {
     $perf = @(Get-ChildItem -LiteralPath (Join-Path $loader 'config') -Filter 'XIII-XR-performance-*.csv' -File -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 2)
     foreach ($file in $perf) { Include $file.FullName ('Perf-' + $file.Name) }
-    # 0.1.197: the weapon meshes the mod writes for checking (the Uzi's handle; 0.1.198: the zipline hook).
+    # 0.1.197: the weapon meshes the mod writes for checking (the Uzi's handle; 0.1.198: the zipline hook;
+    # 0.1.251: the three crossbows).
     $meshes = @(Get-ChildItem -LiteralPath (Join-Path $loader 'config') -Filter 'XIII-XR-mesh-*.txt' -File -ErrorAction SilentlyContinue |
-        Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 4)
+        Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 8)
     foreach ($file in $meshes) { Include $file.FullName ('Mesh-' + $file.Name) }
     $localLow = Join-Path (Split-Path $env:LOCALAPPDATA -Parent) 'LocalLow'
     $players = @(Get-ChildItem -LiteralPath $localLow -Filter 'Player*.log' -Recurse -File -ErrorAction SilentlyContinue |

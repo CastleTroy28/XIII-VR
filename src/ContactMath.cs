@@ -196,7 +196,8 @@ internal sealed class ContactSolver
     }
     internal static ContactSphere[] Weapon(string profile)
     {
-        float length=profile=="pistol"?.22f:profile=="shotgun"?.95f:.85f;
+        // 0.1.249: the shotgun drawn 1.08 m long (EquipmentProfile.Length), its muzzle where it was.
+        float length=profile=="pistol"?.22f:profile=="shotgun"?1.08f:.85f;
         float end=profile=="pistol"?.14f:profile=="shotgun"?.62f:.50f;
         float radius=profile=="pistol"?.017f:.045f;float spacing=profile=="pistol"?.026f:.065f;int count=(int)MathF.Ceiling(length/spacing)+1;
         var result=new ContactSphere[count+1];

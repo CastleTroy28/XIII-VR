@@ -433,9 +433,12 @@ internal sealed partial class WeaponHands : IDisposable
     }
     // 0.1.162: which step of a long Tick took the time (PERF SLOW weapons).
     private readonly StepClock tickClock=new("weapons");
+    // 0.1.248: the aim dots (VR SETTINGS "Aim dot"): the game's weapon's, the second pistol's.
+    private readonly AimDot gunDot=new(),leftGunDot=new();
     internal void Tick()
     {
         if(disposed)return;
+        gunDot.HideUnlessShown();leftGunDot.HideUnlessShown();
         var clock=tickClock;clock.Begin();
         try
         {
@@ -822,6 +825,7 @@ internal sealed partial class WeaponHands : IDisposable
             {var c=ControllerAim.Rotation(right);aimForward=c*U.forward;aimUp=c*U.up;aimPosition=position+aim*primaryGrip+aimForward*.09f;}
             if(profile=="knife")KnifeAim(right);
             poseValid = true; if(fire!=null)WriteMuzzle(fire);
+            if(rendering)ShowGunDot(gunDot,aimPosition,aimForward);
             if (wasHeld != SupportHeld) Bootstrap.Write("TWO-HAND " + (SupportHeld ? "engaged" : "released") + " weapon=" + profile);
             UpdateSocket(position + aim * supportGrip);
             if (Time.realtimeSinceStartup >= nextReport)
@@ -1138,8 +1142,17 @@ internal sealed partial class WeaponHands : IDisposable
         Bootstrap.Warn("WEAPON HANDS suspended; retry in 3 seconds; head tracking and stereo remain running. " + ex);
         try { Unbind(); } catch (Exception cleanup) { Bootstrap.Warn("Weapon cleanup: " + cleanup.Message); }
     }
+    // 0.1.248: a firearm's aim dot, where its shot goes (not in a story scene or a menu).
+    // The bazooka has its own (where its rocket lands, always shown).
+    private void ShowGunDot(AimDot dot,U origin,U forward)
+    {
+        int mode=QualityOptions.AimDotMode;
+        if(mode==0||!HolsterLayout.Firearm(profile)||profile=="bazooka"||rig.Scripted||GameUiControls.Current?.BlocksGameplay==true){dot.Hide();return;}
+        dot.Show(origin,forward,ShotMask,playerRoot,mode);
+    }
     public void Dispose()
     {
+        gunDot.Dispose();leftGunDot.Dispose();
         ClearThrow();throwVisual?.Dispose();if(throwRoot!=null)UnityEngine.Object.Destroy(throwRoot);DisposeLanding();DisposeBazooka();
         if (disposed) return; disposed = true;
         if (Current == this) Current = null;

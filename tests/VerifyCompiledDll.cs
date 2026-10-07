@@ -9,7 +9,7 @@ class Verify
   using var p=ModuleDefinition.ReadModule(args.Length>0?args[0]:"xiii-xr/XIII.XRBootstrap.dll");
   var plugin=p.Types.Single(t=>t.Name=="Plugin");
   var info=plugin.CustomAttributes.Single(a=>a.AttributeType.Name=="BepInPlugin");
-  Require((string)info.ConstructorArguments[2].Value=="0.1.247","compiled plugin reports version 0.1.247");
+  Require((string)info.ConstructorArguments[2].Value=="0.1.252","compiled plugin reports version 0.1.252");
   var sceneHands=p.Types.Single(x=>x.Name=="WeaponHands");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="OnSceneChanged")).Any(x=>x.Name=="Clear"),"scene change clears weapon state");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="RegisterHand")).Any(x=>x.Name=="Clear"),"new native skeleton invalidates cached grip anchors");
@@ -820,7 +820,7 @@ class Verify
   var visual228=p.Types.Single(x=>x.Name=="WeaponVisual");
   Require(Calls(visual228.Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="TrimRocket")&&Calls(visual228.Methods.Single(x=>x.Name=="TrimRocket")).Any(x=>x.Name=="RocketBone")
    &&Calls(visual228.Methods.Single(x=>x.Name=="TrimRocket")).Any(x=>x.Name=="WithoutAttachment")&&p.Types.Single(x=>x.Name=="WeaponGeometry").Fields.Any(x=>x.Name=="BazookaScale")
-   &&Calls(visual228.Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="Fit"&&x.DeclaringType.Name=="WeaponGeometry"&&x.Parameters.Count==4)
+   &&Calls(visual228.Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="Fit"&&x.DeclaringType.Name=="WeaponGeometry"&&x.Parameters.Count>=4)
    &&visual228.Methods.Single(x=>x.Name=="Build").Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-1.1f/.402614f)<1e-4f)
    &&Calls(H5("TryPoseHand")).Count(x=>x.Name=="NativeGrip")>=1&&Calls(p.Types.Single(x=>x.Name=="GloveVisual").Methods.Single(x=>x.Name=="Pose")).Any(x=>x.Name=="NoteSupportGlove")
    &&Str(hands225,"BAZOOKA the hand holding it is not drawn on its handle: "),"the bazooka fitted by its length with its rocket (its size and handles changing with the rocket's place)");
@@ -904,14 +904,14 @@ class Verify
   var visual243=p.Types.Single(x=>x.Name=="WeaponVisual");MethodDefinition V3(string n)=>visual243.Methods.Single(x=>x.Name==n);
   Require(Calls(V3("TrimAttachment")).Any(x=>x.Name=="Split"&&x.DeclaringType.Name=="WeaponGeometry")&&Calls(V3("TrimAttachment")).Any(x=>x.Name=="Shown"&&x.DeclaringType.Name=="WeaponGeometry")
    &&Calls(V3("Grown")).Any(x=>x.Name=="get_RevolverGrowth")&&Calls(V3("get_CylinderSocket")).Any(x=>x.Name=="Grown")&&Calls(V3("EjectCasings")).Any(x=>x.Name=="Grown")&&Calls(V3("PoseCylinder")).Any(x=>x.Name=="Grown")
-   &&p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length").Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-.37f)<1e-6f),"the plain pistol still drawn small (its hidden silencer in the fit), or the revolver still 28 cm");
+   &&p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length"&&x.Parameters.Count==1).Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-.37f)<1e-6f),"the plain pistol still drawn small (its hidden silencer in the fit), or the revolver still 28 cm");
   // 0.1.244: a blow breaks what the game breaks when used (the sanctuary's vent); the Uzi drawn 35 cm.
   var punch244=p.Types.Single(x=>x.Name=="PunchDriver");var touch244=p.Types.Single(x=>x.Name=="TouchButtons");
   Require(punch244.Methods.Concat(punch244.NestedTypes.SelectMany(t=>t.Methods)).Any(m=>Calls(m).Any(x=>x.Name=="Strike"&&x.DeclaringType.Name=="InteractionDriver"))
    &&Calls(p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Single(x=>x.Name=="Strike")).Any(x=>x.Name=="Strike"&&x.DeclaringType.Name=="TouchButtons")
    &&Calls(touch244.Methods.Single(x=>x.Name=="Strike")).Any(x=>x.Name=="PingRaycastHittable")&&Calls(touch244.Methods.Single(x=>x.Name=="Strike")).Any(x=>x.Name=="set_Injecting")
    &&Calls(p.Types.Single(x=>x.Name=="TouchControlReader").Methods.Single(x=>x.Name=="Read"&&x.Parameters.Count==5)).Any(x=>x.Name=="Breaks")
-   &&p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length").Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-.35f)<1e-6f),"a fist or a weapon still does not break the sanctuary's vent (or the Uzi still 46 cm)");
+   &&p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length"&&x.Parameters.Count==1).Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-.35f)<1e-6f),"a fist or a weapon still does not break the sanctuary's vent (or the Uzi still 46 cm)");
   // 0.1.245: story movies on a still screen; the forearms optional; a hand that took a weapon picks nothing else up; a selected weapon's own model hidden at once.
   var rig245=p.Types.Single(x=>x.Name=="CameraRig");
   Require(Calls(rig245.Methods.Single(x=>x.Name=="PrepareUiPose")).Any(x=>x.Name=="PoseMovieScreen")&&Calls(rig245.Methods.Single(x=>x.Name=="PoseMovieScreen")).Any(x=>x.Name=="set_CinemaRotation")
@@ -930,6 +930,34 @@ class Verify
   Require(Calls(doors247.Methods.Single(x=>x.Name=="DoorActions")).Any(x=>x.Name=="AnimatingActions")&&Calls(doors247.Methods.Single(x=>x.Name=="Unlocked")).Any(x=>x.Name=="IsActorValid")
    &&p.Types.Single(x=>x.Name=="InteractionDriver").Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Stsfld&&i.Operand is FieldReference f&&f.Name=="GameTarget"&&f.DeclaringType.Name=="PhysicalDoors")
    &&doors247.Methods.Single(x=>x.Name=="Discover").Body.Instructions.Any(i=>i.OpCode.Code==Mono.Cecil.Cil.Code.Ldsfld&&i.Operand is FieldReference f&&f.Name=="GameTarget"),"a door listing only another interaction still not opened by the hand");
+  // 0.1.248: an aim dot (VR SETTINGS): where the gun's shot goes, from its muzzle along it.
+  var hands248=p.Types.Single(x=>x.Name=="WeaponHands");var dot248=p.Types.Single(x=>x.Name=="AimDot");
+  Require(Calls(hands248.Methods.Single(x=>x.Name=="RenderPose")).Any(x=>x.Name=="ShowGunDot")&&Calls(p.Types.Single(x=>x.Name=="WeaponHands").Methods.Single(x=>x.Name=="RenderLeftPistol")).Any(x=>x.Name=="ShowGunDot")
+   &&Calls(hands248.Methods.Single(x=>x.Name=="ShowGunDot")).Any(x=>x.Name=="get_AimDotMode")&&Calls(hands248.Methods.Single(x=>x.Name=="ShowGunDot")).Any(x=>x.Name=="get_ShotMask")
+   &&Calls(dot248.Methods.Single(x=>x.Name=="Show")).Any(x=>x.Name=="RaycastNonAlloc")&&Calls(hands248.Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="HideUnlessShown")
+   &&Str(p.Types.Single(x=>x.Name=="UiLanguage"),"Точка прицела"),"no aim dot for the guns");
+  // 0.1.249: the shotguns drawn 1.08 m long (the hand on them as on the other guns).
+  Require(p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length"&&x.Parameters.Count==1).Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-1.08f)<1e-6f)
+   &&p.Types.Single(x=>x.Name=="ContactSolver").Methods.Single(x=>x.Name=="Weapon").Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-1.08f)<1e-6f),"the shotguns still drawn 0.95 m (the hand on them small)");
+  // 0.1.252: the tube scope's picture on the eyepiece's own glass; the measured reticle turn the plain crossbow's only.
+  var visual252=p.Types.Single(x=>x.Name=="WeaponVisual");
+  Require(Calls(visual252.Methods.Single(x=>x.Name=="BuildTubeScope")).Any(x=>x.Name=="FindGlass"&&x.DeclaringType.Name=="ScopeGeometry")&&Calls(visual252.Methods.Single(x=>x.Name=="BuildTubeScope")).Any(x=>x.Name=="OnGlass")
+   &&Calls(visual252.Methods.Single(x=>x.Name=="CreateScope")).Any(x=>x.Name=="get_ModelKey"),"the tactical crossbow's picture still small in front of its glass, or its cross still turned 6 degrees clockwise");
+  // 0.1.251: the crossbows' sights searched at the size they were measured at; the harpoon gun's bands drawn like a string; each crossbow its own files.
+  var visual251=p.Types.Single(x=>x.Name=="WeaponVisual");MethodDefinition V251(string n)=>visual251.Methods.Single(x=>x.Name==n);
+  Require(Calls(V251("BuildTubeScope")).Count(x=>x.Name=="ToTuned"&&x.DeclaringType.Name=="ScopeGeometry")>=2&&Calls(V251("BuildTubeScope")).Count(x=>x.Name=="FromTuned"&&x.DeclaringType.Name=="ScopeGeometry")>=2
+   &&visual251.Methods.Any(x=>x.Name=="get_ModelKey")&&Calls(V251("Build")).Any(x=>x.Name=="ModelKey"&&x.DeclaringType.Name=="EquipmentProfile")
+   &&p.Types.Single(x=>x.Name=="EquipmentProfile").Fields.Any(f=>f.Name=="ScopeTunedLength"&&f.HasConstant&&Math.Abs((float)f.Constant-.72f)<1e-6f),"the tactical crossbow's sight still searched at its new size (a narrow picture hidden inside the scope)");
+  Require(Calls(V251("PrepareString")).Any(x=>x.Name=="StringBone"&&x.DeclaringType.Name=="CrossbowStringMath")&&Calls(V251("PrepareString")).Any(x=>x.Name=="get_StringFile")&&Calls(V251("get_StringFile")).Any(x=>x.Name=="ModelFile")
+   &&Calls(V251("get_BoltFile")).Any(x=>x.Name=="ModelFile")&&Calls(V251("PrepareReload")).Any(x=>x.Name=="DumpModel")&&Calls(V251("DumpModel")).Any(x=>x.Name=="DumpMesh"),"the harpoon gun's bands still the game's (slack after a harpoon put in by hand)");
+  // 0.1.250: the crossbows drawn by their model (the hand on the harpoon gun as on the other guns); the forearm's cut closed by one flat cap.
+  var profile250=p.Types.Single(x=>x.Name=="EquipmentProfile");var mesh250=p.Types.Single(x=>x.Name=="NativeHandMesh");
+  Require(Calls(p.Types.Single(x=>x.Name=="WeaponVisual").Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="Fit"&&x.DeclaringType.Name=="WeaponGeometry"&&x.Parameters.Count==5)
+   &&Calls(p.Types.Single(x=>x.Name=="WeaponGeometry").Methods.Single(x=>x.Name=="Fit")).Any(x=>x.Name=="Length"&&x.DeclaringType.Name=="EquipmentProfile"&&x.Parameters.Count==2)
+   &&Calls(profile250.Methods.Single(x=>x.Name=="Length"&&x.Parameters.Count==2)).Any(x=>x.Name=="CrossbowLength")
+   &&profile250.Fields.Any(f=>f.Name=="HarpoonLength"&&f.HasConstant&&Math.Abs((float)f.Constant-1.03f)<1e-6f),"the harpoon gun still drawn as small as the crossbow (the hand on it at 0.69)");
+  Require(Calls(mesh250.Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="CloseCut")&&Calls(mesh250.Methods.Single(x=>x.Name=="CloseCut")).Any(x=>x.Name=="Outline")&&Calls(mesh250.Methods.Single(x=>x.Name=="CloseCut")).Any(x=>x.Name=="CapPoint")
+   &&Calls(p.Types.Single(x=>x.Name=="NativeHandVisual").Methods.Single(x=>x.Name=="Build")).Any(x=>x.Name=="get_CapSource"),"the forearm's cut still a jagged fan of its rim (gaps and streaks through a sleeve of layers)");
   // 0.1.220: a turned lockpick runs the game's lockpicking time on its HUD before the lock opens.
   var key220=p.Types.Single(x=>x.Name=="KeyUnlockGesture");MethodDefinition K0(string n)=>key220.Methods.Single(x=>x.Name==n);
   Require(Calls(K0("Tick")).Any(x=>x.Name=="BeginPicking")&&Calls(K0("Tick")).Any(x=>x.Name=="TickPicking")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="ToggleLockpickingHud")&&Calls(K0("BeginPicking")).Any(x=>x.Name=="get_lockpickTime")

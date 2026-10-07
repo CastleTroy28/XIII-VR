@@ -31,7 +31,7 @@ internal sealed class NativeHandMesh
         internal readonly bool Cap;
         internal Point(int a,int b,int c,Vector3 mix,Vector3 rest,Vector2 uv,bool cap=false)
         {A=a;B=b;C=c;Mix=mix;Rest=rest;UV=uv;Cap=cap;}
-        internal Point AsCap()=>new(A,B,C,Mix,Rest,UV,true);
+        internal Point AsCap(Vector2 uv)=>new(A,B,C,Mix,Rest,uv,true);
         internal static Point Lerp(Point a,Point b,float t)=>new(a.A,a.B,a.C,Vector3.Lerp(a.Mix,b.Mix,t),Vector3.Lerp(a.Rest,b.Rest,t),Vector2.Lerp(a.UV,b.UV,t));
     }
     internal static bool Finite(Vector3 p)=>float.IsFinite(p.X)&&float.IsFinite(p.Y)&&float.IsFinite(p.Z);
@@ -39,6 +39,7 @@ internal sealed class NativeHandMesh
     {
         if(rest.Length==0 || uv.Length!=rest.Length || eligible.Length!=rest.Length || rest.Any(p=>!Finite(p)))throw new ArgumentException("Invalid native hand input");
         var result=new NativeHandMesh();
+        var outputs=new List<List<int>>();var rims=new List<List<int>>();
         foreach(var indices in triangles)
         {
             var output=new List<int>();var rim=new List<int>();
@@ -64,22 +65,68 @@ internal sealed class NativeHandMesh
                 for(int n=0;n<poly.Count;n++)if(Math.Abs(poly[n].Rest.Z-cut)<1e-5f)rim.Add(start+n);
                 for(int n=1;n+1<poly.Count;n++)AddTriangle(result,output,start,start+n,start+n+1);
             }
-            // Convex wrist cross-section. Duplicate rim vertices to give the cap
-            // its own -Z normal while preserving native texture coordinates.
-            var unique=new List<int>();
-            foreach(int n in rim)if(!unique.Any(k=>Vector3.DistanceSquared(result.Points[k].Rest,result.Points[n].Rest)<1e-10f))unique.Add(n);
-            if(unique.Count>=3)
-            {
-                var center=Vector3.Zero;foreach(int n in unique)center+=result.Points[n].Rest;center/=unique.Count;
-                unique.Sort((a,b)=>MathF.Atan2(result.Points[b].Rest.Y-center.Y,result.Points[b].Rest.X-center.X).CompareTo(MathF.Atan2(result.Points[a].Rest.Y-center.Y,result.Points[a].Rest.X-center.X)));
-                int start=result.Points.Count;foreach(int n in unique)result.Points.Add(result.Points[n].AsCap());
-                for(int n=1;n+1<unique.Count;n++)AddTriangle(result,output,start,start+n,start+n+1);
-            }
-            result.Submeshes.Add(output.ToArray());
+            outputs.Add(output);rims.Add(rim);
         }
+        result.CloseCut(outputs,rims);
+        foreach(var output in outputs)result.Submeshes.Add(output.ToArray());
         if(result.Submeshes.Sum(x=>x.Length)<30)throw new InvalidOperationException("Too little native hand geometry after wrist crop");
         result.Compact();
         return result;
+    }
+    // The rim point whose texture point and colour the whole cap has (null: no cap).
+    internal Point? CapSource { get; private set; }
+    // 0.1.250: the cut closed by one flat cap over the whole cross-section (the
+    // outline around every point cut, of every material), in the material cut
+    // most, one texture point all over it (that of the cut's outer edge). The
+    // cap was a fan of the rim points sorted around their middle, with their
+    // own texture points, per material: through a sleeve of layers (an outer
+    // cloth and its lining or a glove's cuff, as on the military outfit) the
+    // inner and outer points alternated - a jagged star, its inward triangles
+    // turned away (gaps) and the texture smeared across its whole atlas between
+    // them (streaks).
+    private void CloseCut(List<List<int>> outputs,List<List<int>> rims)
+    {
+        int most=-1;for(int i=0;i<rims.Count;i++)if(rims[i].Count>=3&&(most<0||rims[i].Count>rims[most].Count))most=i;
+        if(most<0)return;
+        var unique=new List<int>();
+        foreach(var rim in rims)foreach(int n in rim)if(!unique.Any(k=>Vector3.DistanceSquared(Points[k].Rest,Points[n].Rest)<1e-10f))unique.Add(n);
+        var outline=Outline(unique.Select(n=>Points[n].Rest).ToArray());
+        if(outline.Count<3)return;
+        var own=new HashSet<int>(rims[most]);
+        var edge=outline.Select(i=>unique[i]).Where(own.Contains).ToList();
+        var source=Points[CapPoint(edge.Count>0?edge:rims[most],Points)];
+        CapSource=source;
+        int start=Points.Count;
+        // Around clockwise, seen from the hand (the order the cap always had: its face toward the elbow).
+        for(int i=outline.Count-1;i>=0;i--)Points.Add(Points[unique[outline[i]]].AsCap(source.UV));
+        for(int n=1;n+1<outline.Count;n++)AddTriangle(this,outputs[most],start,start+n,start+n+1);
+    }
+    // The convex outline of points across the cut (their X and Y), counter-clockwise; indices into points.
+    internal static List<int> Outline(Vector3[] points)
+    {
+        var order=Enumerable.Range(0,points.Length).Where(i=>Finite(points[i])).OrderBy(i=>points[i].X).ThenBy(i=>points[i].Y).ToArray();
+        var hull=new List<int>();
+        if(order.Length<3)return hull;
+        // A left turn of more than 1e-4 radians (points along an edge, within rounding of it, are left out).
+        bool Left(int o,int a,int b)
+        {
+            float ax=points[a].X-points[o].X,ay=points[a].Y-points[o].Y,bx=points[b].X-points[o].X,by=points[b].Y-points[o].Y;
+            return ax*by-ay*bx>1e-4f*MathF.Sqrt((ax*ax+ay*ay)*(bx*bx+by*by));
+        }
+        foreach(int i in order){while(hull.Count>=2&&!Left(hull[^2],hull[^1],i))hull.RemoveAt(hull.Count-1);hull.Add(i);}
+        int lower=hull.Count+1;
+        for(int k=order.Length-2;k>=0;k--){int i=order[k];while(hull.Count>=lower&&!Left(hull[^2],hull[^1],i))hull.RemoveAt(hull.Count-1);hull.Add(i);}
+        hull.RemoveAt(hull.Count-1);
+        return hull.Count>=3?hull:new List<int>();
+    }
+    // The point whose texture point is nearest the middle (median) of theirs: on the cloth most of the edge shows.
+    internal static int CapPoint(IReadOnlyList<int> candidates,IReadOnlyList<Point> points)
+    {
+        float Median(IEnumerable<float> v){var s=v.OrderBy(x=>x).ToArray();return s.Length==0?0:s.Length%2==1?s[s.Length/2]:(s[s.Length/2-1]+s[s.Length/2])*.5f;}
+        var middle=new Vector2(Median(candidates.Select(i=>points[i].UV.X)),Median(candidates.Select(i=>points[i].UV.Y)));
+        int best=candidates[0];float nearest=float.PositiveInfinity;
+        foreach(int i in candidates){float d=Vector2.DistanceSquared(points[i].UV,middle);if(d<nearest){nearest=d;best=i;}}
+        return best;
     }
     private void Compact()
     {

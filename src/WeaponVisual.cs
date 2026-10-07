@@ -69,9 +69,12 @@ internal sealed partial class WeaponVisual : IDisposable
     // 0.1.122: the crossbow bolt's place on the rail (from a loaded crossbow).
     private Matrix4x4[]? arrowRelation;
     internal bool LoadedAtBuild=true;
-    private static string BoltFile=>System.IO.Path.Combine(BepInEx.Paths.ConfigPath,"XIII-XR-crossbow-bolt.txt");
-    private static void SaveBolt(string[] names,Matrix4x4[] relation)=>SaveRelation(BoltFile,"bolt",names,relation);
-    private static Matrix4x4[]? LoadBolt(string[] names)=>LoadRelation(BoltFile,"bolt",names);
+    // 0.1.251: each crossbow its own file (the crossbow's as before): one taken
+    // loaded overwrote another's, which taken empty then had its bolt in the bind pose.
+    private string ModelFile(string what)=>System.IO.Path.Combine(BepInEx.Paths.ConfigPath,"XIII-XR-"+(ModelKey.Length>0?ModelKey:Profile)+"-"+what+".txt");
+    private string BoltFile=>ModelFile("bolt");
+    private void SaveBolt(string[] names,Matrix4x4[] relation)=>SaveRelation(BoltFile,"bolt",names,relation);
+    private Matrix4x4[]? LoadBolt(string[] names)=>LoadRelation(BoltFile,"bolt",names);
     private static void SaveRelation(string file,string what,string[] names,Matrix4x4[] relation)
     {
         try
@@ -107,6 +110,10 @@ internal sealed partial class WeaponVisual : IDisposable
     private Matrix4x4 fitMatrix;
     internal ContactSphere[]? ContactShape {get;private set;}
     internal string Profile { get; private set; }="";
+    // 0.1.251: the model held (its names) and its own key (a crossbow's: crossbow, crossbow_tactical, harpoon_gun).
+    internal string Model { get; private set; }="";
+    internal string ModelKey { get; private set; }="";
+    private float fittedLength;
     private float createdAt;
     private readonly Dictionary<Renderer,bool> propSources=new();
     internal Vector3 PropCenter {get;private set;}
@@ -422,8 +429,11 @@ internal sealed partial class WeaponVisual : IDisposable
         if (!hasBounds || parts.Count == 0 || bounds.size.z < .0001f || bounds.size.z > 1000)
             throw new InvalidOperationException("No usable weapon mesh in barrel frame");
         var minBound = bounds.min; var maxBound = bounds.max;
+        // 0.1.250: the model by its names (a harpoon gun is held in the crossbow's slot, drawn at its own length).
+        string model=weapon.identifier+" "+weapon.name;foreach(var part in parts)if(part.Source!=null)model+=" "+part.Source.name;
+        Model=model;ModelKey=EquipmentProfile.ModelKey(profile,model);
         var fit = WeaponGeometry.Fit(new System.Numerics.Vector3(minBound.x,minBound.y,minBound.z),
-            new System.Numerics.Vector3(maxBound.x,maxBound.y,maxBound.z),profile,bazookaTrimmed?WeaponGeometry.BazookaScale:float.NaN);
+            new System.Numerics.Vector3(maxBound.x,maxBound.y,maxBound.z),profile,bazookaTrimmed?WeaponGeometry.BazookaScale:float.NaN,model);
         var propRotation=Quaternion.identity;
         if(profile=="prop")
         {
@@ -457,7 +467,7 @@ internal sealed partial class WeaponVisual : IDisposable
             fit=new WeaponFit(scale,new System.Numerics.Vector3(translation.x,translation.y,translation.z),new System.Numerics.Vector3(tip.x,tip.y,tip.z));
         }
         MuzzleOffset = new Vector3(fit.Muzzle.X,fit.Muzzle.Y,fit.Muzzle.Z);
-        fitScale=fit.Scale;
+        fitScale=fit.Scale;fittedLength=bounds.size.z*fit.Scale;
         if(!EquipmentProfile.Manual(profile))ContactShape=ContactSolver.Box(fit.Point(new System.Numerics.Vector3(minBound.x,minBound.y,minBound.z)),fit.Point(new System.Numerics.Vector3(maxBound.x,maxBound.y,maxBound.z)));
         fitMatrix=Matrix4x4.TRS(new Vector3(fit.Translation.X,fit.Translation.Y,fit.Translation.Z),propRotation,Vector3.one*fit.Scale);
         ItemCenter=fitMatrix.MultiplyPoint3x4(bounds.center);
@@ -694,6 +704,7 @@ internal sealed partial class WeaponVisual : IDisposable
                     {
                         try{PrepareString(part,boneNames,weaponRoot);}
                         catch(Exception ex){stringBones=null;Bootstrap.Warn("CROSSBOW string stays the game's: "+ex.Message);}
+                        DumpModel(part);
                     }
                     if(bolt>=0)
                     {

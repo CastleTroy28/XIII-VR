@@ -208,7 +208,12 @@ internal sealed partial class NativeHandVisual : IDisposable
         mesh.vertices=new Vector3[clipped.Points.Count];mesh.uv=clipped.Points.Select(p=>new Vector2(p.UV.X,p.UV.Y)).ToArray();mesh.subMeshCount=clipped.Submeshes.Count;
         var originalColors=bake.colors;
         if(originalColors.Length==sourceCount)
-            mesh.colors=clipped.Points.Select(p=>originalColors[p.A]*p.Mix.X+originalColors[p.B]*p.Mix.Y+originalColors[p.C]*p.Mix.Z).ToArray();
+        {
+            // 0.1.250: the cap one colour all over, as it has one texture point (NativeHandMesh.CloseCut).
+            Color Of(NativeHandMesh.Point p)=>originalColors[p.A]*p.Mix.X+originalColors[p.B]*p.Mix.Y+originalColors[p.C]*p.Mix.Z;
+            var capSource=clipped.CapSource;
+            mesh.colors=clipped.Points.Select(p=>p.Cap&&capSource.HasValue?Of(capSource.Value):Of(p)).ToArray();
+        }
         for(int i=0;i<clipped.Submeshes.Count;i++)mesh.SetTriangles(clipped.Submeshes[i],i,false,0);
         NativeFistSampler.Capture(player,source,snapshot,restFrame,restWrist,wristIndex,this.fingers);
         points=new NVector[sourceCount];this.normals=new NVector[sourceCount];posed=new Matrix4x4[neutralBones.Length];
@@ -219,7 +224,7 @@ internal sealed partial class NativeHandVisual : IDisposable
         // 0.1.186: the middle of the forearm's cut (where a small medkit is carried).
         var cap=clipped.Points.Where(p=>p.Cap).Select(p=>p.Rest).ToArray();
         CropRest=cap.Length>=3?cap.Aggregate(NVector.Zero,(sum,p)=>sum+p)/cap.Length:ArmMedkitMath.AlongForearm(ForearmRest,cutZ);
-        Bootstrap.Write("NATIVE HAND "+side+" forearm cut at "+CropRest.ToString()+" (rim points "+cap.Length+(HandsOnly?"; the hand only: cut behind the watch, its band "+mountDistance.ToString("F3")+" m from the wrist":"")+")");
+        Bootstrap.Write("NATIVE HAND "+side+" forearm cut at "+CropRest.ToString()+" (closed by one flat cap, its outline "+cap.Length+" points"+(HandsOnly?"; the hand only: cut behind the watch, its band "+mountDistance.ToString("F3")+" m from the wrist":"")+")");
         Refresh(false,1,0,0,"",ForearmRest);
         Bootstrap.Write("NATIVE HAND "+side+" bound source="+source.name+" vertices="+clipped.Points.Count+" selection="+selection+" materials="+string.Join(",",source.sharedMaterials.Where(m=>m!=null).Select(m=>m.name)));
     }

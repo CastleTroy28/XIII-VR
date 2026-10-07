@@ -87,8 +87,32 @@ class WeaponAttachmentTests
    float uzi=Held("uzi",.097155f);
    Check(uzi>.95f&&uzi<1.03f&&Math.Abs(uzi-pistol)<.03f,"the hand on the Uzi not as the pistol's: "+uzi+" "+pistol);
    Check(.46f/.097155f*hand>1.28f,"the old Uzi size (the hand at 1.29) not reproduced");
+   // 0.1.249: the shotguns (the pump gun 0.2993 long in the game's size, the
+   // double-barrel laid along its barrels 0.3044) were fitted 0.95 m: the hand
+   // on them at 0.87 and 0.85. 1.08 m.
+   float pump=Held("shotgun",.299275f),both=Held("shotgun",.304414f);
+   Check(pump>.95f&&pump<1.03f&&both>.95f&&both<1.03f&&Math.Abs(pump-ak)<.03f&&Math.Abs(both-pistol)<.03f,"the hand on a shotgun not as on the other guns: pump "+pump+", double-barrel "+both);
+   Check(.95f/.304414f*hand<.86f&&.95f/.299275f*hand<.87f,"the old shotgun sizes (the hand at 0.85 and 0.87) not reproduced");
+   // 0.1.250: the three crossbows of the game's crossbow slot, all fitted 72
+   // cm: the hand on the harpoon gun (0.2857 long) at 0.69, on the crossbow
+   // (0.2489) at 0.79, on the tactical one (0.2562) at 0.77. Each its own length.
+   float Model(string model,float rawLength)=>EquipmentProfile.Length("crossbow",model)/rawLength*hand;
+   float harpoon=Model("wpn_harpoon_gun wpn_harpoon_gun(Clone) wpn_harpoon_gun_LOD0",.285673f),crossbow=Model("wpn_crossbow wpn_crossbow(Clone) wpn_crossbow_LOD0",.248898f),tactical=Model("wpn_crossbow_tactical wpn_crossbow_tactical_LOD0",.256173f);
+   foreach(var (name,heldSize) in new[]{("harpoon gun",harpoon),("crossbow",crossbow),("tactical crossbow",tactical)})
+    Check(heldSize>.95f&&heldSize<1.03f&&Math.Abs(heldSize-pistol)<.03f&&Math.Abs(heldSize-ak)<.03f,"the hand on the "+name+" not as on the other guns: "+heldSize);
+   Check(.72f/.285673f*hand<.70f&&.72f/.248898f*hand<.80f&&.72f/.256173f*hand<.78f,"the old crossbow sizes (the hand at 0.69, 0.79, 0.77) not reproduced");
+   Check(EquipmentProfile.Length("crossbow")==EquipmentProfile.Length("crossbow",null)&&EquipmentProfile.Length("crossbow","WPN_HARPOON_GUN")==EquipmentProfile.HarpoonLength,"an unnamed crossbow or a harpoon gun named otherwise not sized");
+   // 0.1.251: each crossbow's own key (its saved bolt and string files; the crossbow's as before).
+   Check(EquipmentProfile.ModelKey("crossbow","wpn_harpoon_gun wpn_harpoon_gun(Clone) wpn_harpoon_gun_LOD0")=="harpoon_gun"&&EquipmentProfile.ModelKey("crossbow","wpn_crossbow_tactical")=="crossbow_tactical"
+    &&EquipmentProfile.ModelKey("crossbow","wpn_crossbow wpn_crossbow_LOD0")=="crossbow"&&EquipmentProfile.ModelKey("crossbow",null)=="crossbow"&&EquipmentProfile.ModelKey("uzi","wpn_uzi")=="uzi","a crossbow's own key wrong");
+   Check(EquipmentProfile.ScopeTunedLength==.72f&&EquipmentProfile.TacticalCrossbowLength/EquipmentProfile.ScopeTunedLength>1.2f,"the sights' search not at the size it was measured at");
+   Check(EquipmentProfile.Length("shotgun","wpn_harpoon_gun")==EquipmentProfile.Length("shotgun")&&EquipmentProfile.Length("pistol","tactical")==EquipmentProfile.Length("pistol"),"another gun sized by its model's name");
+   var harpoonFit=WeaponGeometry.Fit(new Vector3(-.01f,-.02f,-.2857f),new Vector3(.01f,.02f,0),"crossbow",float.NaN,"wpn_harpoon_gun_LOD0");
+   Check(MathF.Abs(harpoonFit.Scale*.2857f-EquipmentProfile.HarpoonLength)<1e-4f,"the harpoon gun not fitted at its own length");
   }
   Console.WriteLine("PASS: 0.1.243 the plain pistol fitted without its hidden silencer (a point outside the gun): drawn 22 cm long as the silenced one, not 17 cm; the revolver drawn 37 cm: the hand holding either at the free hand's size, as on the AK (it was 0.76 and 0.74).");
   Console.WriteLine("PASS: 0.1.244 the Uzi drawn 35 cm long (was 46): the hand holding it as on the pistol (it was 1.29 of the free hand).");
+  Console.WriteLine("PASS: 0.1.250 the crossbows by their model: the harpoon gun 1.03 m, the tactical crossbow 92 cm, the crossbow 89 cm (all 72 before): the hand on each as on the pistol and the AK (it was 0.69, 0.77 and 0.79); other guns not sized by name.");
+  Console.WriteLine("PASS: 0.1.249 the shotguns drawn 1.08 m long (were 0.95): the hand on the pump gun and on the double-barrel as on the pistol and the AK (it was 0.87 and 0.85).");
  }
 }

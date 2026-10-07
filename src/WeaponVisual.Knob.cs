@@ -41,10 +41,24 @@ internal sealed partial class WeaponVisual
         }
         catch(Exception ex){Bootstrap.Warn("UZI HANDLE: "+ex.Message);}
     }
+    // 0.1.251: the crossbows' meshes too (each of the three once a game), for checking their sights and bands.
+    private void DumpModel(Part part)
+    {
+        if(part.Snapshot==null||dumpedMeshes.Contains(ModelKey))return;
+        try
+        {
+            var weights=part.Snapshot.Original.boneWeights;var vertices=part.Mesh.vertices;
+            if(weights.Length!=vertices.Length)return;
+            var map=fitMatrix*part.Matrix;var points=new System.Numerics.Vector3[vertices.Length];
+            for(int i=0;i<vertices.Length;i++){var p=map.MultiplyPoint3x4(vertices[i]);points[i]=new System.Numerics.Vector3(p.x,p.y,p.z);}
+            DumpMesh(part,points,weights,part.Mesh.triangles);
+        }
+        catch(Exception ex){Bootstrap.Warn("WEAPON MESH dump: "+ex.Message);}
+    }
     // The gun's mesh (fitted frame, each vertex's main bone) for offline checks.
     private void DumpMesh(Part part,System.Numerics.Vector3[] points,BoneWeight[] weights,int[] triangles)
     {
-        if(!dumpedMeshes.Add(Profile))return;
+        if(!dumpedMeshes.Add(ModelKey.Length>0?ModelKey:Profile))return;
         try
         {
             var names=new string[part.Snapshot!.Bones.Length];for(int i=0;i<names.Length;i++)names[i]=part.Snapshot.Bones[i]?.name??"";
@@ -57,7 +71,7 @@ internal sealed partial class WeaponVisual
                     .Append(' ').Append(w.boneIndex0).Append(' ').Append(w.weight0.ToString("F2",inv)).Append('\n');
             }
             for(int t=0;t+2<triangles.Length;t+=3)sb.Append("t ").Append(triangles[t]).Append(' ').Append(triangles[t+1]).Append(' ').Append(triangles[t+2]).Append('\n');
-            var file=Path.Combine(BepInEx.Paths.ConfigPath,"XIII-XR-mesh-"+Profile+".txt");File.WriteAllText(file,sb.ToString());
+            var file=Path.Combine(BepInEx.Paths.ConfigPath,"XIII-XR-mesh-"+(ModelKey.Length>0?ModelKey:Profile)+".txt");File.WriteAllText(file,sb.ToString());
             Bootstrap.Write("WEAPON MESH written: "+file);
         }
         catch(Exception ex){Bootstrap.Warn("WEAPON MESH dump: "+ex.Message);}

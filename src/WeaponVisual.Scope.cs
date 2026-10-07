@@ -152,11 +152,15 @@ internal sealed partial class WeaponVisual
     // (ScopeGeometry); the picture sits just inside the tube's rear end.
     private void BuildTubeScope()
     {
+        // 0.1.251: searched at the size it was measured at (ScopeGeometry.ToTuned), grown back after.
+        var anchor=new System.Numerics.Vector3(MuzzleOffset.x,MuzzleOffset.y,MuzzleOffset.z);
+        float growth=Profile=="crossbow"&&fittedLength>0?fittedLength/EquipmentProfile.ScopeTunedLength:1;
+        if(!(growth>.5f&&growth<2f))growth=1;
         var points=new List<System.Numerics.Vector3>();
         foreach(var part in animatedParts)
         {
             var mesh=part.Mesh;if(mesh==null)continue;var m=fitMatrix*part.Matrix;
-            foreach(var v in mesh.vertices){var p=m.MultiplyPoint3x4(v);points.Add(new System.Numerics.Vector3(p.x,p.y,p.z));}
+            foreach(var v in mesh.vertices){var p=m.MultiplyPoint3x4(v);points.Add(ScopeGeometry.ToTuned(new System.Numerics.Vector3(p.x,p.y,p.z),anchor,growth));}
         }
         // 0.1.119: the rig's own scope bones (crossbow: scope_adjust, scope_lock) mark the scope.
         Vector3? hint=null;string hintName="none";
@@ -172,21 +176,25 @@ internal sealed partial class WeaponVisual
                 if(hint==null||name.Contains("adjust")&&!hintName.Contains("adjust")){hint=at;hintName=bone.name;}
             }
         }
+        System.Numerics.Vector3? tunedHint=hint==null?null:ScopeGeometry.ToTuned(new System.Numerics.Vector3(hint.Value.x,hint.Value.y,hint.Value.z),anchor,growth);
         var watch=System.Diagnostics.Stopwatch.StartNew();
-        var tube=ScopeGeometry.Find(points,hint==null?null:new System.Numerics.Vector3(hint.Value.x,hint.Value.y,hint.Value.z));
+        var tube=ScopeGeometry.Find(points,tunedHint);
         // 0.1.122: never the whole gun when the rig marks its scope (that found
         // the crossbow's rail); a plain tube under the marked turret instead.
-        if(tube==null&&hint!=null){Bootstrap.Warn("SCOPE "+Profile+" no tube at "+hintName+" "+hint.Value.ToString("F3")+"; lens placed under that bone");tube=ScopeGeometry.FromHint(new System.Numerics.Vector3(hint.Value.x,hint.Value.y,hint.Value.z));}
+        if(tube==null&&tunedHint!=null){Bootstrap.Warn("SCOPE "+Profile+" no tube at "+hintName+" "+hint!.Value.ToString("F3")+"; lens placed under that bone");tube=ScopeGeometry.FromHint(tunedHint.Value);}
         if(tube==null)throw new InvalidOperationException("no scope tube found in the "+Profile+" mesh ("+points.Count+" vertices, "+watch.ElapsedMilliseconds+" ms)");
-        var t=tube.Value;
         // 0.1.123: the lens at the eyepiece's own opening (not the tube's radius).
-        var eye=ScopeGeometry.Eyepiece(points,t);
+        // 0.1.252: on the eyepiece's own glass when it has one across its opening.
+        var rim=ScopeGeometry.Eyepiece(points,tube.Value);var glass=ScopeGeometry.FindGlass(points,rim);
+        var eye=ScopeGeometry.FromTuned(glass is ScopeGeometry.Glass found?ScopeGeometry.OnGlass(rim,found):rim,anchor,growth);
+        string glassNote=glass is ScopeGeometry.Glass g?" glass z="+(anchor.Z+(g.Z-anchor.Z)*growth).ToString("F3")+" r="+(g.Radius*growth).ToString("F3")+" opening="+(g.Opening*growth).ToString("F3")+" (the picture on it; at the rim it was z="+(anchor.Z+(rim.Z-anchor.Z)*growth).ToString("F3")+" r="+(rim.Radius*growth).ToString("F3")+")":" glass=none";
+        var t=ScopeGeometry.FromTuned(tube.Value,anchor,growth);
         scopeRadius=eye.Radius;
         scopeLensLocal=new Vector3(eye.X,eye.Y,eye.Z);
         var cameraLocal=new Vector3(MuzzleOffset.x,MuzzleOffset.y,Math.Max(t.Front,MuzzleOffset.z)+.03f);
         LogScope("SCOPE built "+Profile+" tube axis=("+t.X.ToString("F3")+","+t.Y.ToString("F3")+") r="+t.Radius.ToString("F3")+" z=["+t.Rear.ToString("F3")+".."+t.Front.ToString("F3")+"] sectors="+t.Sectors+" support="+t.Support
             +" eyepiece rear="+eye.Rear.ToString("F3")+" depth="+eye.Depth.ToString("F3")+" rimSectors="+eye.Sectors+" points="+eye.Points
-            +" lens="+scopeLensLocal.ToString("F3")+" lensR="+scopeRadius.ToString("F3")+" camera="+cameraLocal.ToString("F3")+" searchMs="+watch.ElapsedMilliseconds+" hint="+hintName+(hint!=null?" "+hint.Value.ToString("F3"):""));
+            +" lens="+scopeLensLocal.ToString("F3")+" lensR="+scopeRadius.ToString("F3")+glassNote+" camera="+cameraLocal.ToString("F3")+" searchMs="+watch.ElapsedMilliseconds+" hint="+hintName+(hint!=null?" "+hint.Value.ToString("F3"):"")+(growth!=1?" (searched at "+EquipmentProfile.ScopeTunedLength.ToString("F2")+" m, the gun drawn "+fittedLength.ToString("F2")+" m)":""));
         CreateScope(cameraLocal);
     }
     // 0.1.133: the lens of each scoped kind (fitted frame), for a copy of it
@@ -208,7 +216,9 @@ internal sealed partial class WeaponVisual
         // 0.1.140: the cross lined up with the weapon itself. The picture needs no turn (it is a window).
         float roll=PairRollDegrees,trim=0;string from=pairRollCount+" left/right bone pairs";
         if(!float.IsFinite(roll)||Math.Abs(roll)>20){roll=0;from="no usable bone pairs";}
-        if(Profile=="crossbow"&&Math.Abs(roll)<1){roll=CrossbowReticleRoll;from+=", the crossbow's measured turn";}
+        // 0.1.252: the crossbow's own (its model's turn, measured on it); the tactical crossbow and the
+        // harpoon gun are level by their bones: the cross stood 6 degrees clockwise in the tactical one.
+        if(Profile=="crossbow"&&ModelKey=="crossbow"&&Math.Abs(roll)<1){roll=CrossbowReticleRoll;from+=", the crossbow's measured turn";}
         try{trim=Math.Clamp(WeaponOptions.ScopeReticleRoll.Value,-30,30);}catch(Exception){}
         scopeEye.transform.localRotation=Quaternion.AngleAxis(roll+trim,Vector3.forward);
         Bootstrap.Write("SCOPE "+Profile+" reticle turned "+(roll+trim).ToString("F1")+" deg (+ = counter-clockwise) to the weapon's own level ("+from+(trim!=0?"; trim "+trim.ToString("F1"):"")+")");

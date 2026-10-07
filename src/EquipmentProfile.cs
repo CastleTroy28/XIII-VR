@@ -35,5 +35,32 @@ internal static class EquipmentProfile
  // of it; the pistol's 0.98, the rifles' about 1).
  // 0.1.244: the Uzi 35 cm (was 46): the hand holding it was 1.29 of the free
  // hand's size, big beside the pistol in the other hand.
- internal static float Length(string p)=>p switch {"pistol"=>.22f,"revolver"=>.37f,"uzi"=>.35f,"shotgun"=>.95f,"m16"=>.99f,"ak47"=>.85f,"sniper"=>1.1f,"crossbow"=>.72f,"m60"=>1.1f,"bazooka"=>1.1f,"knife"=>.16f,"grenade"=>.12f,"key"=>.12f,"gadget"=>.22f,_=>.65f};
+ // 0.1.249: the shotguns 1.08 m (were 0.95): the hand on the pump gun was 0.87
+ // of the free hand's size, on the double-barrel 0.85; now about 0.98 and 0.97.
+ // 0.1.250: the game's three crossbows share its crossbow slot, each drawn at
+ // its own length (CrossbowLength); the plain crossbow 89 cm (was 72).
+ internal static float Length(string p)=>p switch {"pistol"=>.22f,"revolver"=>.37f,"uzi"=>.35f,"shotgun"=>1.08f,"m16"=>.99f,"ak47"=>.85f,"sniper"=>1.1f,"crossbow"=>CrossbowLength(null),"m60"=>1.1f,"bazooka"=>1.1f,"knife"=>.16f,"grenade"=>.12f,"key"=>.12f,"gadget"=>.22f,_=>.65f};
+ // The length of the model the game holds (its mesh or its name): the
+ // crossbows' only differs.
+ internal static float Length(string p,string? model)=>p=="crossbow"?CrossbowLength(model):Length(p);
+ // 0.1.250: all 72 cm before, so the hand holding the harpoon gun was drawn at
+ // 0.69 of the free hand's size, on the crossbow 0.79 and on the tactical one
+ // 0.77 (the pistol's 0.98, the rifles' about 1). Now the harpoon gun 1.03 m,
+ // the tactical crossbow 92 cm, the crossbow 89 cm: the hand about 0.98 on each.
+ internal const float HarpoonLength=1.03f,TacticalCrossbowLength=.92f,PlainCrossbowLength=.89f;
+ internal static float CrossbowLength(string? model)=>CrossbowModel(model) switch{"harpoon_gun"=>HarpoonLength,"crossbow_tactical"=>TacticalCrossbowLength,_=>PlainCrossbowLength};
+ // 0.1.251: which of the three crossbows a model is (its name): its own saved
+ // bolt and string, and its size.
+ internal static string CrossbowModel(string? model)
+ {
+  if(model!=null&&model.Contains("harpoon",System.StringComparison.OrdinalIgnoreCase))return "harpoon_gun";
+  if(model!=null&&model.Contains("tactical",System.StringComparison.OrdinalIgnoreCase))return "crossbow_tactical";
+  return "crossbow";
+ }
+ // A model's own name for the files the mod keeps for it (the profile's, but a crossbow's own).
+ internal static string ModelKey(string profile,string? model)=>profile=="crossbow"?CrossbowModel(model):profile;
+ // 0.1.251: the crossbows' telescopic sights were found in their meshes
+ // (ScopeGeometry) at this length; drawn longer (0.1.250), the search is made
+ // at this size and its result grown back, so it finds what it found.
+ internal const float ScopeTunedLength=.72f;
 }

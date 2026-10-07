@@ -124,6 +124,99 @@ internal static class ScopeGeometry
         }
         return fallback;
     }
+    // 0.1.252: the eyepiece's own glass. The tactical crossbow's eyepiece is
+    // wider than its scope's tube (an eyecup 4 cm across on a 2.8 cm tube):
+    // the opening was measured only within the tube's radius, so the picture
+    // was 2.8 cm across in a 3.6 cm cup and 8 mm in front of the model's green
+    // glass, which showed around it. A flat glass across the opening (a vertex
+    // at its middle and a ring at one depth, within GlassDepth of the cup's
+    // rear) is looked for around the measured lens: the picture is put just in
+    // front of it, centred on it and as wide as the cup's opening in front of
+    // it (the glass's own radius at most). A narrow inner lens (not across the
+    // opening) or no glass: the lens measured at the rim stays.
+    internal readonly record struct Glass(float Z,float X,float Y,float Radius,float Opening,int Ring);
+    internal const float GlassDepth=.02f,GlassFlat=.0006f,GlassCentre=.005f,GlassMinRing=.006f,GlassAcross=.85f,GlassMaxRadius=.024f;
+    internal static Glass? FindGlass(IReadOnlyList<Vector3> points,Eye eye)
+    {
+        if(points==null||!float.IsFinite(eye.Z)||!float.IsFinite(eye.Rear)||!(eye.Radius>0))return null;
+        float reach=Math.Max(eye.Radius*2.5f,.02f);var near=new List<Vector3>();
+        foreach(var p in points)
+        {
+            if(!float.IsFinite(p.X)||!float.IsFinite(p.Y)||!float.IsFinite(p.Z))continue;
+            if(p.Z<eye.Rear-.002f||p.Z>eye.Rear+GlassDepth)continue;
+            float dx=p.X-eye.X,dy=p.Y-eye.Y;if(dx*dx+dy*dy>reach*reach)continue;
+            near.Add(p);
+        }
+        // Candidate middles: closest to the eye first.
+        var middles=new List<Vector3>();
+        foreach(var p in near){float dx=p.X-eye.X,dy=p.Y-eye.Y;if(dx*dx+dy*dy<GlassCentre*GlassCentre&&p.Z>=eye.Z-.001f)middles.Add(p);}
+        middles.Sort((a,b)=>a.Z.CompareTo(b.Z));
+        var sector=new bool[Sectors];var radii=new List<float>();
+        foreach(var c in middles)
+        {
+            radii.Clear();
+            foreach(var p in near)
+            {
+                if(MathF.Abs(p.Z-c.Z)>GlassFlat)continue;
+                float r=MathF.Sqrt((p.X-c.X)*(p.X-c.X)+(p.Y-c.Y)*(p.Y-c.Y));
+                if(r>=GlassMinRing&&r<=GlassMaxRadius)radii.Add(r);
+            }
+            if(radii.Count<8)continue;
+            radii.Sort();
+            // The ring: the widest cluster of radii (within 0.8 mm) closing all round.
+            for(int start=0;start<radii.Count;)
+            {
+                int end=start;while(end+1<radii.Count&&radii[end+1]-radii[end]<.0008f)end++;
+                int count=end-start+1;float ring=0;for(int k=start;k<=end;k++)ring+=radii[k];ring/=count;
+                start=end+1;
+                if(count<8)continue;
+                Array.Clear(sector);int covered=0;
+                foreach(var p in near)
+                {
+                    if(MathF.Abs(p.Z-c.Z)>GlassFlat)continue;
+                    float dx=p.X-c.X,dy=p.Y-c.Y,r=MathF.Sqrt(dx*dx+dy*dy);if(MathF.Abs(r-ring)>.0008f)continue;
+                    int k=(int)((MathF.Atan2(dy,dx)+MathF.PI)/(2*MathF.PI)*Sectors)%Sectors;if(!sector[k]){sector[k]=true;covered++;}
+                }
+                if(covered<MinSectors)continue;
+                // The cup's opening in front of the glass: the nearest point to its middle between the rear and it.
+                float opening=float.PositiveInfinity;
+                foreach(var p in near)
+                {
+                    if(p.Z>=c.Z-GlassFlat)continue;
+                    float r=MathF.Sqrt((p.X-c.X)*(p.X-c.X)+(p.Y-c.Y)*(p.Y-c.Y));
+                    if(r>EyeGlass)opening=MathF.Min(opening,r);
+                }
+                if(!float.IsFinite(opening))opening=ring;
+                // Across the opening (not a small lens deep inside it).
+                if(ring<opening*GlassAcross)continue;
+                return new Glass(c.Z,c.X,c.Y,ring,opening,covered);
+            }
+        }
+        return null;
+    }
+    // The picture just in front of the glass, as wide as the opening before it (the glass's radius at most).
+    internal static Eye OnGlass(Eye eye,Glass g)=>eye with{Z=g.Z-EyeInside,X=g.X,Y=g.Y,Radius=Math.Clamp(MathF.Min(g.Radius,g.Opening)*EyeFill,.004f,GlassMaxRadius)};
+    // 0.1.251: the search's distances (tube radii and length, the eyepiece's
+    // depths and rim) were measured on the crossbows drawn 72 cm long. Drawn
+    // longer (the tactical crossbow 92 cm), the same eyepiece no longer closed
+    // within them: a narrower ring a centimetre deeper inside was taken, the
+    // picture half as wide and hidden in the scope. The search is made on the
+    // gun brought back to that size around its fitted muzzle (anchor; the
+    // fitted frame grows around it) and its result grown back.
+    internal static Vector3 ToTuned(Vector3 p,Vector3 anchor,float growth)=>growth>0&&float.IsFinite(growth)?anchor+(p-anchor)/growth:p;
+    internal static Vector3 FromTuned(Vector3 p,Vector3 anchor,float growth)=>growth>0&&float.IsFinite(growth)?anchor+(p-anchor)*growth:p;
+    internal static Tube FromTuned(Tube t,Vector3 anchor,float growth)
+    {
+        if(!(growth>0&&float.IsFinite(growth)))return t;
+        var axis=FromTuned(new Vector3(t.X,t.Y,anchor.Z),anchor,growth);
+        return new Tube(axis.X,axis.Y,t.Radius*growth,anchor.Z+(t.Rear-anchor.Z)*growth,anchor.Z+(t.Front-anchor.Z)*growth,t.Sectors,t.Support);
+    }
+    internal static Eye FromTuned(Eye e,Vector3 anchor,float growth)
+    {
+        if(!(growth>0&&float.IsFinite(growth)))return e;
+        var at=FromTuned(new Vector3(e.X,e.Y,e.Z),anchor,growth);
+        return new Eye(at.Z,at.X,at.Y,e.Radius*growth,anchor.Z+(e.Rear-anchor.Z)*growth,e.Depth*growth,e.Sectors,e.Points);
+    }
     // 0.1.121: the scope's own camera renders the whole scene once more (it
     // held the game at half rate whenever a scoped gun was in the hand). It
     // renders only while an eye is at the eyepiece: close behind the lens and

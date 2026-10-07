@@ -98,6 +98,7 @@ internal sealed partial class WeaponHands
         leftVisual.Pose(p,q,Time.realtimeSinceStartup<leftFlashUntil,rendering);
         leftAimPosition=p+q*leftVisual.MuzzleOffset;leftAimForward=q*Vector3.forward;leftAimUp=q*Vector3.up;
         leftPoseValid=true;WriteMuzzle(leftFire);
+        if(rendering)ShowGunDot(leftGunDot,leftAimPosition,leftAimForward);
         if(DualChestOn)PoseDualChest();
         else{leftVisual.AutoMagazine(Time.realtimeSinceStartup-dualReloadStarted);
         visual?.AutoMagazine(Time.realtimeSinceStartup-dualReloadStarted);}

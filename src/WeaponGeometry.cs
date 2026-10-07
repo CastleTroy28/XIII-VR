@@ -23,14 +23,15 @@ internal static class WeaponGeometry
     internal const float RevolverTunedLength=.28f;
     internal static float RevolverGrowth=>EquipmentProfile.Length("revolver")/RevolverTunedLength;
     // scale (0.1.228): this scale instead of the profile's length over the bounds.
-    internal static WeaponFit Fit(Vector3 min,Vector3 max,string profile,float scale=float.NaN)
+    // model (0.1.250): the model's name, for a profile whose models differ in size (EquipmentProfile.Length).
+    internal static WeaponFit Fit(Vector3 min,Vector3 max,string profile,float scale=float.NaN,string? model=null)
     {
         var size = max-min;
         if (!Finite(min) || !Finite(max) || !Finite(size) || size.Z < .0001f || size.Z > 1000 || size.X <= 0 || size.Y <= 0)
             throw new InvalidOperationException("Invalid weapon geometry bounds");
         if (EquipmentProfile.RequiresMuzzle(profile) && (size.X > size.Z*2 || size.Y > size.Z*2))
             throw new InvalidOperationException("Weapon bounds are not aligned with the muzzle; refusing oversized render copy");
-        float length = EquipmentProfile.Length(profile);
+        float length = EquipmentProfile.Length(profile,model);
         if(!(float.IsFinite(scale)&&scale>0))scale = length/(EquipmentProfile.RequiresMuzzle(profile)?size.Z:Math.Max(size.X,Math.Max(size.Y,size.Z)));
         var anchor = new Vector3((min.X+max.X)*.5f,max.Y-size.Y*.22f,max.Z);
         var muzzle = profile == "pistol" ? new Vector3(0,.045f,.14f)

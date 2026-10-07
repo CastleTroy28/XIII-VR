@@ -166,8 +166,22 @@ class QualityMenuTests
   QualityMenu.Click(QualityMenu.ForearmRow,0);Check(QualityOptions.ForearmsOn,"a ray click on the row does not switch the forearms back");
   QualityMenu.Click(QualityMenu.ForearmRow,-1);Check(!QualityOptions.ForearmsOn,"the ray's left arrow does not choose the hands only");
   UiLanguage.ReadCode=()=>"fr";Check(QualityMenu.Text.Contains("Avant-bras: mains seules (coupées à la montre)"),"forearms row not translated");UiLanguage.ReadCode=()=>"ru";
-  QualityMenu.Click(QualityMenu.ForearmRow,1);Check(QualityOptions.ForearmsOn&&QualityMenu.Row==QualityMenu.ForearmRow&&QualityMenu.ForearmRow==QualityMenu.RowCount-2,"the forearms not back, or the row not just above Close");
+  QualityMenu.Click(QualityMenu.ForearmRow,1);Check(QualityOptions.ForearmsOn&&QualityMenu.Row==QualityMenu.ForearmRow&&QualityMenu.ForearmRow==QualityMenu.PlacesRow+1,"the forearms not back, or the row not after the weapon places");
   Console.WriteLine("PASS: 0.1.245 forearms row (shown by default, or the hands only cut at the watch): the stick, a ray click and the ray's arrows; translated.");
+  // 0.1.248: the aim dot (off by default; a dot; a dot and a laser).
+  Tick();Tick(y:-1);Tick();
+  Check(QualityMenu.Row==QualityMenu.AimDotRow&&QualityOptions.AimDotMode==0&&QualityMenu.Text.Contains("> Точка прицела: выкл"),"aim dot row missing or not off by default");
+  Tick(1);Tick();Check(QualityOptions.AimDotMode==1&&QualityMenu.Text.Contains("> Точка прицела: точка"),"the dot cannot be chosen");
+  Tick(1);Tick();Check(QualityOptions.AimDotMode==2&&QualityMenu.Text.Contains("> Точка прицела: точка и лазер"),"the laser cannot be chosen");
+  Tick(1);Tick();Check(QualityOptions.AimDotMode==0,"the aim dot does not wrap back to off");
+  Tick(-1);Tick();Check(QualityOptions.AimDotMode==2,"the stick left does not step the aim dot back");
+  QualityMenu.Click(QualityMenu.AimDotRow,0);Check(QualityOptions.AimDotMode==0,"a ray click does not step the aim dot");
+  UiLanguage.ReadCode=()=>"es";QualityOptions.AimDot!.Value=2;Check(QualityMenu.Text.Contains("Punto de mira: punto y láser"),"aim dot row not translated");UiLanguage.ReadCode=()=>"ru";QualityOptions.AimDot.Value=0;
+  Check(QualityMenu.AimDotRow==QualityMenu.RowCount-2,"the aim dot row not just above Close");
+  // The dot covers the same angle at any distance (0.35 degrees), never vanishing nor huge.
+  Check(MathF.Abs(AimDotMath.DotSize(10)-.0611f)<.001f&&MathF.Abs(AimDotMath.DotSize(10)/AimDotMath.DotSize(5)-2)<.01f&&AimDotMath.DotSize(.1f)==AimDotMath.MinDot&&AimDotMath.DotSize(1000)==AimDotMath.MaxDot&&AimDotMath.DotSize(float.NaN)==AimDotMath.MinDot,"dot sizes");
+  Check(AimDotMath.Mode(-1)==0&&AimDotMath.Mode(7)==2,"aim dot modes not clamped");
+  Console.WriteLine("PASS: 0.1.248 aim dot row (off by default, a dot, a dot and a laser): the stick both ways, a ray click; translated; the dot the same size to the eye at any distance.");
   Tick();Tick(y:-1);Tick();
   Check(!QualityMenu.Text.Contains("Кошка"),"grapple grip rows still in the menu");
   QualityMenu.Tick(true,new StickSample(true,Vector2.Zero,false),new HandControls(true,HandControls.A,0,0));Check(!QualityMenu.Open,"A cannot confirm close in settings");

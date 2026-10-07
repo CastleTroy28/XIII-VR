@@ -590,7 +590,8 @@
    "src/ThrowMath.cs",
    "src/WeaponImpactMath.cs",
    "src/UiLanguage.cs",
-   "src/EnemyOptions.cs"
+   "src/EnemyOptions.cs",
+   "src/AimDotMath.cs"
   ]
  },
  {
@@ -706,7 +707,8 @@
    "src/HolsterLayout.cs",
    "src/HolsterPlaces.cs",
    "src/UiLanguage.cs",
-   "src/EnemyOptions.cs"
+   "src/EnemyOptions.cs",
+   "src/AimDotMath.cs"
   ]
  },
  {

@@ -82,5 +82,77 @@ class ScopeGeometryTests
    Check(MathF.Abs(none.Z-(tube.Rear+.004f))<1e-5f&&none.Radius<tube.Radius,"no fallback lens");
    Console.WriteLine("PASS: the scope picture sits at the eyepiece rim and just fills its opening (centre found around the axis), a small lens when nothing is measured.");
   }
+  {
+   // 0.1.251: the tactical crossbow drawn 92 cm (was 72): its eyecup's lip,
+   // slanted (half of its 12 sectors 5.5 mm further in), no longer closed in the
+   // 6 mm the search looks at; the next depth took the eyepiece's narrower
+   // ring further in. Searched at the 72 cm size and grown back: the lip again.
+   var anchor=new Vector3(0,.04f,.5f);float g=.92f/.72f;
+   var cup=new List<Vector3>();
+   Box(cup,new Vector3(-.02f,-.06f,-.22f),new Vector3(.02f,.02f,.10f));
+   Tube(cup,0,.054f,.016f,-.094f,.215f);                                         // the scope's tube
+   for(int a=0;a<12;a++)for(int k=0;k<3;k++)
+   {
+    float an=(a+.5f)*MathF.PI*2/12+(k-1)*.08f;float depth=a<6?k*.002f:.0055f;
+    cup.Add(new Vector3(.0115f*MathF.Cos(an),.054f+.0115f*MathF.Sin(an),-.102f+depth));     // the lip
+    cup.Add(new Vector3(.0135f*MathF.Cos(an),.054f+.0135f*MathF.Sin(an),-.102f+depth));
+   }
+   for(int a=0;a<36;a++){float an=a*MathF.PI*2/36;cup.Add(new Vector3(.0085f*MathF.Cos(an),.054f+.0085f*MathF.Sin(an),-.102f+.0075f));} // the eyepiece's ring further in
+   var tube72=new ScopeGeometry.Tube(0,.054f,.011f,-.094f,.215f,11,400);
+   var eye72=ScopeGeometry.Eyepiece(cup,tube72);
+   Check(eye72.Radius>.0105f&&eye72.Z<-.1005f,"the fixture's lip not found at 72 cm: "+eye72);
+   var grown=new List<Vector3>();foreach(var p in cup)grown.Add(ScopeGeometry.FromTuned(p,anchor,g));
+   var tube92=ScopeGeometry.FromTuned(tube72,anchor,g);
+   var direct=ScopeGeometry.Eyepiece(grown,tube92);
+   Check(direct.Radius<eye72.Radius*g*.85f,"the fixture does not show the old fault at 92 cm: "+direct);
+   var tuned=new List<Vector3>();foreach(var p in grown)tuned.Add(ScopeGeometry.ToTuned(p,anchor,g));
+   var back=ScopeGeometry.FromTuned(ScopeGeometry.Eyepiece(tuned,ScopeGeometry.FromTuned(tube72,anchor,1)),anchor,g);
+   Check(MathF.Abs(back.Radius-eye72.Radius*g)<2e-4f&&MathF.Abs(back.Z-(anchor.Z+(eye72.Z-anchor.Z)*g))<2e-4f&&MathF.Abs(back.Y-(anchor.Y+(eye72.Y-anchor.Y)*g))<2e-4f,"searched at 72 cm and grown back, not the lip: "+back+" vs "+eye72);
+   Check(back.Radius>direct.Radius*1.2f&&back.Depth<direct.Depth,"the grown-back lens not the lip's (wider, from the lip's own depth): "+back+" vs "+direct);
+   var t2=ScopeGeometry.FromTuned(tube72,anchor,g);
+   Check(MathF.Abs(t2.Radius-.011f*g)<1e-6f&&MathF.Abs(t2.Rear-(anchor.Z+(-.094f-anchor.Z)*g))<1e-5f&&MathF.Abs(t2.Y-(anchor.Y+(.054f-anchor.Y)*g))<1e-5f,"the tube not grown back around the muzzle: "+t2);
+   Check(ScopeGeometry.ToTuned(new Vector3(.1f,.2f,.3f),anchor,float.NaN)==new Vector3(.1f,.2f,.3f)&&ScopeGeometry.FromTuned(tube72,anchor,0)==tube72,"a broken growth changed the search");
+   var cupTube=ScopeGeometry.Find(cup);
+   var foundTuned=ScopeGeometry.Find(tuned);
+   Check(cupTube.HasValue==foundTuned.HasValue&&(!cupTube.HasValue||MathF.Abs(cupTube.Value.Radius-foundTuned!.Value.Radius)<1e-4f&&MathF.Abs(cupTube.Value.Rear-foundTuned.Value.Rear)<1e-3f),"the tube search on the gun brought back is not the 72 cm one");
+   var gunTuned=new List<Vector3>();foreach(var p in gun)gunTuned.Add(ScopeGeometry.ToTuned(ScopeGeometry.FromTuned(p,anchor,g),anchor,g));
+   var a72=ScopeGeometry.Find(gun);var a92=ScopeGeometry.Find(gunTuned);
+   Check(a72!=null&&a92!=null&&MathF.Abs(a72.Value.Radius-a92.Value.Radius)<1e-4f&&MathF.Abs(a72.Value.Y-a92.Value.Y)<1e-4f&&MathF.Abs(a72.Value.Rear-a92.Value.Rear)<1e-3f,"the crossbow's tube not found again on the gun brought back: "+a72+" "+a92);
+   Console.WriteLine("PASS: 0.1.251 a crossbow drawn longer than 72 cm has its sight searched at 72 cm and grown back around its muzzle: the picture at the eyecup's lip and as wide as it (a slanted lip took the eyepiece's narrower ring 1 cm in).");
+  }
+  {
+   // 0.1.252: the tactical crossbow's eyepiece (searched at 72 cm): an eyecup
+   // wider than the scope's tube, its lip at the rear, the cup's opening
+   // (r 14.2 mm) and, 9 mm in, the model's flat glass across it (a vertex in
+   // its middle, a ring of 15 mm) with narrower parts behind. The picture was
+   // measured within the tube's radius (11 mm) at the lip, in front of the
+   // glass, which showed around it; it now lies on the glass, as wide as the opening.
+   var eyepiece=new List<Vector3>();var c=new Vector2(.0059f,.0524f);float rear=-.1072f;
+   void Ring(float r,float z,int n,float turn=0){for(int a=0;a<n;a++){float an=(a+turn)*MathF.PI*2/n;eyepiece.Add(new Vector3(c.X+r*MathF.Cos(an),c.Y+r*MathF.Sin(an),z));}}
+   Box(eyepiece,new Vector3(-.02f,-.06f,-.22f),new Vector3(.02f,.02f,.10f));
+   Tube(eyepiece,c.X,c.Y,.011f,-.094f,.215f);                                  // the scope's tube
+   Ring(.0157f,rear,46);Ring(.0165f,rear+.004f,50);Ring(.0148f,rear+.004f,25,.5f); // the lip and the cup
+   Ring(.0142f,rear+.0075f,25);Ring(.0159f,rear+.0075f,200,.3f);Ring(.0162f,rear+.010f,200);
+   eyepiece.Add(new Vector3(c.X,c.Y,rear+.0123f));Ring(.0150f,rear+.0123f,37);  // the glass
+   Ring(.0068f,rear+.0135f,12);Ring(.0118f,rear+.0135f,72);                     // behind it
+   var tube=new ScopeGeometry.Tube(c.X,c.Y+.0015f,.011f,-.094f,.215f,11,465);
+   var rim=ScopeGeometry.Eyepiece(eyepiece,tube);
+   var glass=ScopeGeometry.FindGlass(eyepiece,rim);
+   Check(glass!=null&&MathF.Abs(glass.Value.Z-(rear+.0123f))<1e-4f&&MathF.Abs(glass.Value.Radius-.0150f)<.0005f&&MathF.Abs(glass.Value.Opening-.0142f)<.0003f,"the eyepiece's glass not found: "+glass+" (rim "+rim+")");
+   var lens=ScopeGeometry.OnGlass(rim,glass!.Value);
+   Check(MathF.Abs(lens.Z-(rear+.0123f-ScopeGeometry.EyeInside))<1e-4f&&lens.Z<glass.Value.Z,"the picture not just in front of the glass: "+lens);
+   Check(MathF.Abs(lens.Radius-.0142f*ScopeGeometry.EyeFill)<.0003f&&lens.Radius>rim.Radius*1.1f,"the picture not as wide as the cup's opening: "+lens+" (rim "+rim+")");
+   Check(MathF.Abs(lens.X-c.X)<1e-4f&&MathF.Abs(lens.Y-c.Y)<1e-4f,"the picture not centred on the glass: "+lens);
+   // A narrow lens deep inside an open cup (not across it): the picture stays at the rim.
+   var narrow=new List<Vector3>();
+   Box(narrow,new Vector3(-.02f,-.06f,-.22f),new Vector3(.02f,.02f,.10f));Tube(narrow,c.X,c.Y,.011f,-.094f,.215f);
+   foreach(var p in eyepiece)if(p.Z<rear+.011f&&MathF.Sqrt((p.X-c.X)*(p.X-c.X)+(p.Y-c.Y)*(p.Y-c.Y))>.014f)narrow.Add(p);
+   narrow.Add(new Vector3(c.X,c.Y,rear+.0123f));for(int a=0;a<24;a++){float an=a*MathF.PI*2/24;narrow.Add(new Vector3(c.X+.007f*MathF.Cos(an),c.Y+.007f*MathF.Sin(an),rear+.0123f));}
+   Check(ScopeGeometry.FindGlass(narrow,ScopeGeometry.Eyepiece(narrow,tube))==null,"a narrow inner lens taken for the glass across the opening");
+   // A ring with nothing in its middle (an open tube) is not a glass.
+   var open=new List<Vector3>();foreach(var p in eyepiece)if(!(MathF.Abs(p.Z-(rear+.0123f))<1e-5f&&MathF.Sqrt((p.X-c.X)*(p.X-c.X)+(p.Y-c.Y)*(p.Y-c.Y))<.001f))open.Add(p);
+   Check(ScopeGeometry.FindGlass(open,ScopeGeometry.Eyepiece(open,tube))==null,"an open ring taken for a glass");
+   Console.WriteLine("PASS: 0.1.252 an eyepiece's flat glass across its opening (wider than the scope's tube) found: the picture just in front of it, centred and as wide as the cup's opening; a narrow inner lens or an open ring leaves it at the rim.");
+  }
  }
 }

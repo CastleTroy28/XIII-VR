@@ -21,10 +21,22 @@ internal static class CrossbowStringMath
     }
     // How far forward a point of the cocked string (at z) moves at a draw:
     // the released string lies straight across at the tip.
-    internal static float Shift(float z,float tip,float draw)
+    // rest (0.1.251): the share of its drawn length a released band keeps (0: a string, straight across).
+    internal static float Shift(float z,float tip,float draw,float rest=0)
     {
-        if(!float.IsFinite(z)||!float.IsFinite(tip)||!float.IsFinite(draw))return 0;
-        return Math.Max(0,tip-z)*(1-Math.Clamp(draw,0,1));
+        if(!float.IsFinite(z)||!float.IsFinite(tip)||!float.IsFinite(draw)||!float.IsFinite(rest))return 0;
+        return Math.Max(0,tip-z)*(1-Math.Clamp(rest,0,1))*(1-Math.Clamp(draw,0,1));
+    }
+    // 0.1.251: the harpoon gun's bands let go keep about a third of their drawn length.
+    internal const float BandRest=.3f;
+    // A bone of the string (a crossbow's) or of a band (the harpoon gun's "line"; band=true).
+    internal static bool StringBone(string name,out bool band)
+    {
+        band=false;if(string.IsNullOrEmpty(name))return false;
+        string n=name.ToLowerInvariant();
+        if(n.Contains("string"))return true;
+        if(n.Contains("_line_")){band=true;return true;}
+        return false;
     }
     // The shown draw follows the wanted one: at once when the string is let
     // go (a shot, an emptied gun), quickly when it is drawn.

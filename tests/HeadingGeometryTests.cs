@@ -33,7 +33,7 @@ internal static class HeadingGeometryTests
             var fit=WeaponGeometry.Fit(min,max,profile); var size=max-min;
             var anchor=new Vector3((min.X+max.X)*.5f,max.Y-size.Y*.22f,max.Z);
             Close(fit.Point(anchor),fit.Muzzle,"remote prefab pivot displaced fitted muzzle");
-            float expected=profile=="pistol"?.22f:profile=="shotgun"?.95f:.85f;
+            float expected=profile=="pistol"?.22f:profile=="shotgun"?1.08f:.85f;
             Check(MathF.Abs((fit.Point(max)-fit.Point(min)).Z-expected)<.0002f,"inherited scale changed physical length");
             Check(fit.Point(min).Length()<2 && fit.Point(max).Length()<2,"copy remains far from controller");
         }

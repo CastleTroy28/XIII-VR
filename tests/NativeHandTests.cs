@@ -93,6 +93,49 @@ class NativeHandTests
             Check(hand.Points.Any(p=>p.Cap)&&hand.Points.Where(p=>p.Cap).All(p=>MathF.Abs(p.Rest.Z+.085f)<1e-4f),"the hand-only cut not closed");
             Console.WriteLine("PASS: 0.1.245 the hands only: the forearm cut 8.5 cm behind the wrist (behind either watch band), closed like the long cut; the long cut unchanged.");
         }
+        // 0.1.250: a sleeve of two layers (an outer cloth and its lining, on
+        // their own parts of the texture, the lining in a second material): the
+        // cut closed by one flat cap over the outer outline, one texture point
+        // all over it, every triangle facing the same way (it was a jagged star
+        // of alternating inner and outer points: gaps and streaks).
+        {
+            var pts=new List<Vector3>();var tex=new List<Vector2>();var outer=new List<int>();var inner=new List<int>();
+            void Tube(List<int> into,float r,int n,float turn,float u0,bool lining)
+            {
+                int start=pts.Count;
+                for(int k=0;k<n;k++)foreach(float z in new[]{-.40f,.16f})
+                {float a=MathF.Tau*(k+turn)/n;pts.Add(new Vector3(r*MathF.Cos(a),r*MathF.Sin(a),z));tex.Add(new Vector2(u0+.4f*k/n,z<0?.1f:.9f));}
+                for(int k=0;k<n;k++)
+                {
+                    int a0=start+2*k,a1=a0+1,b0=start+2*((k+1)%n),b1=b0+1;
+                    if(lining)into.AddRange(new[]{a0,b0,b1,a0,b1,a1});else into.AddRange(new[]{a0,b1,b0,a0,a1,b1});
+                }
+            }
+            Tube(outer,.035f,24,0,.05f,false);Tube(inner,.031f,16,.5f,.55f,true);
+            var all=Enumerable.Repeat(true,pts.Count).ToArray();
+            var sleeve=NativeHandMesh.Build(pts.ToArray(),tex.ToArray(),new[]{outer.ToArray(),inner.ToArray()},all,-.085f,.14f);
+            var caps=Enumerable.Range(0,sleeve.Points.Count).Where(i=>sleeve.Points[i].Cap).ToList();
+            Check(caps.Count==24,"the cap not the outer outline: "+caps.Count+" points");
+            Check(caps.All(i=>sleeve.Points[i].UV==sleeve.Points[caps[0]].UV)&&sleeve.Points[caps[0]].UV.X<.5f,"the cap's texture not one point of the outer cloth");
+            Check(sleeve.CapSource.HasValue&&sleeve.CapSource.Value.UV==sleeve.Points[caps[0]].UV,"the cap's colour not from its texture point");
+            Check(!sleeve.Submeshes[1].Any(i=>sleeve.Points[i].Cap),"a second cap in the lining's material");
+            float area=0;int turned=0,faces=0;var tri=sleeve.Submeshes[0];
+            for(int i=0;i+2<tri.Length;i+=3)
+            {
+                var a=sleeve.Points[tri[i]];var b=sleeve.Points[tri[i+1]];var c=sleeve.Points[tri[i+2]];
+                if(!(a.Cap&&b.Cap&&c.Cap))continue;faces++;
+                float signed=((b.Rest.X-a.Rest.X)*(c.Rest.Y-a.Rest.Y)-(b.Rest.Y-a.Rest.Y)*(c.Rest.X-a.Rest.X))*.5f;
+                if(signed>=0)turned++;area-=signed;
+            }
+            float expected=24*.5f*.035f*.035f*MathF.Sin(MathF.Tau/24);
+            Check(faces==22&&turned==0,"cap triangles turned the other way: "+turned+" of "+faces);
+            Check(MathF.Abs(area-expected)<expected*1e-3f,"the cap does not cover the cut: "+area+" vs "+expected);
+            // One layer: the same cap as before (its outline, facing the elbow).
+            var one=NativeHandMesh.Build(pts.ToArray(),tex.ToArray(),new[]{outer.ToArray()},all,-.085f,.14f);
+            Check(one.Points.Count(p=>p.Cap)==24&&one.CapSource.HasValue,"a plain sleeve's cut not closed");
+            Check(NativeHandMesh.Outline(new[]{new Vector3(0,0,0),new Vector3(1,0,0),new Vector3(1,1,0),new Vector3(0,1,0),new Vector3(.5f,.5f,0),new Vector3(.5f,0,0)}).Count==4,"the outline keeps inner or edge points");
+            Console.WriteLine("PASS: 0.1.250 the forearm's cut through a sleeve of layers closed by one flat cap over its outer outline, in one material, one texture point and colour all over it, every triangle facing the elbow; a plain sleeve as before.");
+        }
         Console.WriteLine("Synthetic geometry only; actual Unity CPU baking and in-game hand shape require an in-game test.");
     }
 }

@@ -84,7 +84,9 @@ class WearableTests
         {
             Check(p.Rest.Z>=NativeHandMesh.Cut-1e-6f&&Math.Abs(p.Rest.X)<=.031f,"native forearm/opposite hand survived crop");
             Check(Math.Abs(p.Mix.X+p.Mix.Y+p.Mix.Z-1)<1e-6f,"clipped interpolation not affine");
-            Check(Vector2.Distance(p.UV,new Vector2(p.Rest.X,p.Rest.Z))<1e-6f,"native texture interpolation damaged");
+            // 0.1.250: the cap has one texture point all over (a rim point's own), the rest their native ones.
+            var texturedAt=p.Cap&&m.CapSource.HasValue?m.CapSource.Value:p;
+            Check(Vector2.Distance(p.UV,new Vector2(texturedAt.Rest.X,texturedAt.Rest.Z))<1e-6f,"native texture interpolation damaged");
             var posed=NativeHandMesh.Evaluate(p,array);Check(Vector3.Distance(posed,p.Rest+new Vector3(0,0,NativeHandMesh.WristZ))<1e-6f,"rest geometry moved unexpectedly");
         }
         var bent=array.Select(p=>p+new Vector3(.01f,.02f,0)).ToArray();

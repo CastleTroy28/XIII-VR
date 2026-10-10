@@ -61,7 +61,9 @@ internal static class QualityOptions
     internal static bool EyesPerPassOn=>EyesPerPass?.Value!=false;
     // 0.1.239: 120% by default (and once for everyone: before 0.1.238 the eyes were not
     // drawn apart at all, so no earlier choice ever changed anything).
-    internal const float WorldScaleDefault=1.2f;internal const int WorldScaleDefaults=239;
+    // 0.1.257: 100% by default (the world as big as it is); a scale still at the old
+    // default (120%) is moved to it once, one chosen otherwise stays.
+    internal const float WorldScaleDefault=1f,OldWorldScaleDefault=1.2f;internal const int WorldScaleDefaults=257;
     internal const float WorldScaleMin=.5f,WorldScaleMax=1.5f,WorldScaleStep=.05f,InertiaMax=2f,InertiaStep=.25f;
     internal static float WorldScaleValue{get{float v=WorldScale?.Value??WorldScaleDefault;return float.IsFinite(v)?Math.Clamp(MathF.Round(v/WorldScaleStep)*WorldScaleStep,WorldScaleMin,WorldScaleMax):WorldScaleDefault;}}
     internal static float InertiaValue{get{float v=WeaponInertia?.Value??1f;return float.IsFinite(v)?Math.Clamp(MathF.Round(v/InertiaStep)*InertiaStep,0,InertiaMax):1f;}}
@@ -75,9 +77,13 @@ internal static class QualityOptions
         AdaptiveSupersampling=c.Bind("VR","AdaptiveSupersampling",true,"0.1.188: in demanding scenes, temporarily reduce supersampling above 100% to recover the headset refresh rate. Never goes below its recommended resolution. Deferred rendering uses infrequent target-size changes; with no GPU timing, restores on level or explicit resolution change. Does not alter RenderScale. false = fixed resolution.");
         var scaleDefaults=c.Bind("VR","RenderScaleDefaultsVersion",0,"Internal one-time move of the old 0.75 resolution default to 1.0.");
         if(scaleDefaults.Value<RenderScaleDefaults){if(MathF.Abs(RenderScale.Value-.75f)<.001f)RenderScale.Value=1f;scaleDefaults.Value=RenderScaleDefaults;}
-        WorldScale=c.Bind("VR","WorldScale",WorldScaleDefault,"0.1.233: how big the world looks. The distance between your eyes that the game is drawn with is divided by this: 0.90 = the world looks 10% smaller, 1.10 = 10% bigger; 0.50-1.50, 1 = your real eye distance; 1.20 by default (0.1.239). Game menu > VR SETTINGS.");
-        var scaleDefaults239=c.Bind("VR","WorldScaleDefaultsVersion",0,"Internal one-time move of the world scale to the 1.20 default (0.1.239).");
-        if(scaleDefaults239.Value<WorldScaleDefaults){WorldScale.Value=WorldScaleDefault;scaleDefaults239.Value=WorldScaleDefaults;}
+        WorldScale=c.Bind("VR","WorldScale",WorldScaleDefault,"0.1.233: how big the world looks. The distance between your eyes that the game is drawn with is divided by this: 0.90 = the world looks 10% smaller, 1.10 = 10% bigger; 0.50-1.50, 1 = your real eye distance; 1.00 by default (0.1.257). Game menu > VR SETTINGS.");
+        var scaleDefaultsVersion=c.Bind("VR","WorldScaleDefaultsVersion",0,"Internal one-time moves of the world scale: to 1.20 (0.1.239), then from 1.20 to the 1.00 default (0.1.257).");
+        if(scaleDefaultsVersion.Value<WorldScaleDefaults)
+        {
+            if(scaleDefaultsVersion.Value<239||MathF.Abs(WorldScale.Value-OldWorldScaleDefault)<.001f)WorldScale.Value=WorldScaleDefault;
+            scaleDefaultsVersion.Value=WorldScaleDefaults;
+        }
         CutsceneCamera=c.Bind("VR","CutsceneCamera",0,"0.1.238: cutscenes. 0 = on a screen that stands still in front of you: the film turns its camera as it likes, your head looks at another part of the screen and does not move the picture. 1 = steady: the film camera does not turn your view, you look around with your head (at each cut the view turns to where the film camera looks). 2 = the film's: the picture follows your head (as before 0.1.234). The game's story movies (0.1.245) stand still too with 0 and 1. Game menu > VR SETTINGS.");
         AimDot=c.Bind("VR","AimDot",0,"0.1.248: an aim dot for the guns (the game's crosshair is for a flat screen and is hidden; a gun is aimed along its sights). 0 = off, 1 = a small red dot where the shot goes, 2 = the dot and a thin red laser from the muzzle. Game menu > VR SETTINGS.");
         Forearms=c.Bind("VR","Forearms",true,"0.1.245: the forearms drawn up to the elbow (true), or the hands only, cut just behind the watch (false); the forearm medkits sit on the cut either way. Game menu > VR SETTINGS.");

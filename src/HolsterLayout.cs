@@ -29,9 +29,10 @@ internal static class HolsterLayout
     // 0.1.142: the places
     // over the shoulders take (and hang) a weapon from further away.
     internal const float ShoulderGrabRadius=.22f,ShoulderSnapRadius=.26f,ShoulderHintRadius=.36f;
-    // 0.1.169: the left belt place (the pouch side; mirrored for a
-    // left-hander) takes from further away and hangs 3 cm further out and 3 cm
-    // further back, off the pouch in front of it.
+    // 0.1.169: the left belt place (the side the reloading hand takes rounds
+    // from; mirrored for a left-hander) takes from further away and hangs 3 cm
+    // further back. 0.1.256: both belt places hang outside the belt's rows of
+    // shells (the pouch is in front now).
     internal const float BeltLeftGrabRadius=.17f,BeltLeftSnapRadius=.20f;
     // 0.1.214: the knife and grenade places on the chest take from further
     // away (the next knife after a throw was hard to find by feel).
@@ -88,11 +89,13 @@ internal static class HolsterLayout
         var p=slot switch
         {
             // 0.1.125: the belt pistols 12 cm higher (they hung below the belt).
-            HolsterSlot.BeltRight=>new HolsterPose(new(.20f,-.50f,0),-Vector3.UnitY,Vector3.UnitZ,new(.20f,-.45f,0)),
-            HolsterSlot.BeltLeft=>new HolsterPose(new(-.23f,-.50f,-.03f),-Vector3.UnitY,Vector3.UnitZ,new(-.23f,-.45f,-.03f)),
+            // 0.1.256: 5 and 2 cm further out, outside the shells on the hips.
+            HolsterSlot.BeltRight=>new HolsterPose(new(.25f,-.50f,0),-Vector3.UnitY,Vector3.UnitZ,new(.25f,-.45f,0)),
+            HolsterSlot.BeltLeft=>new HolsterPose(new(-.25f,-.50f,-.03f),-Vector3.UnitY,Vector3.UnitZ,new(-.25f,-.45f,-.03f)),
             HolsterSlot.ArmpitLeft=>new HolsterPose(new(-.13f,-.34f,.03f),-Vector3.UnitZ,Vector3.UnitY,new(-.13f,-.34f,.03f)),
             HolsterSlot.ArmpitRight=>new HolsterPose(new(.13f,-.34f,.03f),-Vector3.UnitZ,Vector3.UnitY,new(.13f,-.34f,.03f)),
-            HolsterSlot.Belly=>new HolsterPose(new(.10f,-.47f,.17f),-Vector3.UnitX,Vector3.UnitY,new(.10f,-.47f,.17f)),
+            // 0.1.256: 10 cm further forward, in front of the belt's pouch.
+            HolsterSlot.Belly=>new HolsterPose(new(.10f,-.47f,.27f),-Vector3.UnitX,Vector3.UnitY,new(.10f,-.47f,.27f)),
             HolsterSlot.LeftShoulder=>new HolsterPose(new(.05f,-.55f,-.19f),Vector3.Normalize(new(-.35f,1,0)),-Vector3.UnitZ,new(-.14f,-.12f,-.12f)),
             HolsterSlot.RightBack=>new HolsterPose(new(-.05f,-.55f,-.23f),Vector3.Normalize(new(.35f,1,0)),-Vector3.UnitZ,new(.14f,-.12f,-.12f)),
             // Knife and grenade by their middle, on the chest above the rifle

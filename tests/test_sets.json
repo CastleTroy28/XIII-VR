@@ -314,8 +314,9 @@
  {
   "name": "BeltGeometryTests",
   "files": [
-   "src/AmmoPouchGeometry.cs",
-   "src/HandMeshGeometry.cs"
+   "src/BeltModel.cs",
+   "src/BeltModelMath.cs",
+   "src/ToneMeshMath.cs"
   ]
  },
  {
@@ -396,7 +397,10 @@
    "src/ReloadGlowMath.cs",
    "src/RailMath.cs",
    "src/InertialPump.cs",
-   "src/CoverPush.cs"
+   "src/CoverPush.cs",
+   "src/BeltModelMath.cs",
+   "src/BeltModel.cs",
+   "src/ToneMeshMath.cs"
   ]
  },
  {
@@ -666,6 +670,9 @@
    "src/PunchMotion.cs",
    "src/HandMeshGeometry.cs",
    "src/WatchFaceGeometry.cs",
+   "src/WatchFacePixels.cs",
+   "src/WatchModel.cs",
+   "src/WatchModelMath.cs",
    "src/ArmIkMath.cs",
    "src/NativeHandMesh.cs",
    "src/WristFitMath.cs",
@@ -681,6 +688,17 @@
    "src/ObjectivesState.cs",
    "src/WatchFaceGeometry.cs",
    "src/NativeHandMesh.cs",
+   "src/UiLanguage.cs"
+  ]
+ },
+ {
+  "name": "WatchFaceTests",
+  "files": [
+   "src/WatchFacePixels.cs",
+   "src/WatchFaceGeometry.cs",
+   "src/WatchModel.cs",
+   "src/WatchModelMath.cs",
+   "src/CapturePng.cs",
    "src/UiLanguage.cs"
   ]
  },
@@ -1243,7 +1261,8 @@
   "name": "WeaponAttachmentTests",
   "files": [
    "src/WeaponGeometry.cs",
-   "src/EquipmentProfile.cs"
+   "src/EquipmentProfile.cs",
+   "src/GrownGrip.cs"
   ]
  },
  {

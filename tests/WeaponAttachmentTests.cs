@@ -76,7 +76,8 @@ class WeaponAttachmentTests
    // same on each), so the hand holding a gun is drawn at the length fitted
    // over the gun's size times that. The rawest sizes logged by the game:
    const float hand=.272901f;
-   float Held(string profile,float rawLength)=>EquipmentProfile.Length(profile)/rawLength*hand;
+   // 0.1.257: a gun drawn larger than that (EquipmentProfile.Growth): the hand on it kept at the size it had.
+   float Held(string profile,float rawLength)=>EquipmentProfile.Length(profile)/EquipmentProfile.Growth(profile)/rawLength*hand;
    float pistol=Held("pistol",.061423f),revolver=Held("revolver",.103633f),ak=Held("ak47",.239861f);
    Check(pistol>.95f&&pistol<1.03f&&revolver>.95f&&revolver<1.03f,"a hand holding a handgun not at the free hand's size: pistol "+pistol+", revolver "+revolver);
    Check(Math.Abs(pistol-ak)<.03f&&Math.Abs(revolver-ak)<.03f,"the handguns' hand not as the AK's: "+pistol+" "+revolver+" "+ak);
@@ -96,19 +97,35 @@ class WeaponAttachmentTests
    // 0.1.250: the three crossbows of the game's crossbow slot, all fitted 72
    // cm: the hand on the harpoon gun (0.2857 long) at 0.69, on the crossbow
    // (0.2489) at 0.79, on the tactical one (0.2562) at 0.77. Each its own length.
-   float Model(string model,float rawLength)=>EquipmentProfile.Length("crossbow",model)/rawLength*hand;
+   float Model(string model,float rawLength)=>EquipmentProfile.Length("crossbow",model)/EquipmentProfile.Growth("crossbow")/rawLength*hand;
    float harpoon=Model("wpn_harpoon_gun wpn_harpoon_gun(Clone) wpn_harpoon_gun_LOD0",.285673f),crossbow=Model("wpn_crossbow wpn_crossbow(Clone) wpn_crossbow_LOD0",.248898f),tactical=Model("wpn_crossbow_tactical wpn_crossbow_tactical_LOD0",.256173f);
    foreach(var (name,heldSize) in new[]{("harpoon gun",harpoon),("crossbow",crossbow),("tactical crossbow",tactical)})
     Check(heldSize>.95f&&heldSize<1.03f&&Math.Abs(heldSize-pistol)<.03f&&Math.Abs(heldSize-ak)<.03f,"the hand on the "+name+" not as on the other guns: "+heldSize);
    Check(.72f/.285673f*hand<.70f&&.72f/.248898f*hand<.80f&&.72f/.256173f*hand<.78f,"the old crossbow sizes (the hand at 0.69, 0.79, 0.77) not reproduced");
-   Check(EquipmentProfile.Length("crossbow")==EquipmentProfile.Length("crossbow",null)&&EquipmentProfile.Length("crossbow","WPN_HARPOON_GUN")==EquipmentProfile.HarpoonLength,"an unnamed crossbow or a harpoon gun named otherwise not sized");
+   Check(EquipmentProfile.Length("crossbow")==EquipmentProfile.Length("crossbow",null)&&EquipmentProfile.Length("crossbow","WPN_HARPOON_GUN")==EquipmentProfile.HarpoonLength*EquipmentProfile.Growth("crossbow"),"an unnamed crossbow or a harpoon gun named otherwise not sized");
    // 0.1.251: each crossbow's own key (its saved bolt and string files; the crossbow's as before).
    Check(EquipmentProfile.ModelKey("crossbow","wpn_harpoon_gun wpn_harpoon_gun(Clone) wpn_harpoon_gun_LOD0")=="harpoon_gun"&&EquipmentProfile.ModelKey("crossbow","wpn_crossbow_tactical")=="crossbow_tactical"
     &&EquipmentProfile.ModelKey("crossbow","wpn_crossbow wpn_crossbow_LOD0")=="crossbow"&&EquipmentProfile.ModelKey("crossbow",null)=="crossbow"&&EquipmentProfile.ModelKey("uzi","wpn_uzi")=="uzi","a crossbow's own key wrong");
    Check(EquipmentProfile.ScopeTunedLength==.72f&&EquipmentProfile.TacticalCrossbowLength/EquipmentProfile.ScopeTunedLength>1.2f,"the sights' search not at the size it was measured at");
    Check(EquipmentProfile.Length("shotgun","wpn_harpoon_gun")==EquipmentProfile.Length("shotgun")&&EquipmentProfile.Length("pistol","tactical")==EquipmentProfile.Length("pistol"),"another gun sized by its model's name");
    var harpoonFit=WeaponGeometry.Fit(new Vector3(-.01f,-.02f,-.2857f),new Vector3(.01f,.02f,0),"crossbow",float.NaN,"wpn_harpoon_gun_LOD0");
-   Check(MathF.Abs(harpoonFit.Scale*.2857f-EquipmentProfile.HarpoonLength)<1e-4f,"the harpoon gun not fitted at its own length");
+   Check(MathF.Abs(harpoonFit.Scale*.2857f-EquipmentProfile.HarpoonLength*EquipmentProfile.RifleGrowth)<1e-4f,"the harpoon gun not fitted at its own length");
+   // 0.1.257: the AK, the M16 and the three crossbows drawn 10% larger than the game draws them against its hand
+   // (they looked small); the other guns as they were; the hand holding a grown gun kept at the size it had, its
+   // fist where it was on the grip.
+   Check(EquipmentProfile.RifleGrowth==1.10f&&MathF.Abs(EquipmentProfile.Length("ak47")-.935f)<1e-4f&&MathF.Abs(EquipmentProfile.Length("m16")-1.089f)<1e-4f
+    &&MathF.Abs(EquipmentProfile.Length("crossbow","wpn_harpoon_gun")-1.133f)<1e-4f&&MathF.Abs(EquipmentProfile.Length("crossbow","wpn_crossbow_tactical")-1.012f)<1e-4f&&MathF.Abs(EquipmentProfile.Length("crossbow","wpn_crossbow")-.979f)<1e-4f,
+    "the AK, the M16 or a crossbow not drawn 10% larger: "+EquipmentProfile.Length("ak47")+" "+EquipmentProfile.Length("m16")+" "+EquipmentProfile.Length("crossbow","wpn_harpoon_gun"));
+   foreach(var (gun,was) in new[]{("pistol",.22f),("revolver",.37f),("uzi",.35f),("shotgun",1.08f),("sniper",1.1f),("m60",1.1f),("bazooka",1.1f)})
+    Check(EquipmentProfile.Growth(gun)==1&&EquipmentProfile.Length(gun)==was,gun+" no longer drawn at its size");
+   {
+    var fist=new Vector3(0,-.025f,.073f);var turn=Quaternion.CreateFromYawPitchRoll(.4f,-.3f,.2f);var wrist=new Vector3(.01f,-.03f,-.12f);
+    float raw=.967f*EquipmentProfile.RifleGrowth;var grown=GrownGrip.Hand(wrist,turn,raw,fist,EquipmentProfile.RifleGrowth);
+    Check(MathF.Abs(grown.size-.967f)<1e-5f,"the hand on a grown gun not kept at its size: "+grown.size);
+    Check(Vector3.Distance(grown.wrist+Vector3.Transform(fist*grown.size,turn),wrist+Vector3.Transform(fist*raw,turn))<1e-6f,"the hand's fist moved off the grown gun's grip");
+    var same=GrownGrip.Hand(wrist,turn,.98f,fist,1);Check(same.wrist==wrist&&same.size==.98f,"a gun at the game's size changed the hand");
+    var bad=GrownGrip.Hand(wrist,turn,float.NaN,fist,1.1f);Check(bad.wrist==wrist,"a broken size moved the hand");
+   }
   }
   Console.WriteLine("PASS: 0.1.243 the plain pistol fitted without its hidden silencer (a point outside the gun): drawn 22 cm long as the silenced one, not 17 cm; the revolver drawn 37 cm: the hand holding either at the free hand's size, as on the AK (it was 0.76 and 0.74).");
   Console.WriteLine("PASS: 0.1.244 the Uzi drawn 35 cm long (was 46): the hand holding it as on the pistol (it was 1.29 of the free hand).");

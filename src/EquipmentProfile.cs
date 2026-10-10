@@ -39,14 +39,23 @@ internal static class EquipmentProfile
  // of the free hand's size, on the double-barrel 0.85; now about 0.98 and 0.97.
  // 0.1.250: the game's three crossbows share its crossbow slot, each drawn at
  // its own length (CrossbowLength); the plain crossbow 89 cm (was 72).
- internal static float Length(string p)=>p switch {"pistol"=>.22f,"revolver"=>.37f,"uzi"=>.35f,"shotgun"=>1.08f,"m16"=>.99f,"ak47"=>.85f,"sniper"=>1.1f,"crossbow"=>CrossbowLength(null),"m60"=>1.1f,"bazooka"=>1.1f,"knife"=>.16f,"grenade"=>.12f,"key"=>.12f,"gadget"=>.22f,_=>.65f};
+ // 0.1.257: the AK, the M16 and the crossbows times Growth (below).
+ internal static float Length(string p)=>(p switch {"pistol"=>.22f,"revolver"=>.37f,"uzi"=>.35f,"shotgun"=>1.08f,"m16"=>.99f,"ak47"=>.85f,"sniper"=>1.1f,"crossbow"=>CrossbowLength(null),"m60"=>1.1f,"bazooka"=>1.1f,"knife"=>.16f,"grenade"=>.12f,"key"=>.12f,"gadget"=>.22f,_=>.65f})*Growth(p);
  // The length of the model the game holds (its mesh or its name): the
  // crossbows' only differs.
- internal static float Length(string p,string? model)=>p=="crossbow"?CrossbowLength(model):Length(p);
+ internal static float Length(string p,string? model)=>p=="crossbow"?CrossbowLength(model)*Growth(p):Length(p);
+ // 0.1.257: the AK (85 cm before), the M16 (99 cm) and the three crossbows
+ // looked small: they are drawn 10% larger than the game draws them against
+ // its own hand (the lengths above and CrossbowLength, times this). The hand
+ // holding them stays the size it was, its fist where it was on the grip
+ // (GrownGrip): the hand does not grow as one is taken.
+ internal const float RifleGrowth=1.10f;
+ internal static float Growth(string p)=>p is "ak47" or "m16" or "crossbow"?RifleGrowth:1;
  // 0.1.250: all 72 cm before, so the hand holding the harpoon gun was drawn at
  // 0.69 of the free hand's size, on the crossbow 0.79 and on the tactical one
  // 0.77 (the pistol's 0.98, the rifles' about 1). Now the harpoon gun 1.03 m,
  // the tactical crossbow 92 cm, the crossbow 89 cm: the hand about 0.98 on each.
+ // 0.1.257: drawn 10% longer still (Growth), the hand kept its size.
  internal const float HarpoonLength=1.03f,TacticalCrossbowLength=.92f,PlainCrossbowLength=.89f;
  internal static float CrossbowLength(string? model)=>CrossbowModel(model) switch{"harpoon_gun"=>HarpoonLength,"crossbow_tactical"=>TacticalCrossbowLength,_=>PlainCrossbowLength};
  // 0.1.251: which of the three crossbows a model is (its name): its own saved

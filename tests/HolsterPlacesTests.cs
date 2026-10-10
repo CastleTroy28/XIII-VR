@@ -17,13 +17,13 @@ class HolsterPlacesTests
   Check(HolsterPlaces.Format(new Vector3(.031f,-.025f,0))=="3.1,-2.5,0","config text not written in centimetres");
   // Nothing moved: the mod's places.
   var belt=HolsterLayout.Pose(HolsterSlot.BeltRight,false);
-  Check(Near(belt.Grip,new Vector3(.20f,-.50f,0))&&!HolsterPlaces.Moved(HolsterSlot.BeltRight),"an unmoved place is not the mod's");
+  Check(Near(belt.Grip,new Vector3(.25f,-.50f,0))&&!HolsterPlaces.Moved(HolsterSlot.BeltRight),"an unmoved place is not the mod's");
   // Pointed to a new point (torso frame as drawn): the place's hand point goes there, its grip with it.
   HolsterPlaces.MoveTo(HolsterSlot.BeltRight,new Vector3(.28f,-.40f,.05f),false);HolsterPlaces.Save(HolsterSlot.BeltRight);
   var moved=HolsterLayout.Pose(HolsterSlot.BeltRight,false);
   Check(Near(moved.Reach,new Vector3(.28f,-.40f,.05f))&&Near(moved.Grip-moved.Reach,belt.Grip-belt.Reach),"the place's hand point is not where it was pointed, or its grip not with it");
   Check(moved.Forward==belt.Forward&&moved.Up==belt.Up,"moving a place turned its weapon");
-  Check(saved[HolsterSlot.BeltRight]=="8,5,5","a moved place not saved as its offset in centimetres");
+  Check(saved[HolsterSlot.BeltRight]=="3,5,5","a moved place not saved as its offset in centimetres");
   // A left-hander: the place is drawn mirrored, and moved the mirror way.
   var lefty=HolsterLayout.Pose(HolsterSlot.BeltRight,true);
   Check(Near(lefty.Reach,new Vector3(-.28f,-.40f,.05f)),"a left-hander's moved place not the mirror");
@@ -40,9 +40,9 @@ class HolsterPlacesTests
   // Reset: one place, then all of them, saved as 0,0,0.
   HolsterPlaces.Reset(HolsterSlot.BeltRight);Check(Near(HolsterLayout.Pose(HolsterSlot.BeltRight,false).Grip,belt.Grip)&&saved[HolsterSlot.BeltRight]=="0,0,0","a place not reset");
   HolsterPlaces.ResetAll();Check(HolsterPlaces.Movable.All(s=>!HolsterPlaces.Moved(s)&&saved[s]=="0,0,0"),"not every place reset");
-  HolsterPlaces.Load(HolsterSlot.Belly,"0,10,-5");Check(Near(HolsterLayout.Pose(HolsterSlot.Belly,false).Grip,new Vector3(.10f,-.37f,.12f)),"a place read from the config not moved");
+  HolsterPlaces.Load(HolsterSlot.Belly,"0,10,-5");Check(Near(HolsterLayout.Pose(HolsterSlot.Belly,false).Grip,new Vector3(.10f,-.37f,.22f)),"a place read from the config not moved");
   HolsterPlaces.Load(HolsterSlot.Belly,"junk");Check(!HolsterPlaces.Moved(HolsterSlot.Belly),"bad config text moved a place");
-  Check(Near(HolsterLayout.Pose(HolsterSlot.Belly,false,false).Grip,new Vector3(.10f,-.47f,.17f)),"the mod's own place not available");
+  Check(Near(HolsterLayout.Pose(HolsterSlot.Belly,false,false).Grip,new Vector3(.10f,-.47f,.27f)),"the mod's own place not available");
   // Names as the player sees them (mirrored for a left-hander).
   Check(HolsterPlaces.Name(HolsterSlot.BeltRight,false)=="Pistol, right hip"&&HolsterPlaces.Name(HolsterSlot.BeltRight,true)=="Pistol, left hip"&&HolsterPlaces.Name(HolsterSlot.ArmpitLeft,true)=="Pistol, under the right arm"&&HolsterPlaces.Name(HolsterSlot.ChestRight,false)=="Grenades","place names");
   // The ray takes the ball nearest to it, within reach.

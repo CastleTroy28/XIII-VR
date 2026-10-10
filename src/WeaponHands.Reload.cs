@@ -136,7 +136,7 @@ internal sealed partial class WeaponHands
         // 0.1.135: the pouch stays on the left of the belt whichever hand reloads.
         if(show){pouch??=new AmmoPouch();pouch.Pose(rig.HeadPosition,rig.HeadRotation,LeftHanded);
             int shells=inventory?.playerAmmo==null?0:inventory.playerAmmo.GetAmmoCount(ActorAmmoPool.AmmoType.Shotgun_12GBuckshot);
-            if(inventory?.playerAmmo?.AmmoPool?.IsInfinite==true)shells=8;pouch.SetShellCount(shells);}
+            if(inventory?.playerAmmo?.AmmoPool?.IsInfinite==true)shells=BeltModelMath.Shells;pouch.SetShellCount(shells);}
         else pouch?.Hide();
     }
     private void TickReload()

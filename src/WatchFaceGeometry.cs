@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Numerics;
 using System.Text;
 namespace XiiiXR;
-// Luminous pixels are real triangles in the watch's local metre coordinates.
-// No Canvas, font asset, camera-space transform or late UI batching is involved.
+// The watch font (5x7 glyphs: digits, Latin and Cyrillic capitals, a few signs) and the cleaning of the HUD's
+// texts for it. 0.1.254: drawn into the 3D watch's face picture (WatchFacePixels); no Canvas or font asset.
 internal static class WatchFaceGeometry
 {
     private static readonly Dictionary<char,string> Glyphs=new()
@@ -58,39 +57,6 @@ internal static class WatchFaceGeometry
         }
         return b.Length==0?"-":b.ToString().Trim();
     }
-    // right: the ammunition face (else health and armour). 0.1.146: leftFirst:
-    // two guns' rounds listed left hand first (a left-hander's watch).
-    internal static HandMeshGeometry Build(bool right,string primary,string secondary,float health=1,float armor=1,bool leftFirst=false)
-    {
-        // Always use right=true for text so left wrist writing is not mirrored.
-        var m=new HandMeshGeometry(true);var ink=new Vector4(.87f,.97f,1,1);
-        Line(m,(right?UiLanguage.Watch(0)+(primary.Contains("/")?(leftFirst?UiLanguage.T(" Л/П"," L/R"):UiLanguage.T(" П/Л"," R/L")):""):UiLanguage.Watch(1)),.016f,.0033f,ink);
-        Line(m,Clean(primary),.004f,.012f,ink);
-        Line(m,right?UiLanguage.Watch(2)+" "+Clean(secondary):UiLanguage.Watch(3)+" "+Clean(secondary),-.012f,.0048f,ink);
-        if(!right){Bar(m,.056f*Safe(health),-.005f,new(.7f,.74f,.66f,1));Bar(m,.056f*Safe(armor),-.019f,new(.54f,.58f,.52f,1));}
-        return m;
-    }
-    private static float Safe(float x)=>float.IsFinite(x)?Math.Clamp(x,0,1):0;
-    private static void Line(HandMeshGeometry m,string text,float z,float height,Vector4 ink)
-    {
-        float cell=Math.Min(height/7,.058f/Math.Max(1,text.Length*6-1));
-        float start=-(text.Length*6-1)*cell*.5f;
-        for(int i=0;i<text.Length;i++)
-        {
-            if(text[i]==' ')continue;
-            string shape=Glyphs.TryGetValue(text[i],out var g)?g:Glyphs['?'];
-            var rows=shape.Split('/');
-            for(int row=0;row<7;row++)for(int col=0;col<5;col++)
-                if(rows[row][col]=='1')Rect(m,start+(i*6+col)*cell,z+(3.5f-row)*cell,cell*.87f,cell*.87f,ink);
-        }
-    }
-    private static void Bar(HandMeshGeometry m,float width,float z,Vector4 color)
-    {if(width>.00001f)Rect(m,-.028f,z,width,.0009f,color);}
-    private static void Rect(HandMeshGeometry m,float x,float z,float w,float h,Vector4 color)
-    {
-        float size=HandMeshGeometry.FaceSize;x*=size;z*=size;w*=size;h*=size;
-        var p=HandMeshGeometry.ScreenPosition+new Vector3(x,0,z);
-        // Local +Y is the outward face of the watch; reading top is +Z.
-        m.Quad(p,p+new Vector3(0,0,h),p+new Vector3(w,0,h),p+new Vector3(w,0,0),color);
-    }
+    // 0.1.254: a glyph's rows top to bottom ('1' lit, 35 characters), for the 3D watch's face (WatchFacePixels).
+    internal static string GlyphRows(char c)=>(Glyphs.TryGetValue(c,out var g)?g:Glyphs['?']).Replace("/","");
 }

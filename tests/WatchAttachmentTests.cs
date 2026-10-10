@@ -3,25 +3,27 @@ using N=System.Numerics;
 class WatchAttachmentTests
 {
     static void Check(bool ok,string why){if(!ok)throw new Exception(why);}
-    static void CheckMount(UnityEngine.Transform parent,WristFit fit,float scale)
+    static void CheckMount(UnityEngine.Transform parent,WristFit fit,float scale,bool right)
     {
-        // Measure the rendered case underside against the native dorsal skin,
+        // 0.1.254: the 3D watch's strap round the native wrist's section, its face over the back of the wrist,
         // including the wrist blend seam, at both free and attached-hand sizes.
-        var underside=new N.Vector3(0,fit.RadiusY-.0055f,-.11f);
         var localMatrix=N.Matrix4x4.CreateScale(parent.localScale.N)*N.Matrix4x4.CreateFromQuaternion(parent.localRotation.N)*N.Matrix4x4.CreateTranslation(parent.localPosition.N);
-        var actual=N.Vector3.Transform(underside,localMatrix);
-        var surface=fit.Center+N.Vector3.Transform(N.Vector3.UnitY*(fit.RadiusY+.0025f),fit.Rotation);
-        int blend=(int)MathF.Round(ArmIkMath.ForearmWeight(fit.Center.Z)*64);
-        var expected=new N.Vector3(0,0,NativeHandMesh.WristZ)+N.Vector3.Transform(surface,N.Quaternion.Slerp(N.Quaternion.Identity,NativeHandVisual.Swing,blend/64f))*scale;
-        Check(N.Vector3.Distance(actual,expected)<1e-5,"case underside separates from dorsal bracelet surface");
+        int blend=(int)MathF.Round(ArmIkMath.ForearmWeight(fit.Center.Z)*64);var bend=N.Quaternion.Slerp(N.Quaternion.Identity,NativeHandVisual.Swing,blend/64f);
+        var actual=N.Vector3.Transform(WatchModelMath.Centre,localMatrix);
+        var expected=new N.Vector3(0,0,NativeHandMesh.WristZ)+N.Vector3.Transform(fit.Center,bend)*scale;
+        Check(N.Vector3.Distance(actual,expected)<1e-5,"the watch's strap not round the wrist's section");
+        var face=N.Vector3.Transform(WatchModelMath.FaceCentre(right,fit.RadiusX,fit.RadiusY),localMatrix);
+        var top=new N.Vector3(0,0,NativeHandMesh.WristZ)+N.Vector3.Transform(fit.Center+N.Vector3.Transform(N.Vector3.UnitY*fit.RadiusY,fit.Rotation),bend)*scale;
+        var up=N.Vector3.Transform(N.Vector3.Transform(N.Vector3.UnitY,fit.Rotation),bend);
+        Check(N.Vector3.Dot(face-top,up)>.004f*scale&&N.Vector3.Dot(face-top,up)<.03f*scale,"the watch's face not just over the back of the wrist");
     }
     static void Main()
     {
         _=new CameraRig();
         using(var hand=new GloveVisual(true))
         {
-            var meshes=RigidMeshVisual.All.Skip(1).ToArray();Check(meshes.Length==2&&ReferenceEquals(meshes[0].Parent,meshes[1].Parent),"case and digits have different parents");
-            var parent=meshes[0].Parent;
+            var watch=WatchVisual.All.Single();var parent=watch.Parent;
+            Check(watch.Fits==1&&watch.FitRight&&watch.Faces==1,"the watch not fitted to the right wrist or its face not drawn");
             for(int frame=0;frame<3600;frame++)
             {
                 UnityEngine.Time.frameCount=frame;
@@ -32,11 +34,13 @@ class WatchAttachmentTests
                 // UI and second-eye callbacks can provide later tracking samples.
                 hand.Pose(new PoseValue(pose.Position+N.Vector3.One,q),1,1);
                 Check(parent.Matrix==matrix,"later camera moved hand after first cull");
-                var local=HandMeshGeometry.ScreenPosition;
+                var local=WatchModelMath.FaceCentre(true,WristFit.Default.RadiusX,WristFit.Default.RadiusY);
                 var world=N.Vector3.Transform(local,parent.Matrix);N.Matrix4x4.Invert(parent.Matrix,out var inverse);
                 Check(N.Vector3.Distance(N.Vector3.Transform(world,inverse),local)<3e-6,"digits drift relative to wrist during walk/turn");
             }
-            int before=meshes[1].Sets;hand.Readout("<b>10</b>","120");Check(meshes[1].Sets==before+1,"shot readout not rebuilt");hand.Readout("10","120");Check(meshes[1].Sets==before+1,"unchanged readout rebuilds every frame");
+            int before=watch.Faces;hand.Readout("<b>10</b>","120");Check(watch.Faces==before+1,"shot readout not redrawn");hand.Readout("10","120",.4f,.2f);Check(watch.Faces==before+1,"unchanged readout redrawn every frame (or for the bars, not on the face)");
+            Check(watch.LastFace!=null&&watch.LastFace.SequenceEqual(WatchFacePixels.Draw(WatchFacePixels.Read(true,"10","120"),UiLanguage.Code)),"the right wrist's face not the ammunition's");
+            Check(watch.FaceShown!=null,"the face's showing not decided by where the head is");
             hand.Hide();Check(!parent.parent!.gameObject.activeSelf,"hand remains visible on pause");
             hand.BindNative(new UnityEngine.GameObject("local player").transform);
             InteractionDriver.Current=new();ContactRig.Current=new();UnityEngine.Time.frameCount++;
@@ -48,11 +52,11 @@ class WatchAttachmentTests
         {
             hand.BindNative(new UnityEngine.GameObject("replacement player").transform);
             var weapons=new WeaponHands();WeaponHands.Current=weapons;
-            var parent=RigidMeshVisual.All[^1].Parent;var controller=new PoseValue(new N.Vector3(0,1,.2f),N.Quaternion.Identity);
+            var parent=WatchVisual.All[^1].Parent;var controller=new PoseValue(new N.Vector3(0,1,.2f),N.Quaternion.Identity);
             weapons.Attached=true;UnityEngine.Time.frameCount++;hand.Pose(controller,1,0);
             Check(parent.parent!.position.N==weapons.Anchor && NativeHandVisual.Held,"support grip does not move hand and bracelet together");
             Check(parent.localScale.N==new N.Vector3(.76f),"watch does not scale with native grip hand");
-            CheckMount(parent,WristFit.Default,.76f);
+            CheckMount(parent,WristFit.Default,.76f,false);
             weapons.Attached=false;UnityEngine.Time.frameCount++;hand.Pose(controller,0,0);
             Check(parent.parent!.position.N==controller.Position && !NativeHandVisual.Held,"released support hand remains on gun");
             weapons.Attached=true;UnityEngine.Time.frameCount++;hand.Pose(controller,1,0);
@@ -79,10 +83,10 @@ class WatchAttachmentTests
             NativeHandVisual.Mount=new WristFit(new N.Vector3(0,0,-distance),N.Quaternion.Identity,.025f,.026f);
             hand.BindNative(new UnityEngine.GameObject("native band near wrist seam").transform);UnityEngine.Time.frameCount++;
             hand.Pose(new PoseValue(N.Vector3.Zero,N.Quaternion.Identity),0,0);
-            var parent=RigidMeshVisual.All[^1].Parent;
-            CheckMount(parent,NativeHandVisual.Mount,1);
+            var parent=WatchVisual.All[^1].Parent;
+            Check(WatchVisual.All[^1].FitX==NativeHandVisual.Mount.RadiusX&&WatchVisual.All[^1].FitY==NativeHandVisual.Mount.RadiusY&&!WatchVisual.All[^1].FitRight,"the watch not refitted to the native wrist");
+            CheckMount(parent,NativeHandVisual.Mount,1,false);
         }
-        Check(HandMeshGeometry.BuildWatch(false,.025f,.026f,false).Vertices.Count<HandMeshGeometry.BuildWatch(false,.025f,.026f,true).Vertices.Count,"native band mode retains extra ring");
         // Tilted watch face must not tilt the enclosing wrist strap.
         var tilted=new WristFit(new N.Vector3(.01f,-.01f,-.052f),N.Quaternion.Identity,.03f,.04f,
             new N.Vector3(.02f,.04f,-.052f),N.Vector3.Normalize(new N.Vector3(.5f,1,0)));
@@ -90,8 +94,8 @@ class WatchAttachmentTests
         var bandCenter=band.position+N.Vector3.Transform(new N.Vector3(0,-.008f,-.11f),band.rotation);
         Check(N.Vector3.Distance(bandCenter,tilted.Center+new N.Vector3(0,0,NativeHandMesh.WristZ))<1e-6,"band not centered on skin section");
         Check(Math.Abs(N.Vector3.Dot(N.Vector3.Transform(N.Vector3.UnitY,band.rotation),N.Vector3.UnitY)-1)<1e-6,"watch tilt rotates wrist strap");
-        Check(RigidMeshVisual.All.All(x=>x.Disposed)&&NativeHandVisual.Disposed,"owned render resources survive cleanup");
-        Console.WriteLine("PASS: production hand root shares case/digits; 3600 walking/turning frames; repeated camera/eye callbacks cannot change pose; readout caching; hide/rebind/dispose.");
+        Check(WatchVisual.All.All(x=>x.Disposed)&&NativeHandVisual.Disposed,"owned render resources survive cleanup");
+        Console.WriteLine("PASS: production hand root carries the 3D watch and its face; strap round the native wrist section, face over its back; 3600 walking/turning frames; repeated camera/eye callbacks cannot change pose; readout caching (the numbers, not the bars); hide/rebind/refit/dispose.");
         Console.WriteLine("Simulated Unity transforms/native skin; actual XR rendering requires a headset test.");
     }
 }
@@ -121,8 +125,13 @@ namespace XiiiXR
         internal bool TryPoseHand(NativeHandVisual n,bool r,out UnityEngine.Vector3 p,out UnityEngine.Quaternion q,out float size)
         {p=UnityEngine.Vector3.From(Anchor);q=new UnityEngine.Quaternion(N.Quaternion.Identity);size=.76f;return Attached;}
     }
-    internal sealed class RigidMeshVisual:IDisposable
-    {internal static List<RigidMeshVisual> All=new();internal UnityEngine.Transform Parent;internal int Sets;internal bool Disposed;internal RigidMeshVisual(UnityEngine.Transform p,string n,bool d=false){Parent=p;All.Add(this);}internal void Set(HandMeshGeometry d){Sets++;}internal void Show(bool b){}public void Dispose(){Disposed=true;}}
+    internal sealed class WatchVisual:IDisposable
+    {
+        internal static List<WatchVisual> All=new();internal UnityEngine.Transform Parent;internal int Fits,Faces;internal bool FitRight,Disposed;internal float FitX,FitY;internal byte[]? LastFace;internal bool? FaceShown;
+        internal WatchVisual(UnityEngine.Transform p,string n){Parent=p;All.Add(this);}
+        internal void Fit(bool right,float rx,float ry){Fits++;FitRight=right;FitX=rx;FitY=ry;}
+        internal void SetFace(byte[] px){Faces++;LastFace=px;}internal void ShowFace(bool b){FaceShown=b;}public void Dispose(){Disposed=true;}
+    }
 }
 namespace UnityEngine
 {

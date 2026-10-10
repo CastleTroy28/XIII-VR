@@ -28,6 +28,8 @@ It is a [BepInEx 6](https://github.com/BepInEx/BepInEx) plugin. A one-click inst
   - Turn a key or a lockpick in the lock, and hold a keycard to the reader.
   - Press buttons, lift controls and switches by touch.
   - Medkits sit on your forearm.
+  - An ammunition belt round your waist (a 3D model): its pouch in the middle of the front holds the magazines and rockets, its loops on both hips your shotgun shells (the left hip's used first; the right hip's for a left-hander).
+- **Watches on your wrists:** 3D digital wristwatches with an LCD face, the health and the armour on the left one, the rounds and the rest (or the reload step) on the right one, labelled in the game's language. Turn the back of your wrist toward you to read one.
 - **The grappling hook** is adapted to the controllers.
 - **Locomotion:**
   - Smooth, head-relative movement.

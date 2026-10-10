@@ -211,6 +211,11 @@ internal sealed partial class WeaponHands : IDisposable
             gripValid[index]=true;gripPositions[index]=last.point;gripRotations[index]=last.rotation;gripSizes[index]=last.size;
             return last.point;
         }
+        // 0.1.257: a gun drawn larger than the game draws it against its hand
+        // (the AK, the M16, the crossbows): the hand holding it at the size it
+        // had, its fist where it was (the cached holds below are kept so).
+        float growth=EquipmentProfile.Growth(profile);
+        if(growth!=1){var grown=GrownGrip.Hand(ToN(p),ToN(q),size,ToN(LongHandleContact(native,1)),growth);p=ToU(grown.wrist);size=grown.size;}
         // 0.1.136: the game's left arm is not always on a long gun's fore-end
         // (the shotgun's sample was 47 cm off, and the hand hung there).
         if(!right&&HolsterLayout.Firearm(profile)&&!PlausibleForeEnd(p))
@@ -278,7 +283,7 @@ internal sealed partial class WeaponHands : IDisposable
         if(right?!reportedRightGrip:!reportedLeftGrip)
         {
             if(right)reportedRightGrip=true;else reportedLeftGrip=true;
-            Bootstrap.Write("NATIVE GRIP bound weapon="+profile+" side="+(right?"R":"L")+" local="+p.ToString("F6")+" rotation="+q.eulerAngles.ToString("F3")+" handScale="+size);
+            Bootstrap.Write("NATIVE GRIP bound weapon="+profile+" side="+(right?"R":"L")+" local="+p.ToString("F6")+" rotation="+q.eulerAngles.ToString("F3")+" handScale="+size+(EquipmentProfile.Growth(profile)!=1?" (the gun drawn "+EquipmentProfile.Growth(profile).ToString("F2")+"x the game's size against its hand, the hand kept its size)":""));
         }
         return p;
     }

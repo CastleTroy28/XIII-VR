@@ -7,7 +7,10 @@ class RigidMeshLifecycleTests
 {
  static void Main(){
  var parent=new GameObject("parent");var visual=new RigidMeshVisual(parent.transform,"test",true);
- var geometry=HandMeshGeometry.BuildWatch(false);visual.Set(geometry);
+ // 0.1.254: a small mesh in three colours (the watch is no longer built by HandMeshGeometry).
+ var geometry=new HandMeshGeometry(false);
+ for(int k=0;k<3;k++){float z=k*.01f;geometry.Quad(new(0,0,z),new(.01f,0,z),new(.01f,.01f,z),new(0,.01f,z),new System.Numerics.Vector4(.2f*k,.3f,.4f,1));}
+ visual.Set(geometry);
  var owned=UnityEngine.Object.All.OfType<Material>().ToArray();
  if(owned.Any(x=>x.hideFlags!=HideFlags.DontUnloadUnusedAsset))throw new Exception("unprotected material");
  foreach(var m in owned)UnityEngine.Object.Destroy(m);

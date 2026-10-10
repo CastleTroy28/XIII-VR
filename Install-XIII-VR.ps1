@@ -3,7 +3,7 @@
 param([string]$GameDir, [string]$BepInExZip, [switch]$Uninstall, [string]$RestorePoint, [switch]$OpenXR, [string]$OpenCompositeDll, [switch]$NoOpenComposite, [switch]$DownloadOpenComposite)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$Version = '0.1.252'
+$Version = '0.1.257'
 $PackageRoot = $PSScriptRoot
 $BuildName = 'BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.788+5b766a3.zip'
 $BuildUrl = 'https://builds.bepinex.dev/projects/bepinex_be/788/BepInEx-Unity.IL2CPP-win-x64-6.0.0-be.788%2B5b766a3.zip'

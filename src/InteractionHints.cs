@@ -9,10 +9,22 @@ internal static class InteractionHints
     internal static bool IsDoor(Component? a)
     {
         if(a==null)return false;
-        if(a.GetComponentInParent(Il2CppType.Of<PlayMagic.AI.Door>())!=null)return true;
-        var t=a.transform;for(int i=0;i<4&&t!=null;i++,t=t.parent)if(ChordName(t.name))return true;
-        return false;
+        bool door=a.GetComponentInParent(Il2CppType.Of<PlayMagic.AI.Door>())!=null;
+        string chain="";
+        var t=a.transform;for(int i=0;i<4&&t!=null;i++,t=t.parent){chain+=(i>0?" / ":"")+t.name;door|=ChordName(t.name);}
+        // 0.1.253: a thing the game gives to take (a bottle, a chair, a weapon, ammunition, a key, a
+        // medkit, a document) is never a door, whatever its parents are called or hold: either grip
+        // takes it, as every thing to use once. A bottle in the prison's laundry needed Grip + A
+        // (and its hint said so) because a parent's name, or a door above it, made it a door's.
+        if(a.GetComponentInParent(Il2CppType.Of<PickableItem>())!=null)
+        {
+            if(door&&notedThings.Count<64&&notedThings.Add(chain))
+                Bootstrap.Write("INTERACTION "+chain+": a thing to take (its place in the level looks like a door's or a locker's): either grip takes it");
+            return false;
+        }
+        return door;
     }
+    private static readonly HashSet<string> notedThings=new();
     // Doors, cabinets, lockers and (0.1.83) breakable ventilation grilles keep
     // the deliberate right Grip + A.
     internal static bool ChordName(string name)

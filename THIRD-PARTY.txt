@@ -22,6 +22,17 @@ sounds (src/SelectedReloadSounds.cs) and the chair impact
 (src/DoorMoveSound.cs) and key-turn (src/KeyTurnSound.cs) recordings were
 supplied by the author. Released with the mod under its license (LICENSE).
 
+The ammunition belt (src/BeltModel.cs): an ammo belt model generated with
+Tripo (https://www.tripo3d.ai) for the mods (the same one the classic XIII
+mod uses), reduced and worn by buildtools/belt/convert.py (with
+buildtools/watch/decimate.c: the mod's own code). The source model itself is
+not in the repository.
+
+The 3D watch (src/WatchModel.cs): a digital wristwatch model generated with
+Tripo (https://www.tripo3d.ai) for the mods (the same one the classic XIII mod
+uses), reduced and converted by buildtools/watch (convert.py, decimate.c: the
+mod's own code). The source model itself is not in the repository.
+
 Sound: "Gun hitting ground" by JakLocke
 https://freesound.org/s/412295/
 License: Creative Commons Attribution 4.0 (CC BY 4.0), https://creativecommons.org/licenses/by/4.0/

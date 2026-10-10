@@ -69,9 +69,14 @@ class HolsterTests
   foreach(var sl in new[]{HolsterSlot.ChestLeft,HolsterSlot.ChestRight})
    Check(HolsterLayout.GrabRadiusOf(sl)>HolsterLayout.GrabRadius&&HolsterLayout.SnapRadiusOf(sl)>HolsterLayout.GrabRadiusOf(sl)&&HolsterLayout.HintRadiusOf(sl)>HolsterLayout.SnapRadiusOf(sl),"chest reach "+sl);
   Check(System.Numerics.Vector3.Distance(HolsterLayout.Pose(HolsterSlot.ChestLeft,false).Reach,HolsterLayout.Pose(HolsterSlot.ChestRight,false).Reach)>HolsterLayout.ChestGrabRadius,"one chest place's reach swallows the other's place");
-  {var pouch=new System.Numerics.Vector3(-.19f,-.57f,.15f);Check(System.Numerics.Vector3.Distance(HolsterLayout.Pose(HolsterSlot.BeltLeft,false).Reach,pouch)>.21f,"left belt pistol still on the pouch");
+  // 0.1.256: the belt's pouch in front (its middle 0.555 m below the eyes, 4 cm back, the pouch 23 cm ahead of
+  // that, 10 cm to each side, 4.5 cm deep) and a row of shells on each hip (out to 23.4 cm): the belly's long gun
+  // in front of the pouch, the belt pistols outside the shells.
+  {var pouchFront=-.04f+.233f+.045f;var bellyGun=HolsterLayout.Pose(HolsterSlot.Belly,false);
+   Check(bellyGun.Grip.Z-.025f>pouchFront&&bellyGun.Grip.Y>-.61f&&bellyGun.Grip.Y<-.44f,"the belly's long gun through the belt's pouch ("+bellyGun.Grip+")");
+   Check(HolsterLayout.Pose(HolsterSlot.BeltRight,false).Grip.X-.015f>.233f&&HolsterLayout.Pose(HolsterSlot.BeltLeft,false).Grip.X+.015f<-.233f,"a belt pistol in the belt's shells");
    Check(System.Numerics.Vector3.Distance(HolsterLayout.Pose(HolsterSlot.BeltLeft,false).Reach,HolsterLayout.Pose(HolsterSlot.ArmpitLeft,false).Reach)>.15f,"left belt reach swallows the armpit place");
-   Check(HolsterLayout.Pose(HolsterSlot.BeltRight,true).Reach==new System.Numerics.Vector3(-.20f,-.45f,0)&&HolsterLayout.Pose(HolsterSlot.BeltLeft,true).Reach==new System.Numerics.Vector3(.23f,-.45f,-.03f),"left-hander's belt places not mirrored");}
+   Check(HolsterLayout.Pose(HolsterSlot.BeltRight,true).Reach==new System.Numerics.Vector3(-.25f,-.45f,0)&&HolsterLayout.Pose(HolsterSlot.BeltLeft,true).Reach==new System.Numerics.Vector3(.25f,-.45f,-.03f),"left-hander's belt places not mirrored");}
   // The wider shoulder reach does not swallow the chest/armpit places next to it.
   foreach(var near in new[]{HolsterSlot.ArmpitLeft,HolsterSlot.ChestLeft})
    Check(System.Numerics.Vector3.Distance(HolsterLayout.Pose(near,false).Reach,HolsterLayout.Pose(HolsterSlot.LeftShoulder,false).Reach)>HolsterLayout.ShoulderGrabRadius,"shoulder reach covers "+near);

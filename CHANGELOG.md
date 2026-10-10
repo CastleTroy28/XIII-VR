@@ -2,6 +2,32 @@
 
 The version is in `Install-XIII-VR.ps1`, `src/Plugin.cs` and `src/XIII.XRBootstrap.csproj`.
 
+## 0.1.257
+
+- **The AK, the M16 and the crossbows a little larger.** They looked small. They are now drawn 10% larger than the game draws them against its own hand: the AK 94 cm long (was 85), the M16 1.09 m (was 99 cm), the harpoon gun 1.13 m, the tactical crossbow 1.01 m and the crossbow 98 cm. The hand holding them stays the size it was, its fist where it was on the grip, so it does not grow as you take one. The other guns are unchanged.
+- **World scale 100% by default** (was 120%): the world as big as it is. A world scale still at the old 120% is moved to 100% once on the first start; one you chose otherwise stays. VR SETTINGS > World scale changes it as before.
+
+## 0.1.256
+
+- **The belt's pouch in the middle.** The ammunition belt is now worn turned round: its pouch in the middle of the front (magazines and rockets are taken there) and a row of eight shotgun shells on each hip. A right-hander's shells are used from the left hip first, front to back, then the right hip's; a left-hander's from the right hip first.
+- The weapon places moved off the belt: the long gun on the belly hangs 10 cm further forward, in front of the pouch (it went through it), and the pistols on the belt 5 cm (right) and 2 cm (left) further out, outside the shells. A place you moved yourself moves with them.
+
+## 0.1.255
+
+- **A new ammunition belt.** The belt round your waist is now a 3D model made for the mods (the same belt the classic XIII mod wears): an olive canvas belt with a pouch, two rows of eight shotgun shells in loops and a buckle behind, at its own size. It is worn with the pouch on the left hip and a row of shells across the front, so a right-hander's left hand finds them while the right holds the gun; a left-hander wears it mirrored, the pouch on the right hip. Magazines and rockets are taken at the pouch, shells at their heads. The shells in the loops are your shotgun reserve, up to sixteen, the easiest to reach first; a used shell leaves its loop empty.
+- The old built belt (the brown leather bag, its eight loops) is gone. The log says when the belt is made (`BELT the ammunition belt ...`).
+
+## 0.1.254
+
+- **3D watches on the wrists, the same as in the classic XIII mod.** Each hand now wears a digital wristwatch made for the mods (a 3D model, 1541 points, the same one the classic XIII mod has), its strap round the wrist as the hand's own section is fitted, its face on the back of the wrist. The face is an LCD drawn by the mod: a light olive screen in a red line, the numbers in seven segments with the unlit ones faint, a cross and a shield, cartridges, and short labels in the game's language (all 8). The left watch shows the health and the armour, the right one the rounds in the weapon and the rest (a left-hander's the other way round). With a gun in each hand the lower row shows the other hand's rounds and its letter; during a manual reload the lower row writes the step (INSERT, RACK, CHEST...); the M16's grenades are shown small beside the rounds. The face is read like a watch with the arm held before the chest: the rows along the forearm, the top away from you. It is lit by the scene and glows a little, so it reads in dark places too, and it is drawn only while it faces you.
+- The old flat-topped watch, its separate strap and the digits made of small squares are gone. The face is drawn again only when one of its numbers changes (about half a millisecond; the parts that stay are drawn once).
+- The log says how each watch was built (`WATCH 3D on the left wrist: ...`).
+
+## 0.1.253
+
+- **Every thing to take is taken with either grip alone, wherever it lies, and its hint says so.** A bottle in the prison's laundry needed Grip + A, and its hint showed Grip + A. The mod took it for a door because of the names of the level's objects above it (grouped like the lockers and doors), or a door above it in the level. Anything the game gives to take (bottles, chairs, weapons, ammunition, keys, medkits, documents) is now never a door. Doors, cabinets, lockers, hatches and vents keep Grip + A.
+- A grip press at a thing that takes nothing writes why in the log (`INTERACTION GRIP ... not taken (...)`). A thing whose place in the level looks like a door's or a locker's is noted there once.
+
 ## 0.1.252
 
 - **The tactical crossbow's scope picture fills its eyepiece and lies on its glass.** The eyecup of that scope is wider than the scope's tube, and the picture's size was measured only within the tube. It was 2.8 cm across in a 3.6 cm cup, 8 mm in front of the model's green glass, which showed around it. The scope's own flat glass across the eyepiece is now found, and the picture is placed just in front of it, centred on it and as wide as the cup's opening. A scope without such a glass, or with only a narrow lens deep inside, keeps the picture at the rim as before.

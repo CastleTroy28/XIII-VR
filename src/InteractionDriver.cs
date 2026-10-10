@@ -31,25 +31,31 @@ internal sealed partial class InteractionDriver : IDisposable
     // cabinet or locker, not a body/hostage).
     private bool PickupTarget()
     {
+        pickupBlock="";
         try
         {
-            if(rays.Count==0||props.Consumes(MainRight)||doors.Consumes(MainRight))return false;
+            if(rays.Count==0)return Blocked("no ray");
+            if(props.Consumes(MainRight))return Blocked("the hand is at a physical thing");
+            if(doors.Consumes(MainRight))return Blocked("the hand is at a door");
             // 0.1.124: the grip at a weapon on the body takes that weapon.
-            if(WeaponHands.Current?.MainNearHolster==true)return false;
+            if(WeaponHands.Current?.MainNearHolster==true)return Blocked("the hand is at a holster");
             // 0.1.186: the grip that took a medkit from a forearm.
-            if(GameUiControls.Current?.Items.ArmHeld(MainRight)==true)return false;
+            if(GameUiControls.Current?.Items.ArmHeld(MainRight)==true)return Blocked("the hand holds a medkit");
             // 0.1.125: a pointed weapon is taken by the pointing grab.
             // 0.1.171: the weapon this hand points at (or did a moment ago).
-            if(WeaponHands.Current?.PointedWeaponBy(MainRight)==true)return false;
+            if(WeaponHands.Current?.PointedWeaponBy(MainRight)==true)return Blocked("the hand points at a weapon");
             // 0.1.245: a hand holding a weapon taken from the ground or the body (or whose grip has just taken one) picks nothing else up: one press took a revolver and the broom behind it.
-            if(WeaponHands.Current?.HandTaken(MainRight)==true)return false;
+            if(WeaponHands.Current?.HandTaken(MainRight)==true)return Blocked("the hand has just taken a weapon");
             var ray=rays[0];
-            if(ray==null||!ray.hasRayHit||ray.RaycastHittable==null||ray.rayHit.distance>3||!ray.IsRaycastHittablePingValid())return false;
-            if(carry.IsBodyTarget(ray))return false;
-            doorFrame=-1;return !DoorTarget;
+            if(ray==null||!ray.hasRayHit||ray.RaycastHittable==null||ray.rayHit.distance>3||!ray.IsRaycastHittablePingValid())return Blocked("nothing in reach");
+            if(carry.IsBodyTarget(ray))return Blocked("a body");
+            doorFrame=-1;return !DoorTarget||Blocked("a door, cabinet or lock (Grip + A)");
         }
         catch(Exception ex){Bootstrap.Warn("INTERACTION pickup target: "+ex.Message);return false;}
     }
+    // 0.1.253: why the last grip press took nothing (logged for a thing of the game's within reach).
+    private string pickupBlock="";
+    private bool Blocked(string why){pickupBlock=why;return false;}
     // Doors/cabinets/lockers and key, card, lockpick or hook locks keep the
     // deliberate Grip + A. Cached per frame (HUD labels ask every frame).
     private int doorFrame=-1;private bool doorTarget;
@@ -363,6 +369,9 @@ internal sealed partial class InteractionDriver : IDisposable
             Bootstrap.Write("INTERACTION PRESS "+(OffRight?"right":"left")+" grip (the other hand, a thing) player="+playerId+" target="+(rays.Count>0?rays[0].RaycastHittable?.TryCast<Component>()?.name:"none"));
         }
         if(input.Action.Down){int side=MainRight?1:0;carry.PressedBy(side);if(ThingTarget(3))WeaponHands.ThingTakenBy(side);}
+        else if(allowed&&pickupBlock.Length>0&&(MainControls.Down&HandControls.Grip)!=0&&(MainControls.Held&HandControls.A)==0&&ThingTarget(3))
+            Bootstrap.Write("INTERACTION GRIP "+(MainRight?"right":"left")+" at "+rays[0].RaycastHittable?.TryCast<Component>()?.name+": not taken ("+pickupBlock+")");
+        pickupBlock="";
         if(input.Action.Down) Bootstrap.Write("INTERACTION PRESS "+(MainRight?"right ":"left ")+(input.LockHeld?(MainRight?"R3 (a lock)":"L3 (a lock)"):(MainControls.Held&HandControls.A)!=0?(MainRight?"grip+A":"grip+X"):"grip")+" player="+playerId+" target="+(rays.Count>0?rays[0].RaycastHittable?.TryCast<Component>()?.name:"none"));
     }
     private bool PrepareRay(out Vector3 position,out Quaternion rotation)

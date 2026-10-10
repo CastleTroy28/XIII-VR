@@ -27,10 +27,17 @@ class QualityMenuTests
   QualityOptions.Load(oldDefault);Check(QualityOptions.RenderScale.Value==1f,"the old 75% default was not moved to 100%");
   QualityOptions.RenderScale.Value=.75f;QualityOptions.Load(oldDefault);Check(QualityOptions.RenderScale.Value==.75f,"a later own 75% was moved to 100% again");
   QualityOptions.Load(oldConfig);Check(QualityOptions.RenderScale.Value==.95f,"an own resolution (95%) was changed");
-  // 0.1.239: an old config's world scale (it never changed anything before 0.1.238) is moved to 120% once; a later own choice stays.
+  // 0.1.239: an old config's world scale (it never changed anything before 0.1.238) is moved to the default once; a later own choice stays.
+  // 0.1.257: 100% by default; a scale left at the old default (120%) is moved to 100% once, another own choice stays.
+  Check(QualityOptions.WorldScaleDefault==1f,"the world scale not 100% by default");
   var oldScale=new BepInEx.Configuration.ConfigFile();oldScale.Bind("VR","WorldScale",.8f,"");
-  QualityOptions.Load(oldScale);Check(MathF.Abs(QualityOptions.WorldScaleValue-1.2f)<1e-4f,"an old world scale not moved to 120%");
-  QualityOptions.WorldScale!.Value=.9f;QualityOptions.Load(oldScale);Check(MathF.Abs(QualityOptions.WorldScaleValue-.9f)<1e-4f,"a later own world scale moved to 120% again");
+  QualityOptions.Load(oldScale);Check(MathF.Abs(QualityOptions.WorldScaleValue-1f)<1e-4f,"an old world scale not moved to 100%");
+  QualityOptions.WorldScale!.Value=.9f;QualityOptions.Load(oldScale);Check(MathF.Abs(QualityOptions.WorldScaleValue-.9f)<1e-4f,"a later own world scale moved to 100% again");
+  var at120=new BepInEx.Configuration.ConfigFile();at120.Bind("VR","WorldScale",1.2f,"");at120.Bind("VR","WorldScaleDefaultsVersion",239,"");
+  QualityOptions.Load(at120);Check(MathF.Abs(QualityOptions.WorldScaleValue-1f)<1e-4f,"a world scale left at the old 120% default not moved to 100%");
+  QualityOptions.WorldScale!.Value=1.2f;QualityOptions.Load(at120);Check(MathF.Abs(QualityOptions.WorldScaleValue-1.2f)<1e-4f,"120% chosen again moved to 100% again");
+  var own110=new BepInEx.Configuration.ConfigFile();own110.Bind("VR","WorldScale",1.1f,"");own110.Bind("VR","WorldScaleDefaultsVersion",239,"");
+  QualityOptions.Load(own110);Check(MathF.Abs(QualityOptions.WorldScaleValue-1.1f)<1e-4f,"an own world scale (110%) moved to 100%");
   QualityOptions.Load(new BepInEx.Configuration.ConfigFile());
   var display=new UnityEngine.XR.XRDisplaySubsystem();QualityMenu.Attach(display);
   Check(display.Scale==1f&&display.Sets==1,"fresh scale not applied once (100% by default since 0.1.182)");
@@ -114,9 +121,9 @@ class QualityMenuTests
   UiLanguage.ReadCode=()=>"de";Check(QualityMenu.Text.Contains("Zweihandwaffe in einer Hand: 15° zur anderen Hand"),"gun turn row not translated");UiLanguage.ReadCode=()=>"ru";
   Tick();Tick(y:-1);Tick();
   // 0.1.233: the world scale (100% by default, 50-150% in steps of 5) and the weapons' inertia (100%, off to 200% in steps of 25).
-  // 0.1.239: 120% by default.
-  Check(MathF.Abs(QualityOptions.WorldScaleValue-1.2f)<1e-4f&&QualityMenu.Text.Contains("> Масштаб мира: 120%")&&QualityMenu.Adjustable(QualityMenu.WorldScaleRow),"world scale row missing, not 120% by default or without arrows");
-  Tick(-1);Check(MathF.Abs(QualityOptions.WorldScaleValue-1.15f)<1e-4f&&QualityMenu.Text.Contains("Масштаб мира: 115%"),"world scale cannot be lowered");
+  // 0.1.239: 120% by default. 0.1.257: 100% again.
+  Check(MathF.Abs(QualityOptions.WorldScaleValue-1f)<1e-4f&&QualityMenu.Text.Contains("> Масштаб мира: 100%")&&QualityMenu.Adjustable(QualityMenu.WorldScaleRow),"world scale row missing, not 100% by default or without arrows");
+  Tick(-1);Check(MathF.Abs(QualityOptions.WorldScaleValue-.95f)<1e-4f&&QualityMenu.Text.Contains("Масштаб мира: 95%"),"world scale cannot be lowered");
   for(int n=0;n<15;n++){Tick();Tick(-1);}
   Check(MathF.Abs(QualityOptions.WorldScaleValue-.5f)<1e-4f,"world scale not held at 50%");
   QualityMenu.Click(QualityMenu.WorldScaleRow,1);Check(MathF.Abs(QualityOptions.WorldScaleValue-.55f)<1e-4f,"ray arrow does not raise the world scale");
@@ -134,7 +141,7 @@ class QualityMenuTests
   QualityMenu.Click(QualityMenu.InertiaRow,0);Check(QualityOptions.WeaponInertia.Value==0,"ray click does not wrap the weapon inertia to off");
   QualityOptions.WeaponInertia.Value=1f;
   UiLanguage.ReadCode=()=>"de";Check(QualityMenu.Text.Contains("Waffenträgheit: 100%"),"weapon inertia row not translated");UiLanguage.ReadCode=()=>"ru";
-  Console.WriteLine("PASS: 0.1.233 world scale (50-150%, 120% by default since 0.1.239, moved there once) and weapon inertia (off-200%, 100% by default) rows in VR SETTINGS, with arrows, translated.");
+  Console.WriteLine("PASS: 0.1.233 world scale (50-150%, 100% by default since 0.1.257, a scale left at the old 120% moved there once) and weapon inertia (off-200%, 100% by default) rows in VR SETTINGS, with arrows, translated.");
   Tick();Tick(y:-1);Tick();
   // 0.1.234: the cutscene camera (steady by default) and the weapon places editor.
   Check(QualityOptions.CutsceneMode==0&&QualityMenu.Row==QualityMenu.CutsceneRow&&QualityMenu.Text.Contains("> Камера в роликах: экран (стоит на месте)")&&!QualityMenu.Adjustable(QualityMenu.CutsceneRow),"cutscene camera row missing or not the still screen by default");

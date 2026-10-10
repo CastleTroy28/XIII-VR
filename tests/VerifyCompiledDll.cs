@@ -9,7 +9,7 @@ class Verify
   using var p=ModuleDefinition.ReadModule(args.Length>0?args[0]:"xiii-xr/XIII.XRBootstrap.dll");
   var plugin=p.Types.Single(t=>t.Name=="Plugin");
   var info=plugin.CustomAttributes.Single(a=>a.AttributeType.Name=="BepInPlugin");
-  Require((string)info.ConstructorArguments[2].Value=="0.1.252","compiled plugin reports version 0.1.252");
+  Require((string)info.ConstructorArguments[2].Value=="0.1.257","compiled plugin reports version 0.1.257");
   var sceneHands=p.Types.Single(x=>x.Name=="WeaponHands");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="OnSceneChanged")).Any(x=>x.Name=="Clear"),"scene change clears weapon state");
   Require(Calls(sceneHands.Methods.Single(x=>x.Name=="RegisterHand")).Any(x=>x.Name=="Clear"),"new native skeleton invalidates cached grip anchors");
@@ -889,8 +889,9 @@ class Verify
   Require(Calls(p.Types.Single(x=>x.Name=="StereoCheck").Methods.Single(x=>x.Name=="Tick")).Any(x=>x.Name=="get_WorldScaleValue")
    &&p.Types.Single(x=>x.Name=="StereoCheck").NestedTypes.Any(t=>t.Methods.Any(m=>Calls(m).Any(x=>x.Name=="Measure"&&x.DeclaringType.Name=="StereoDisparity"))),
    "the eyes' pictures are never compared");
-  // 0.1.239: the world scale 120% by default, moved there once for everyone.
-  Require(Str(p.Types.Single(x=>x.Name=="QualityOptions"),"WorldScaleDefaultsVersion")&&p.Types.Single(x=>x.Name=="QualityOptions").Fields.Any(f=>f.Name=="WorldScaleDefault"&&f.HasConstant&&Math.Abs((float)f.Constant-1.2f)<1e-6f),"the world scale is not 120% by default");
+  // 0.1.239: the world scale 120% by default, moved there once for everyone. 0.1.257: 100%, a scale left at 120% moved there once.
+  Require(Str(p.Types.Single(x=>x.Name=="QualityOptions"),"WorldScaleDefaultsVersion")&&p.Types.Single(x=>x.Name=="QualityOptions").Fields.Any(f=>f.Name=="WorldScaleDefault"&&f.HasConstant&&Math.Abs((float)f.Constant-1f)<1e-6f)
+   &&p.Types.Single(x=>x.Name=="QualityOptions").Fields.Any(f=>f.Name=="WorldScaleDefaults"&&f.HasConstant&&(int)f.Constant==257),"the world scale is not 100% by default");
   // 0.1.240: F9 while VR runs is ignored.
   Require(Str(p.Types.Single(x=>x.Name=="Bootstrap"),"START ignored (F9): VR is already running (it starts by itself; F10 stops it)"),"F9 starts VR again over the running session");
   // 0.1.241: the revolver's cylinder and the double-barrel stay open until shut: their flicks measured in the room (not against the head).
@@ -939,6 +940,31 @@ class Verify
   // 0.1.249: the shotguns drawn 1.08 m long (the hand on them as on the other guns).
   Require(p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length"&&x.Parameters.Count==1).Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-1.08f)<1e-6f)
    &&p.Types.Single(x=>x.Name=="ContactSolver").Methods.Single(x=>x.Name=="Weapon").Body.Instructions.Any(i=>i.Operand is float f&&Math.Abs(f-1.08f)<1e-6f),"the shotguns still drawn 0.95 m (the hand on them small)");
+  // 0.1.257: the AK, the M16 and the crossbows drawn 10% larger (the hand on them kept its size, its fist on the grip).
+  Require(p.Types.Single(x=>x.Name=="EquipmentProfile").Fields.Any(f=>f.Name=="RifleGrowth"&&f.HasConstant&&Math.Abs((float)f.Constant-1.1f)<1e-6f)
+   &&Calls(p.Types.Single(x=>x.Name=="EquipmentProfile").Methods.Single(x=>x.Name=="Length"&&x.Parameters.Count==1)).Any(x=>x.Name=="Growth")
+   &&Calls(p.Types.Single(x=>x.Name=="WeaponHands").Methods.Single(x=>x.Name=="NativeGrip")).Any(x=>x.Name=="Hand"&&x.DeclaringType.Name=="GrownGrip"),"the AK, the M16 and the crossbows still at the game's size (or the hand on them grown with them)");
+  // 0.1.256: the belt's pouch in the middle of the front, the shells on both hips; the belly's long gun in front of
+  // the pouch (27 cm ahead), the belt pistols outside the shells (25 cm out).
+  {var layout256=p.Types.Single(x=>x.Name=="HolsterLayout").Methods.Single(x=>x.Name=="Pose"&&x.Parameters.Count==3).Body.Instructions;
+   Require(p.Types.Single(x=>x.Name=="AmmoPouch").Methods.Where(m=>m.HasBody).SelectMany(m=>m.Body.Instructions).Any(i=>i.Operand is string o&&o.Contains("the pouch in front, the shells on both hips"))&&layout256.Any(i=>i.Operand is float f&&Math.Abs(f-.27f)<1e-6f)
+    &&layout256.Any(i=>i.Operand is float g&&Math.Abs(g+.25f)<1e-6f)&&layout256.Any(i=>i.Operand is float h&&Math.Abs(h-.25f)<1e-6f)&&!layout256.Any(i=>i.Operand is float k&&Math.Abs(k-.17f)<1e-6f),"the belt's pouch not in front, or a weapon place still in it");}
+  // 0.1.255: the ammunition belt a 3D model (BeltModel), its pouch on the left hip, the reserve's shells in their loops.
+  var pouch255=p.Types.Single(x=>x.Name=="AmmoPouch");
+  Require(Calls(pouch255.Methods.Single(x=>x.Name=="SetShellCount")).Any(x=>x.Name=="Build"&&x.DeclaringType.Name=="BeltModelMath")&&Calls(pouch255.Methods.Single(x=>x.Name=="NearShell")).Any(x=>x.Name=="AtShell")
+   &&Calls(pouch255.Methods.Single(x=>x.Name=="Near")).Any(x=>x.Name=="AtPouch")&&!p.Types.Any(x=>x.Name=="AmmoPouchGeometry")
+   &&!p.Types.Single(x=>x.Name=="ToneMeshVisual").Methods.SelectMany(Calls).Any(x=>x.DeclaringType.Name=="Canvas"||x.DeclaringType.Name=="RectTransform"),"the old built belt still worn (or the new one's shells not the reserve's)");
+  // 0.1.254: the 3D watch (the classic mod's model) on each wrist, its LCD face a picture drawn when its numbers change, no UI.
+  var glove254=p.Types.Single(x=>x.Name=="GloveVisual");var watch254=p.Types.Single(x=>x.Name=="WatchVisual");
+  Require(Calls(glove254.Methods.Single(x=>x.Name=="RefreshDisplay")).Any(x=>x.Name=="Draw"&&x.DeclaringType.Name=="WatchFacePixels")&&Calls(glove254.Methods.Single(x=>x.Name=="RefreshDisplay")).Any(x=>x.Name=="SetFace")
+   &&Calls(glove254.Methods.Single(x=>x.Name=="BindNative")).Any(x=>x.Name=="Fit"&&x.DeclaringType.Name=="WatchVisual")&&Calls(glove254.Methods.Single(x=>x.Name=="Pose")).Any(x=>x.Name=="ShowFace")
+   &&Calls(watch254.Methods.Single(x=>x.Name=="Fit")).Any(x=>x.Name=="Build"&&x.DeclaringType.Name=="WatchModelMath")&&Calls(watch254.Methods.Single(x=>x.Name=="SetFace")).Any(x=>x.Name=="SetPixels32")
+   &&!watch254.Methods.SelectMany(Calls).Any(x=>x.DeclaringType.Name=="Canvas"||x.DeclaringType.Name=="RectTransform")&&!p.Types.Any(x=>x.Name=="HandMeshGeometry"&&x.Methods.Any(m=>m.Name=="BuildWatch")),"the old built watch still on the wrists (or the 3D watch's face not drawn / placed as UI)");
+  // 0.1.253: a thing to take is never a door (either grip takes it, its hint says so); a grip press at a thing that took nothing says why.
+  var hints253=p.Types.Single(x=>x.Name=="InteractionHints");var driver253=p.Types.Single(x=>x.Name=="InteractionDriver");
+  Require(Calls(hints253.Methods.Single(x=>x.Name=="IsDoor")).OfType<GenericInstanceMethod>().Any(g=>g.Name=="Of"&&g.GenericArguments.Any(a=>a.Name=="PickableItem"))
+   &&Calls(driver253.Methods.Single(x=>x.Name=="get_DoorTarget")).Any(x=>x.Name=="IsDoor"&&x.DeclaringType.Name=="InteractionHints")
+   &&Calls(driver253.Methods.Single(x=>x.Name=="PickupTarget")).Any(x=>x.Name=="Blocked")&&Str(driver253,": not taken ("),"a bottle among the lockers still taken with Grip + A only (and its hint still Grip + A)");
   // 0.1.252: the tube scope's picture on the eyepiece's own glass; the measured reticle turn the plain crossbow's only.
   var visual252=p.Types.Single(x=>x.Name=="WeaponVisual");
   Require(Calls(visual252.Methods.Single(x=>x.Name=="BuildTubeScope")).Any(x=>x.Name=="FindGlass"&&x.DeclaringType.Name=="ScopeGeometry")&&Calls(visual252.Methods.Single(x=>x.Name=="BuildTubeScope")).Any(x=>x.Name=="OnGlass")

@@ -1,21 +1,19 @@
 using System;
 using UnityEngine;
 namespace XiiiXR;
-// One rigid root owns the native hand, closed watch and display mesh.
+// One rigid root owns the native hand and its watch (0.1.254: the 3D digital wristwatch, its face a picture).
 // It is sampled once before culling, then stays fixed for all cameras/eyes.
 internal sealed class GloveVisual : IDisposable
 {
     private GameObject? root;
-    private GameObject? wearable,bandRoot;
-    private RigidMeshVisual? band;
-    private RigidMeshVisual? watch,display;
+    private GameObject? wearable;
+    private WatchVisual? watch;
     private NativeHandVisual? native;
     private readonly bool right;
     private WristFit fit=WristFit.Default;
-    private float faceLift;
     private int posedFrame=-1;
     private string primary="-",secondary="-",language="";
-    private float health=1,armor=1,nextError,curl,triggerCurl;
+    private float nextError,curl,triggerCurl;
     internal Transform? Attachment=>root==null?null:root.transform;
     internal bool Valid=>root!=null;
     internal bool Visible=>root!=null && root.activeSelf && native?.Valid==true;
@@ -25,13 +23,10 @@ internal sealed class GloveVisual : IDisposable
         try
         {
             root=new GameObject(right?"XIII right native hand and watch":"XIII left native hand and watch");root.layer=0;root.SetActive(false);
-            wearable=new GameObject("XIII single wristband");wearable.layer=root.layer;wearable.transform.SetParent(root.transform,false);
-            bandRoot=new GameObject("XIII skin aligned wrist strap");bandRoot.transform.SetParent(root.transform,false);
-            band=new RigidMeshVisual(bandRoot.transform,"XIII fitted wrist strap");
-            watch=new RigidMeshVisual(wearable.transform,"XIII closed watch case");watch.Set(HandMeshGeometry.BuildWatch(right));
-            display=new RigidMeshVisual(wearable.transform,"XIII rigid watch digits",true);
-            display.Set(WatchFaceGeometry.Build(AmmoFace,primary,secondary,health,armor,AmmoFace&&!right));
-            Bootstrap.Write("WATCH rigid mesh display, same parent/layer as case; no Canvas; closed underside.");
+            wearable=new GameObject("XIII watch on the wrist");wearable.layer=root.layer;wearable.transform.SetParent(root.transform,false);
+            watch=new WatchVisual(wearable.transform,right?"XIII right 3D watch":"XIII left 3D watch");
+            watch.Fit(right,fit.RadiusX,fit.RadiusY);RefreshDisplay();
+            Bootstrap.Write("WATCH 3D digital wristwatch (the classic mod's model), its LCD face a picture drawn by the mod; no Canvas.");
         }
         catch{Dispose();throw;}
     }
@@ -45,20 +40,18 @@ internal sealed class GloveVisual : IDisposable
         try
         {
             native=NativeHandVisual.Create(root.transform,player,right,handsOnly);WeaponHands.Current?.RegisterHand(native,right);
-            fit=native.Wrist;faceLift=fit.RadiusY+.0025f-.040f;
-            watch?.Set(HandMeshGeometry.BuildWatch(right,fit.RadiusX,fit.RadiusY,false));
-            band?.Set(HandMeshGeometry.BuildBand(right,fit.RadiusX,fit.RadiusY,false));RefreshDisplay();
+            fit=native.Wrist;
+            watch?.Fit(right,fit.RadiusX,fit.RadiusY);
         }
         catch(Exception ex){Report(ex);}
     }
     internal void Readout(string main,string extra,float hp=1,float ap=1)
     {
+        // 0.1.254: the face shows the numbers (the bars hp, ap are not on it): drawn again when they change.
         main=WatchFaceGeometry.Clean(main);extra=WatchFaceGeometry.Clean(extra);
-        hp=float.IsFinite(hp)?Mathf.Clamp01(hp):0;ap=float.IsFinite(ap)?Mathf.Clamp01(ap):0;
-        hp=MathF.Round(hp*100)/100;ap=MathF.Round(ap*100)/100;
         string code=UiLanguage.Code;
-        if(main==primary && extra==secondary && hp==health && ap==armor&&language==code)return;language=code;
-        primary=main;secondary=extra;health=hp;armor=ap;
+        if(main==primary && extra==secondary && language==code)return;language=code;
+        primary=main;secondary=extra;
         RefreshDisplay();
     }
     // 0.1.146: which readout this wrist's watch shows (the ammunition one on
@@ -69,11 +62,12 @@ internal sealed class GloveVisual : IDisposable
         get=>ammoFaceSet?ammoFace:right;
         set{if(ammoFaceSet&&ammoFace==value)return;ammoFace=value;ammoFaceSet=true;primary=secondary="-";RefreshDisplay();}
     }
+    // 0.1.254: the face's picture: health and armour, or the rounds (WatchFacePixels, the game's language).
     private void RefreshDisplay()
     {
-        var geometry=WatchFaceGeometry.Build(AmmoFace,primary,secondary,health,armor,AmmoFace&&!right);
-        for(int i=0;i<geometry.Vertices.Count;i++)geometry.Vertices[i]+=System.Numerics.Vector3.UnitY*faceLift;
-        display?.Set(geometry);
+        if(watch==null)return;
+        var reading=WatchFacePixels.Read(AmmoFace,primary,secondary,AmmoFace&&!right);
+        watch.SetFace(WatchFacePixels.Draw(reading,language.Length>0?language:UiLanguage.Code));
     }
     internal void Pose(PoseValue pose,float gripTarget,float triggerTarget)
     {
@@ -177,19 +171,15 @@ internal sealed class GloveVisual : IDisposable
         {
             var swing=native?.ForearmSwing??System.Numerics.Quaternion.Identity;
             var mount=WatchMountMath.BandPose(fit,swing,held?size:1);
-            var strap=WatchMountMath.BandPose(fit,swing,held?size:1);
-            if(bandRoot!=null){bandRoot.transform.localScale=Vector3.one*(held?size:1);
-                bandRoot.transform.localPosition=new Vector3(strap.position.X,strap.position.Y,strap.position.Z);
-                bandRoot.transform.localRotation=new Quaternion(strap.rotation.X,strap.rotation.Y,strap.rotation.Z,strap.rotation.W);}
             wearable.transform.localScale=Vector3.one*(held?size:1);
             wearable.transform.localRotation=new Quaternion(mount.rotation.X,mount.rotation.Y,mount.rotation.Z,mount.rotation.W);
             wearable.transform.localPosition=new Vector3(mount.position.X,mount.position.Y,mount.position.Z);
         }
-        // Digits inherit this exact transform. Never place/reproject them as UI.
+        // The face inherits this exact transform. Never place/reproject it as UI.
         var displayRoot=wearable!.transform;
-        var o=HandMeshGeometry.ScreenPosition;var p=displayRoot.TransformPoint(new Vector3(o.X,o.Y+faceLift,o.Z));
+        var o=WatchModelMath.FaceCentre(right,fit.RadiusX,fit.RadiusY);var p=displayRoot.TransformPoint(new Vector3(o.X,o.Y,o.Z));
         var head=CameraRig.Current?.HeadPosition ?? p;
-        display?.Show(Vector3.Dot(displayRoot.up,(head-p).normalized)>.03f && Vector3.Distance(p,head)<1.3f);
+        watch?.ShowFace(Vector3.Dot(displayRoot.up,(head-p).normalized)>.03f && Vector3.Distance(p,head)<1.3f);
         root.SetActive(true);
     }
     private static System.Numerics.Vector3 ToN(Vector3 p)=>new(p.x,p.y,p.z);
@@ -206,7 +196,7 @@ internal sealed class GloveVisual : IDisposable
     {if(Time.realtimeSinceStartup<nextError)return;nextError=Time.realtimeSinceStartup+10;Bootstrap.Warn("NATIVE HAND "+(right?"R":"L")+" unavailable; watch remains active: "+ex.Message);}
     public void Dispose()
     {
-        native?.Dispose();native=null;band?.Dispose();band=null;display?.Dispose();display=null;watch?.Dispose();watch=null;
+        native?.Dispose();native=null;watch?.Dispose();watch=null;
         if(root!=null)UnityEngine.Object.Destroy(root);root=null;
     }
 }
